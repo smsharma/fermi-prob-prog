@@ -42,7 +42,6 @@ class Glow(nn.Module):
             sldj = torch.zeros(x.size(0), device=x.device)
             x, sldj = self.dequantization(x, sldj)
 
-        print(x, sldj)
         x = squeeze(x)
         x, sldj = self.flows(x, sldj, reverse)
         x = squeeze(x, reverse=True)
