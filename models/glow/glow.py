@@ -35,7 +35,7 @@ class Glow(nn.Module):
 
         self.dequantization = Dequantization()
 
-    def forward(self, x, reverse=False):
+    def forward(self, x, reverse=False, quant_int=True):
         if reverse:
             sldj = torch.zeros(x.size(0), device=x.device)
         else:
@@ -47,7 +47,7 @@ class Glow(nn.Module):
         x = squeeze(x, reverse=True)
 
         if reverse:
-            x, sldj = self.dequantization(x, sldj, reverse=True)
+            x, sldj = self.dequantization(x, sldj, reverse=True, quant_int=quant_int)
 
         return x, sldj
 
@@ -154,7 +154,7 @@ class Dequantization(nn.Module):
         self.alpha = alpha
         self.quants = quants
 
-    def forward(self, z, ldj, reverse=False):
+    def forward(self, z, ldj, reverse=False, quant_int=True):
         if not reverse:
             z, ldj = self.dequant(z, ldj)
             z, ldj = self.sigmoid(z, ldj, reverse=True)
@@ -162,7 +162,8 @@ class Dequantization(nn.Module):
             z, ldj = self.sigmoid(z, ldj, reverse=False)
             z = z * self.quants
             ldj += np.log(self.quants) * np.prod(z.shape[1:])
-            z = torch.floor(z).clamp(min=0, max=self.quants-1).to(torch.int32)
+            if quant_int:
+                z = torch.floor(z).clamp(min=0, max=self.quants-1).to(torch.int32)
         return z, ldj
 
     def sigmoid(self, z, ldj, reverse=False):
