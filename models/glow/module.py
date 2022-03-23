@@ -24,9 +24,9 @@ class GlowPL(pl.LightningModule):
         
         z, sldj = self.flow(x)
         nll = self.loss(z, sldj)
-        bpd = bits_per_dim(x, nll)
+        # bpd = bits_per_dim(x, nll)
         
-        return bpd
+        return nll  # bpd
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=3e-4, weight_decay=1e-5)
