@@ -13,7 +13,7 @@ class GlowPL(pl.LightningModule):
         """
         super().__init__()
         self.flow = Glow(num_channels, num_levels, num_steps, quants=quants)
-        self.loss = NLLLoss()
+        self.loss = NLLLoss(k=quants)
 
     def log_prob(self, x):
         """
