@@ -23,7 +23,7 @@ class Glow(nn.Module):
         num_levels (int): Number of levels in the entire model.
         num_steps (int): Number of steps of flow for each level.
     """
-    def __init__(self, num_channels, num_levels, num_steps, num_image_channels=1):
+    def __init__(self, num_channels, num_levels, num_steps, quants=256, num_image_channels=1):
         super(Glow, self).__init__()
 
         # Use bounds to rescale images before converting to logits, not learned
@@ -33,7 +33,7 @@ class Glow(nn.Module):
                            num_levels=num_levels,
                            num_steps=num_steps)
 
-        self.dequantization = Dequantization()
+        self.dequantization = Dequantization(quants=quants)
 
     def forward(self, x, reverse=False, quant_int=True):
         if reverse:
@@ -186,30 +186,30 @@ class Dequantization(nn.Module):
         ldj -= np.log(self.quants) * np.prod(z.shape[1:])
         return z, ldj
 
-class VariationalDequantization(Dequantization):
+# class VariationalDequantization(Dequantization):
 
-    def __init__(self, var_flows, alpha=1e-5):
-        """
-        Inputs:
-            var_flows - A list of flow transformations to use for modeling q(u|x)
-            alpha - Small constant, see Dequantization for details
-        """
-        super().__init__(alpha=alpha)
-        self.flows = nn.ModuleList(var_flows)
+#     def __init__(self, var_flows, alpha=1e-5):
+#         """
+#         Inputs:
+#             var_flows - A list of flow transformations to use for modeling q(u|x)
+#             alpha - Small constant, see Dequantization for details
+#         """
+#         super().__init__(alpha=alpha)
+#         self.flows = nn.ModuleList(var_flows)
 
-    def dequant(self, z, ldj):
-        z = z.to(torch.float32)
-        img = (z / 255.0) * 2 - 1 # We condition the flows on x, i.e. the original image
+#     def dequant(self, z, ldj):
+#         z = z.to(torch.float32)
+#         img = (z / 255.0) * 2 - 1 # We condition the flows on x, i.e. the original image
 
-        # Prior of u is a uniform distribution as before
-        # As most flow transformations are defined on [-infinity,+infinity], we apply an inverse sigmoid first.
-        deq_noise = torch.rand_like(z).detach()
-        deq_noise, ldj = self.sigmoid(deq_noise, ldj, reverse=True)
-        for flow in self.flows:
-            deq_noise, ldj = flow(deq_noise, ldj, reverse=False, orig_img=img)
-        deq_noise, ldj = self.sigmoid(deq_noise, ldj, reverse=False)
+#         # Prior of u is a uniform distribution as before
+#         # As most flow transformations are defined on [-infinity,+infinity], we apply an inverse sigmoid first.
+#         deq_noise = torch.rand_like(z).detach()
+#         deq_noise, ldj = self.sigmoid(deq_noise, ldj, reverse=True)
+#         for flow in self.flows:
+#             deq_noise, ldj = flow(deq_noise, ldj, reverse=False, orig_img=img)
+#         deq_noise, ldj = self.sigmoid(deq_noise, ldj, reverse=False)
 
-        # After the flows, apply u as in standard dequantization
-        z = (z + deq_noise) / 256.0
-        ldj -= np.log(256.0) * np.prod(z.shape[1:])
-        return z, ldj
+#         # After the flows, apply u as in standard dequantization
+#         z = (z + deq_noise) / 256.0
+#         ldj -= np.log(256.0) * np.prod(z.shape[1:])
+#         return z, ldj
