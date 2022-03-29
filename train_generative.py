@@ -6,14 +6,11 @@ import argparse
 import numpy as np
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.utils.data as data
-import torch.optim as optim
 
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import MLFlowLogger
+from pytorch_lightning.loggers import WandbLogger
 
 import mlflow
 
@@ -31,10 +28,15 @@ def train(data_dir, experiment_name, sample_name='data_uniform'):
     logging.info("Creating estimator")
     logging.info("")
 
-    # MLFlow logger
-    tracking_uri = "file:{}/logs/mlruns".format(data_dir)
-    mlf_logger = MLFlowLogger(experiment_name=experiment_name, tracking_uri=tracking_uri)
-    mlf_logger.log_hyperparams(params_to_log)
+    # # MLFlow logger
+    # tracking_uri = "file:{}/logs/mlruns".format(data_dir)
+    # mlf_logger = MLFlowLogger(experiment_name=experiment_name, tracking_uri=tracking_uri)
+    # mlf_logger.log_hyperparams(params_to_log)
+
+    pl.seed_everything(1)
+
+    wandb_logger = WandbLogger(save_dir="{}/logs/".format(data_dir), name=experiment_name, project="fermi_counterfactuals", log_model=True)
+    wandb_logger.log_hyperparams(params_to_log)
 
     data = np.load("{}/samples/{}.npz".format(data_dir, sample_name))
 
@@ -60,22 +62,25 @@ def train(data_dir, experiment_name, sample_name='data_uniform'):
     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
 
-    trainer = pl.Trainer(max_epochs=25, gpus=4, strategy="ddp_find_unused_parameters_false", gradient_clip_val=1., callbacks=[checkpoint_callback, lr_monitor])
+    trainer = pl.Trainer(max_epochs=2, gpus=4, strategy="ddp_find_unused_parameters_false", gradient_clip_val=1., callbacks=[checkpoint_callback, lr_monitor], logger=wandb_logger)
 
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
     model.load_from_checkpoint(checkpoint_callback.best_model_path, num_channels=256, num_levels=5, num_steps=18, quants=x.max() + 1)
 
-    if model.trainer.is_global_zero:
+    # trainer.logger.experiment.log({"flow": model.flow})
 
-        # Save density estimator
-        mlflow.set_tracking_uri(tracking_uri)
-        with mlflow.start_run(run_id=mlf_logger.run_id):
-            mlflow.pytorch.log_model(model.flow, "flow")    
 
-        # Check to make sure model can be succesfully loaded
-        model_uri = "runs:/{}/flow".format(mlf_logger.run_id)
-        mlflow.pytorch.load_model(model_uri)
+    # if model.trainer.is_global_zero:
+
+    #     # Save density estimator
+    #     mlflow.set_tracking_uri(tracking_uri)
+    #     with mlflow.start_run(run_id=mlf_logger.run_id):
+    #         mlflow.pytorch.log_model(model.flow, "flow")    
+
+    #     # Check to make sure model can be succesfully loaded
+    #     model_uri = "runs:/{}/flow".format(mlf_logger.run_id)
+    #     mlflow.pytorch.load_model(model_uri)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Script to train conditional density estimator")

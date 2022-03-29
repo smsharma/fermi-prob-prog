@@ -136,7 +136,9 @@ data/samples/*.npy
 *.npy
 *.npz
 
+# Run logs and artifacts
 data/logs/mlruns*
 data/logs/mlruns
+data/logs/wandb
 *.pt
 *.ckpt

@@ -46,4 +46,4 @@ class GlowPL(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         loss = self.log_prob(batch[0])
-        self.log('val_loss', loss, sync_dist=True)
+        self.log('val_loss', loss)
