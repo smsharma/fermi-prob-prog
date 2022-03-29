@@ -131,4 +131,7 @@ dmypy.json
 .pyre/
 
 data/*.npz
+data/samples/*.npz
+data/samples/*.npy
+*.npy
 *.npz
