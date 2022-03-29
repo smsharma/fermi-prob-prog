@@ -24,9 +24,9 @@ class GlowPL(pl.LightningModule):
         
         z, sldj = self.flow(x)
         nll = self.loss(z, sldj)
-        # bpd = bits_per_dim(x, nll)
+        bpd = bits_per_dim(x, nll)
         
-        return nll  # bpd
+        return bpd
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=3e-4, weight_decay=1e-5)
@@ -40,11 +40,10 @@ class GlowPL(pl.LightningModule):
                     "frequency": 1}
                 }
     def training_step(self, batch, batch_idx):
-        # Normalizing flows are trained by maximum likelihood => return bpd
         loss = self.log_prob(batch[0])
         self.log('train_loss', loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss = self.log_prob(batch[0])
-        self.log('val_loss', loss)
+        self.log('val_loss', loss, sync_dist=True)

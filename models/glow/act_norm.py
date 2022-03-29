@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 
-# from util import mean_dim
-
 
 def mean_dim(tensor, dim=None, keepdims=False):
     """Take the mean along multiple dimensions.
@@ -25,7 +23,6 @@ def mean_dim(tensor, dim=None, keepdims=False):
             for i, d in enumerate(dim):
                 tensor.squeeze_(d-i)
         return tensor
-
 
 
 class ActNorm(nn.Module):

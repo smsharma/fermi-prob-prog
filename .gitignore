@@ -135,3 +135,8 @@ data/samples/*.npz
 data/samples/*.npy
 *.npy
 *.npz
+
+data/logs/mlruns*
+data/logs/mlruns
+*.pt
+*.ckpt
