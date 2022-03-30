@@ -1,7 +1,9 @@
+import os
 import sys
 import json
 import logging
 import argparse
+from pathlib import Path
 
 import numpy as np
 
@@ -9,33 +11,40 @@ import torch
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from pytorch_lightning.loggers import MLFlowLogger
 from pytorch_lightning.loggers import WandbLogger
 
-import mlflow
+import wandb
 
-from models.glow import Glow
 from models.glow.module import GlowPL
 
-from torch.utils.data import TensorDataset, DataLoader, random_split, SubsetRandomSampler
+from torch.utils.data import TensorDataset, DataLoader, random_split
 
-def train(data_dir, experiment_name, sample_name='data_uniform'):
+def train(data_dir, experiment_name, sample_name='data_uniform',
+        batch_size=128,
+        num_channels=256, num_levels=5, num_steps=18,
+        max_epochs=100,
+        gradient_clip_val=0.5,
+        val_fraction=0.1,
+        lr=2e-4,
+        optimizer_kwargs={'weight_decay': 1e-5},
+        scheduler='cosine',
+        scheduler_kwargs=None
+        ):
 
     # Cache hyperparameters to log
     params_to_log = locals()
+
+    scheduler_kwargs = {'T_max':max_epochs} if scheduler_kwargs is None else scheduler_kwargs
 
     logging.info("")
     logging.info("Creating estimator")
     logging.info("")
 
-    # # MLFlow logger
-    # tracking_uri = "file:{}/logs/mlruns".format(data_dir)
-    # mlf_logger = MLFlowLogger(experiment_name=experiment_name, tracking_uri=tracking_uri)
-    # mlf_logger.log_hyperparams(params_to_log)
+    # Make sure all GPUs have same seed
+    seed = np.random.randint(1e6)
+    pl.seed_everything(seed)
 
-    pl.seed_everything(1)
-
-    wandb_logger = WandbLogger(save_dir="{}/logs/".format(data_dir), name=experiment_name, project="fermi_counterfactuals", log_model=True)
+    wandb_logger = WandbLogger(save_dir="{}/logs/".format(data_dir), group=experiment_name, name="run", project="fermi_counterfactuals", log_model="all")
     wandb_logger.log_hyperparams(params_to_log)
 
     data = np.load("{}/samples/{}.npz".format(data_dir, sample_name))
@@ -48,39 +57,35 @@ def train(data_dir, experiment_name, sample_name='data_uniform'):
 
     x = x[:, :, 2:-2, 2:-2] 
 
-    val_fraction = 0.10
     n_samples_val = int(val_fraction * len(x))
 
     dataset = TensorDataset(x, y)
 
     dataset_train, dataset_val = random_split(dataset, [len(x) - n_samples_val, n_samples_val])
-    train_loader = DataLoader(dataset_train, batch_size=128, num_workers=4, pin_memory=True, shuffle=True)
-    val_loader = DataLoader(dataset_val, batch_size=128, num_workers=4, pin_memory=True, shuffle=False)
+    train_loader = DataLoader(dataset_train, batch_size=batch_size, num_workers=4, pin_memory=True, shuffle=True)
+    val_loader = DataLoader(dataset_val, batch_size=batch_size, num_workers=4, pin_memory=True, shuffle=False)
 
-    model = GlowPL(num_channels=256, num_levels=5, num_steps=18, quants=x.max() + 1)
+    model = GlowPL(num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1,
+                lr=lr, scheduler=scheduler, optimizer_kwargs=optimizer_kwargs, scheduler_kwargs=scheduler_kwargs)
 
-    checkpoint_callback = ModelCheckpoint(monitor="val_loss")
+    wandb_logger.experiment
+    checkpoint_path = "{}/checkpoints/".format(wandb.run.dir)
+    path = Path(checkpoint_path)
+    path.mkdir(parents=True, exist_ok=True)
+
+    checkpoint_callback = ModelCheckpoint(monitor="val_loss", dirpath=checkpoint_path, filename="{epoch:02d}-{val_loss:.2f}", every_n_epochs=1)
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
 
-    trainer = pl.Trainer(max_epochs=2, gpus=4, strategy="ddp_find_unused_parameters_false", gradient_clip_val=1., callbacks=[checkpoint_callback, lr_monitor], logger=wandb_logger)
+    logging.info("ckpt path is {}".format(checkpoint_path))
+
+    trainer = pl.Trainer(max_epochs=max_epochs, gpus=-1, strategy="ddp_find_unused_parameters_false", gradient_clip_val=gradient_clip_val, callbacks=[checkpoint_callback, lr_monitor], logger=wandb_logger)
 
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
-    model.load_from_checkpoint(checkpoint_callback.best_model_path, num_channels=256, num_levels=5, num_steps=18, quants=x.max() + 1)
-
-    # trainer.logger.experiment.log({"flow": model.flow})
-
-
-    # if model.trainer.is_global_zero:
-
-    #     # Save density estimator
-    #     mlflow.set_tracking_uri(tracking_uri)
-    #     with mlflow.start_run(run_id=mlf_logger.run_id):
-    #         mlflow.pytorch.log_model(model.flow, "flow")    
-
-    #     # Check to make sure model can be succesfully loaded
-    #     model_uri = "runs:/{}/flow".format(mlf_logger.run_id)
-    #     mlflow.pytorch.load_model(model_uri)
+    if model.trainer.is_global_zero:
+        model.load_from_checkpoint(checkpoint_callback.best_model_path, num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1)
+        torch.save(model.flow, "{}/flow.pt".format(wandb.run.dir))
+        torch.save(model.flow.state_dict(), "{}/flow.ckpt".format(wandb.run.dir))
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Script to train conditional density estimator")

@@ -6,7 +6,7 @@ from models.utils import NLLLoss, bits_per_dim
 
 class GlowPL(pl.LightningModule):
 
-    def __init__(self, num_channels=256, num_levels=3, num_steps=16, quants=256):
+    def __init__(self, num_channels=256, num_levels=5, num_steps=32, quants=256, lr=1e-4, optimizer_kwargs={'weight_decay': 1e-5}, scheduler='plateau', scheduler_kwargs={'patience':4}):
         """
         Inputs:
             flows - A list of flows (each a nn.Module) that should be applied on the images.
@@ -14,6 +14,17 @@ class GlowPL(pl.LightningModule):
         super().__init__()
         self.flow = Glow(num_channels, num_levels, num_steps, quants=quants)
         self.loss = NLLLoss(k=quants)
+        self.lr = lr
+        self.optimizer_kwargs = optimizer_kwargs
+        
+        self.optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, **optimizer_kwargs)
+
+        if scheduler == "cosine":
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, **scheduler_kwargs)
+        elif scheduler == "plateau":
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, **scheduler_kwargs)
+        else:
+            raise NotImplementedError
 
     def log_prob(self, x):
         """
@@ -29,12 +40,10 @@ class GlowPL(pl.LightningModule):
         return bpd
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=3e-4, weight_decay=1e-5)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=4)
         
-        return {"optimizer": optimizer, 
+        return {"optimizer": self.optimizer, 
                     "lr_scheduler": {
-                    "scheduler": scheduler,
+                    "scheduler": self.scheduler,
                     "interval": "epoch",
                     "monitor": "val_loss",
                     "frequency": 1}
