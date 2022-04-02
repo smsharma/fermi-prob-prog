@@ -1,0 +1,111 @@
+\documentclass[prd,aps,10pt,nofootinbib,twocolumn,superscriptaddress,preprintnumbers,balancelastpage,longbibliography,floatfix]{revtex4-2}
+
+\usepackage{amsmath,amssymb}	
+\usepackage{mathtools}
+\usepackage{fontawesome}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{hyperref}
+\usepackage{xspace}
+\usepackage{fancyhdr}
+\usepackage{braket}
+\usepackage{graphicx}
+\usepackage{blindtext}
+\usepackage{nicefrac}
+\usepackage{lipsum}
+\usepackage{bbold}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{dcolumn}
+\usepackage{makecell}
+\usepackage{floatrow}
+\usepackage{afterpage}
+\usepackage{longtable}
+\setlength{\LTcapwidth}{\textwidth}
+
+\input{definitions}
+
+\hypersetup{colorlinks=true,
+linkcolor=linkcolor,
+citecolor=linkcolor,
+urlcolor=linkcolor,
+,linktocpage=true
+,pdfproducer=medialab}
+
+% define "struts", as suggested by Claudio Beccari in
+%    a piece in TeX and TUG News, Vol. 2, 1993.
+\newcommand\Tstrut{\rule{0pt}{2.6ex}}         % = `top' strut
+\newcommand\Bstrut{\rule[-1.6ex]{0pt}{0pt}}   % = `bottom' strut
+
+\renewcommand{\arraystretch}{1.8}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
+\begin{document}
+
+\preprint{\hfill MIT-CTP/XXXX}
+
+\title{Counterfactual explanations of neural network predictions: \\ A Galactic Center Excess case study}
+
+\author{Siddharth Mishra-Sharma}
+\email{smsharma@mit.edu}
+\thanks{ORCID: \href{https://orcid.org/0000-0001-9088-7845}{0000-0001-9088-7845}}
+\affiliation{Center for Theoretical Physics, Massachusetts Institute of Technology, Cambridge, MA 02139, USA}
+\affiliation{The NSF AI Institute for Artificial Intelligence and Fundamental Interactions}
+\affiliation{Department of Physics, Harvard University, Cambridge, MA 02138, USA}
+
+\author{Yitian Sun}
+\thanks{ORCID: \href{https://orcid.org/0000-0002-4697-8384}{0000-0002-4697-8384}}
+\affiliation{Center for Theoretical Physics, Massachusetts Institute of Technology, Cambridge, MA 02139, USA}
+\affiliation{The NSF AI Institute for Artificial Intelligence and Fundamental Interactions}
+
+\author{Tracy R. Slatyer}
+\thanks{ORCID: \href{https://orcid.org/0000-0001-9699-9047}{0000-0001-9699-9047}}
+\affiliation{Center for Theoretical Physics, Massachusetts Institute of Technology, Cambridge, MA 02139, USA}
+\affiliation{The NSF AI Institute for Artificial Intelligence and Fundamental Interactions}
+
+\date{\today}
+
+\begin{abstract}
+Abstract goes here.
+\end{abstract}
+
+\maketitle
+
+\tableofcontents
+
+\section{Introduction}
+\label{sec:intro}
+
+\section{Methodology}
+
+\subsection{Normalizing flows}
+
+\subsection{Explanations through data perturbations: adversarial vs. counterfactual}
+
+\subsection{Counterfactual analyses with normalizing flows}
+
+\section{Tests on simulated data}
+
+\section{Results on \Fermi data}
+
+\section{Discussion and conclusions}
+\label{sec:conclusion}
+
+\vspace{.2cm}
+%%%%%%%%%%%%%%%
+
+\begin{acknowledgments}
+% This work is supported by the National Science Foundation under Cooperative Agreement PHY-2019786 (The NSF AI Institute for Artificial Intelligence and Fundamental Interactions, \url{http://iaifi.org/}).
+% This material is based upon work supported by the U.S. Department of Energy, Office of Science, Office of High Energy Physics of U.S. Department of Energy under grant Contract Number DE-SC0012567.
+% We thank the \Fermi-LAT Collaboration for making publicly available the $\gamma$-ray data used in this work.
+% This work made use of the NYU IT High Performance Computing resources, services, and staff expertise. 
+% This research has made use of NASA's Astrophysics Data System. 
+% This research made use of the \texttt{astropy}~\cite{Price-Whelan:2018hus,Robitaille:2013mpa}, \texttt{dynesty}~\cite{Speagle_2020}, \texttt{getdist}~\cite{Lewis:2019xzd}, \texttt{IPython}~\cite{PER-GRA:2007}, \texttt{Jupyter}~\cite{Kluyver2016JupyterN}, \texttt{matplotlib}~\cite{Hunter:2007}, \texttt{MLflow}~\cite{10.1145/3399579.3399867}, \texttt{nflows}~\cite{nflows}, \texttt{NPTFit}~\cite{Mishra-Sharma:2016gis}, \texttt{NPTFit-Sim}~\cite{NPTFit-Sim}, \texttt{NumPy}~\cite{harris2020array}, \texttt{pandas}~\cite{pandas:2010}, \texttt{PyGSP}~\cite{michael_defferrard_2017_1003158}, \texttt{Pyro}~\cite{bingham2019pyro}, \texttt{PyTorch}~\cite{NEURIPS2019_9015}, \texttt{PyTorch Geometric}~\cite{Fey/Lenssen/2019}, \texttt{PyTorch Lightning}~\cite{william_falcon_2020_3828935}, \texttt{seaborn}~\cite{seaborn}, \texttt{sbi}~\cite{tejero-cantero2020sbi}, \texttt{scikit-learn}~\cite{JMLR:v12:pedregosa11a}, \texttt{SciPy}~\cite{2020SciPy-NMeth}, and \texttt{tqdm}~\cite{casper_da_costa_luis_2021_5517697} software packages.
+\end{acknowledgments}
+
+\vspace{.5cm}
+%%%%%%%%%%%%%%%
+
+\bibliographystyle{apsrev4-1}
+\bibliography{fermi-counterfactuals}
+
+\end{document}

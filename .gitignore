@@ -142,3 +142,23 @@ data/logs/mlruns
 data/logs/wandb
 *.pt
 *.ckpt
+
+# Tex
+*.aux
+*.bbl
+*.blg
+*.toc
+*.bak
+*Notes.bib
+*.bib.bak
+*.fdb_latexmk
+*.fls
+*.log
+*.synctex.gz*
+*.out
+*.dbj
+*.DS_Store
+.DS_Store
+auto
+
+paper/fermi-counterfactuals.pdf
