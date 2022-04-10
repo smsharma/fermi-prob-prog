@@ -143,7 +143,7 @@ def squeeze(x, reverse=False):
 
 class Dequantization(nn.Module):
 
-    def __init__(self, alpha=1e-5, quants=256):
+    def __init__(self, alpha=1e-5, quants=256, add_unif_noise=False):
         """
         Inputs:
             alpha - small constant that is used to scale the original input.
@@ -153,6 +153,7 @@ class Dequantization(nn.Module):
         super().__init__()
         self.alpha = alpha
         self.quants = quants
+        self.add_unif_noise = add_unif_noise
 
     def forward(self, z, ldj, reverse=False, quant_int=True):
         if not reverse:
@@ -181,7 +182,8 @@ class Dequantization(nn.Module):
     def dequant(self, z, ldj):
         # Transform discrete values to continuous volumes
         z = z.to(torch.float32)
-        z = z + torch.rand_like(z).detach()
+        if self.add_unif_noise:
+            z = z + torch.rand_like(z).detach()
         z = z / self.quants
         ldj -= np.log(self.quants) * np.prod(z.shape[1:])
         return z, ldj

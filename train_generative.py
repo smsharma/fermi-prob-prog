@@ -16,6 +16,7 @@ from pytorch_lightning.loggers import WandbLogger
 import wandb
 
 from models.glow.module import GlowPL
+from models.module_ros import GlowPLRos
 
 from torch.utils.data import TensorDataset, DataLoader, random_split
 
@@ -28,7 +29,8 @@ def train(data_dir, experiment_name, sample_name='data_uniform',
         lr=2e-4,
         optimizer_kwargs={'weight_decay': 1e-5},
         scheduler='cosine',
-        scheduler_kwargs=None
+        scheduler_kwargs=None,
+        glow_implemen="rosinality"
         ):
 
     # Cache hyperparameters to log
@@ -65,7 +67,11 @@ def train(data_dir, experiment_name, sample_name='data_uniform',
     train_loader = DataLoader(dataset_train, batch_size=batch_size, num_workers=4, pin_memory=True, shuffle=True)
     val_loader = DataLoader(dataset_val, batch_size=batch_size, num_workers=4, pin_memory=True, shuffle=False)
 
-    model = GlowPL(num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1,
+    if glow_implemen == "rosinality":
+        model = GlowPLRos(num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1,
+                lr=lr, scheduler=scheduler, optimizer_kwargs=optimizer_kwargs, scheduler_kwargs=scheduler_kwargs)
+    else:
+        model = GlowPL(num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1,
                 lr=lr, scheduler=scheduler, optimizer_kwargs=optimizer_kwargs, scheduler_kwargs=scheduler_kwargs)
 
     wandb_logger.experiment
