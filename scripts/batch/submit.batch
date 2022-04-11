@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=train
 ## SBATCH --nodes=1
-#SBATCH --mem=48GB
+#SBATCH --mem=64GB
 #SBATCH --time=23:59:00
 #SBATCH -p gpu
 #SBATCH --gres=gpu:4
@@ -16,4 +16,4 @@ module load gcc/10.2.0-fasrc01
 
 cd /n/dvorkin_lab/smsharma/mi-attribution/
 
-python -u train_generative.py
+python -u train_generative.py --add_unif_noise 1

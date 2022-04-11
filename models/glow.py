@@ -366,7 +366,7 @@ class Glow(nn.Module):
 
         return log_p_sum, logdet, z_outs
 
-    def reverse(self, z_list, reconstruct=False, quant_int=True):
+    def reverse(self, z_list, reconstruct=False, quant_int=True, quant_type="floor"):
         for i, block in enumerate(self.blocks[::-1]):
             if i == 0:
                 input = block.reverse(z_list[-1], z_list[-1], reconstruct=reconstruct)
@@ -375,7 +375,7 @@ class Glow(nn.Module):
                 input = block.reverse(input, z_list[-(i + 1)], reconstruct=reconstruct)
 
         sldj = torch.zeros(input.size(0), device=input.device)
-        input, sldj = self.dequantization(input, sldj, reverse=True, quant_int=quant_int)
+        input, sldj = self.dequantization(input, sldj, reverse=True, quant_int=quant_int, quant_type=quant_type)
 
         return input
 
@@ -393,7 +393,7 @@ class Dequantization(nn.Module):
         self.quants = quants
         self.add_unif_noise = add_unif_noise
 
-    def forward(self, z, ldj, reverse=False, quant_int=True):
+    def forward(self, z, ldj, reverse=False, quant_int=True, quant_type="floor"):
         if not reverse:
             z, ldj = self.dequant(z, ldj)
             z, ldj = self.sigmoid(z, ldj, reverse=True)
@@ -402,7 +402,12 @@ class Dequantization(nn.Module):
             z = z * self.quants
             ldj += np.log(self.quants) * np.prod(z.shape[1:])
             if quant_int:
-                z = torch.floor(z).clamp(min=0, max=self.quants-1).to(torch.int32)
+                if quant_type == "floor":
+                    z = torch.floor(z).clamp(min=0, max=self.quants-1).to(torch.int32)
+                elif quant_type == "round":
+                    z = torch.round(z).clamp(min=0, max=self.quants-1).to(torch.int32)
+                else:
+                    raise NotImplementedError
         return z, ldj
 
     def sigmoid(self, z, ldj, reverse=False):

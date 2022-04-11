@@ -15,14 +15,13 @@ from pytorch_lightning.loggers import WandbLogger
 
 import wandb
 
-from models.glow.module import GlowPL
-from models.module_ros import GlowPLRos
+from models.glow_module import GlowPL
 
 from torch.utils.data import TensorDataset, DataLoader, random_split
 
 def train(data_dir, experiment_name, sample_name='data_uniform',
         batch_size=128,
-        num_channels=256, num_levels=5, num_steps=18,
+        num_channels=256, num_levels=5, num_steps=24, add_unif_noise=False,
         max_epochs=100,
         gradient_clip_val=0.5,
         val_fraction=0.1,
@@ -30,7 +29,6 @@ def train(data_dir, experiment_name, sample_name='data_uniform',
         optimizer_kwargs={'weight_decay': 1e-5},
         scheduler='cosine',
         scheduler_kwargs=None,
-        glow_implemen="rosinality"
         ):
 
     # Cache hyperparameters to log
@@ -43,10 +41,9 @@ def train(data_dir, experiment_name, sample_name='data_uniform',
     logging.info("")
 
     # Make sure all GPUs have same seed
-    seed = np.random.randint(1e6)
-    pl.seed_everything(seed)
+    pl.seed_everything(42)
 
-    wandb_logger = WandbLogger(save_dir="{}/logs/".format(data_dir), group=experiment_name, name="run", project="fermi_counterfactuals", log_model="all")
+    wandb_logger = WandbLogger(save_dir="{}/logs/".format(data_dir), group='{}-{}'.format(experiment_name, wandb.util.generate_id()), name="run", project="fermi_counterfactuals", log_model="all")
     wandb_logger.log_hyperparams(params_to_log)
 
     data = np.load("{}/samples/{}.npz".format(data_dir, sample_name))
@@ -67,11 +64,7 @@ def train(data_dir, experiment_name, sample_name='data_uniform',
     train_loader = DataLoader(dataset_train, batch_size=batch_size, num_workers=4, pin_memory=True, shuffle=True)
     val_loader = DataLoader(dataset_val, batch_size=batch_size, num_workers=4, pin_memory=True, shuffle=False)
 
-    if glow_implemen == "rosinality":
-        model = GlowPLRos(num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1,
-                lr=lr, scheduler=scheduler, optimizer_kwargs=optimizer_kwargs, scheduler_kwargs=scheduler_kwargs)
-    else:
-        model = GlowPL(num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1,
+    model = GlowPL(num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1, add_unif_noise=add_unif_noise,
                 lr=lr, scheduler=scheduler, optimizer_kwargs=optimizer_kwargs, scheduler_kwargs=scheduler_kwargs)
 
     wandb_logger.experiment
@@ -101,6 +94,8 @@ def parse_args():
     parser.add_argument("--dir", type=str, default=".", help="Directory; training data will be loaded from the data/samples subfolder, model saved in the data/models subfolder")
     parser.add_argument("--name", type=str, default='test', help='Name used to store experiment')
 
+    parser.add_argument("--add_unif_noise", type=int, default=0, help='Whether to add uniform noise during dequantization')
+
     # Training option
     return parser.parse_args()
 
@@ -113,6 +108,6 @@ if __name__ == "__main__":
 
     args = parse_args()
 
-    train(data_dir="{}/data/".format(args.dir), experiment_name=args.name, sample_name=args.sample)
+    train(data_dir="{}/data/".format(args.dir), experiment_name=args.name, sample_name=args.sample, add_unif_noise=args.add_unif_noise)
 
     logging.info("All done!")

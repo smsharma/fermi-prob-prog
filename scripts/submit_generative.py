@@ -3,7 +3,7 @@ import os
 batch = """#!/bin/bash
 #SBATCH --job-name=train
 ## SBATCH --nodes=1
-#SBATCH --mem=48GB
+#SBATCH --mem=64GB
 #SBATCH --time=23:59:00
 #SBATCH -p gpu
 #SBATCH --gres=gpu:4
@@ -19,12 +19,14 @@ module load gcc/10.2.0-fasrc01
 cd /n/dvorkin_lab/smsharma/mi-attribution/
 """
 
-batchn = batch + "\n"
+for add_unif_noise in [0, 1]:
 
-batchn += "python -u train_generative.py"
-fname = "batch/submit.batch"
-f = open(fname, "w")
-f.write(batchn)
-f.close()
-os.system("chmod +x " + fname)
-os.system("sbatch " + fname)
+    batchn = batch + "\n"
+
+    batchn += "python -u train_generative.py --add_unif_noise {}".format(add_unif_noise)
+    fname = "batch/submit.batch"
+    f = open(fname, "w")
+    f.write(batchn)
+    f.close()
+    os.system("chmod +x " + fname)
+    os.system("sbatch " + fname)
