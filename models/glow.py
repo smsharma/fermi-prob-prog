@@ -332,6 +332,11 @@ class Block(nn.Module):
         return unsqueezed
 
 
+def make_contiguous(module):
+    with torch.no_grad():
+        for param in module.parameters():
+            param.set_(param.contiguous())
+            
 class Glow(nn.Module):
     def __init__(
         self, in_channel, n_flow, n_block, filter_size, affine=True, conv_lu=True, quants=256, add_unif_noise=False
@@ -346,6 +351,8 @@ class Glow(nn.Module):
         self.blocks.append(Block(n_channel, n_flow, split=False, affine=affine))
 
         self.dequantization = Dequantization(quants=quants, add_unif_noise=add_unif_noise)
+
+        make_contiguous(self)
 
     def forward(self, input):
         log_p_sum = 0
