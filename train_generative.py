@@ -100,7 +100,7 @@ def parse_args():
     parser.add_argument("--dir", type=str, default=".", help="Directory; training data will be loaded from the data/samples subfolder, model saved in the data/models subfolder")
     parser.add_argument("--name", type=str, default='test_3', help='Name used to store experiment')
 
-    parser.add_argument("--add_unif_noise", type=int, default=0, help='Whether to add uniform noise during dequantization')
+    parser.add_argument("--add_unif_noise", type=int, default=1, help='Whether to add uniform noise during dequantization')
 
     # Training option
     return parser.parse_args()

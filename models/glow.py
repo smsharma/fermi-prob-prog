@@ -179,7 +179,7 @@ class AffineCoupling(nn.Module):
         if self.affine:
             log_s, t = self.net(in_a).chunk(2, 1)
             # s = torch.exp(log_s)
-            s = F.sigmoid(log_s + 2)
+            s = torch.sigmoid(log_s + 2)
             # out_a = s * in_a + t
             out_b = (in_b + t) * s
 
@@ -198,7 +198,7 @@ class AffineCoupling(nn.Module):
         if self.affine:
             log_s, t = self.net(out_a).chunk(2, 1)
             # s = torch.exp(log_s)
-            s = F.sigmoid(log_s + 2)
+            s = torch.sigmoid(log_s + 2)
             # in_a = (out_a - t) / s
             in_b = out_b / s - t
 
@@ -371,7 +371,7 @@ class Glow(nn.Module):
             if log_p is not None:
                 log_p_sum = log_p_sum + log_p
 
-        return log_p_sum, logdet, z_outs
+        return log_p_sum, logdet + sldj, z_outs
 
     def reverse(self, z_list, reconstruct=False, quant_int=True, quant_type="floor"):
         for i, block in enumerate(self.blocks[::-1]):

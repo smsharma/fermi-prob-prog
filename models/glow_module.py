@@ -12,9 +12,11 @@ class GlowPL(pl.LightningModule):
             flows - A list of flows (each a nn.Module) that should be applied on the images.
         """
         super().__init__()
+
         self.flow = Glow(in_channel=1, n_flow=num_steps, n_block=num_levels, filter_size=num_channels, quants=quants, add_unif_noise=add_unif_noise)
         self.lr = lr
         self.optimizer_kwargs = optimizer_kwargs
+        self.quants = quants
         
         self.optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, **optimizer_kwargs)
 
@@ -29,12 +31,9 @@ class GlowPL(pl.LightningModule):
         """
         Given a batch of images, return the loss in bits per dimension (scaled negative log likelihood)
         """
-        
-        log_p_sum, logdet, _ = self.flow(x)
-
-        log_prob = logdet + log_p_sum
-
         dim = np.prod(x.size()[1:])
+        log_p_sum, logdet, _ = self.flow(x)
+        log_prob = logdet + log_p_sum  # Note: log_p_sum already includes sldj from quantization step
         loss = -log_prob / (np.log(2) * dim)
         
         return loss.mean()
