@@ -10,7 +10,7 @@ import numpy as np
 import torch
 
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, RichModelSummary, RichProgressBar
 from pytorch_lightning.loggers import WandbLogger
 
 import wandb
@@ -77,13 +77,13 @@ def train(data_dir, experiment_name, sample_name='data_uniform',
     path = Path(checkpoint_path)
     path.mkdir(parents=True, exist_ok=True)
 
-    checkpoint_callback = ModelCheckpoint(monitor="val_loss", dirpath=checkpoint_path, filename="{epoch:02d}-{val_loss:.2f}")
+    checkpoint_callback = ModelCheckpoint(monitor="val_loss", dirpath=checkpoint_path, filename="{epoch:02d}-{val_loss:.2f}", every_n_epochs=1)
     
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
 
     logging.info("Checkpoint path is {}".format(checkpoint_path))
 
-    trainer = pl.Trainer(max_epochs=max_epochs, strategy="ddp", accelerator="gpu", devices=-1, gradient_clip_val=gradient_clip_val, callbacks=[lr_monitor], logger=wandb_logger)
+    trainer = pl.Trainer(max_epochs=max_epochs, strategy="ddp_find_unused_parameters_false", accelerator="gpu", devices=-1, gradient_clip_val=gradient_clip_val, callbacks=[checkpoint_callback, lr_monitor, RichModelSummary(), RichProgressBar()], logger=wandb_logger)
 
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
