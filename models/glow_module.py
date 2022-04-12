@@ -30,7 +30,7 @@ class GlowPL(pl.LightningModule):
         Given a batch of images, return the loss in bits per dimension (scaled negative log likelihood)
         """
         
-        log_p_sum, logdet, z_outs = self.flow(x)
+        log_p_sum, logdet, _ = self.flow(x)
 
         log_prob = logdet + log_p_sum
 
