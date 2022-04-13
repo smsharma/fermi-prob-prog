@@ -377,10 +377,10 @@ class Glow(nn.Module):
         for i, block in enumerate(self.blocks[::-1]):
             if i == 0:
                 input = block.reverse(z_list[-1], z_list[-1], reconstruct=reconstruct)
-
             else:
                 input = block.reverse(input, z_list[-(i + 1)], reconstruct=reconstruct)
 
+            
         sldj = torch.zeros(input.size(0), device=input.device)
         input, sldj = self.dequantization(input, sldj, reverse=True, quant_int=quant_int, quant_type=quant_type)
 

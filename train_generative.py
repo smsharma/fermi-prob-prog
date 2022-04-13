@@ -10,7 +10,7 @@ import numpy as np
 import torch
 
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, RichModelSummary, RichProgressBar
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 import wandb
@@ -21,14 +21,15 @@ from torch.utils.data import TensorDataset, DataLoader, random_split
 
 def train(data_dir, experiment_name, sample_name='data_uniform',
         batch_size=128,
-        num_channels=256, num_levels=5, num_steps=18, add_unif_noise=False,
-        max_epochs=100,
+        num_channels=256, num_levels=5, num_steps=18, add_unif_noise=True,
+        max_epochs=50,
         gradient_clip_val=0.5,
         val_fraction=0.1,
         lr=2e-4,
         optimizer_kwargs={'weight_decay': 1e-5},
         scheduler='cosine',
         scheduler_kwargs=None,
+        n_samples=50000
         ):
 
     # Cache hyperparameters to log
@@ -41,7 +42,7 @@ def train(data_dir, experiment_name, sample_name='data_uniform',
     logging.info("")
 
     # Make sure all GPUs have same seed
-    pl.seed_everything(43)
+    pl.seed_everything(47)
 
     wandb_logger = WandbLogger(save_dir="{}/logs/".format(data_dir), group=experiment_name, name="run-{}".format(wandb.util.generate_id()), project="fermi_counterfactuals")
     wandb_logger.log_hyperparams(params_to_log)
@@ -51,8 +52,8 @@ def train(data_dir, experiment_name, sample_name='data_uniform',
     signal_ensemble = data["signal_ensemble"]
     flux_fraction = data["flux_fraction"]
 
-    x = torch.Tensor(signal_ensemble).unsqueeze(1)
-    y = torch.Tensor(flux_fraction)
+    x = torch.Tensor(signal_ensemble).unsqueeze(1)[:n_samples]
+    y = torch.Tensor(flux_fraction)[:n_samples]
 
     x = x[:, :, 2:-2, 2:-2] 
 
@@ -83,12 +84,12 @@ def train(data_dir, experiment_name, sample_name='data_uniform',
 
     logging.info("Checkpoint path is {}".format(checkpoint_path))
 
-    trainer = pl.Trainer(max_epochs=max_epochs, strategy="ddp_find_unused_parameters_false", accelerator="gpu", devices=-1, gradient_clip_val=gradient_clip_val, callbacks=[checkpoint_callback, lr_monitor, RichModelSummary(), RichProgressBar()], logger=wandb_logger)
+    trainer = pl.Trainer(max_epochs=max_epochs, strategy="ddp_find_unused_parameters_false", accelerator="gpu", devices=-1, gradient_clip_val=gradient_clip_val, callbacks=[checkpoint_callback, lr_monitor], logger=wandb_logger)
 
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
     if model.trainer.is_global_zero:
-        model.load_from_checkpoint(checkpoint_callback.best_model_path, num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1)
+        model.load_from_checkpoint(checkpoint_callback.best_model_path, num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1, add_unif_noise=add_unif_noise)
         torch.save(model.flow, "{}/flow.pt".format(wandb.run.dir))
         torch.save(model.flow.state_dict(), "{}/flow.ckpt".format(wandb.run.dir))
 
@@ -98,7 +99,7 @@ def parse_args():
     # Command line arguments
     parser.add_argument("--sample", type=str, default='data_uniform', help='Sample name')
     parser.add_argument("--dir", type=str, default=".", help="Directory; training data will be loaded from the data/samples subfolder, model saved in the data/models subfolder")
-    parser.add_argument("--name", type=str, default='test_3', help='Name used to store experiment')
+    parser.add_argument("--name", type=str, default='production_run_3', help='Name used to store experiment')
 
     parser.add_argument("--add_unif_noise", type=int, default=1, help='Whether to add uniform noise during dequantization')
 
