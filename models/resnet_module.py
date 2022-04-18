@@ -11,12 +11,15 @@ from models.resnet import ResNetEstimator
 
 class ResnetPL(pl.LightningModule):
 
-    def __init__(self, mask=None, lr=3e-4, optimizer_kwargs={'weight_decay': 1e-5}, scheduler='plateau', scheduler_kwargs={'patience':4}, device='cuda'):
+    def __init__(self, softmax=True, mask=None, lr=3e-4, optimizer_kwargs={'weight_decay': 1e-5}, scheduler='plateau', scheduler_kwargs={'patience':4}, device='cuda'):
         """
         Inputs:
             flows - A list of flows (each a nn.Module) that should be applied on the images.
         """
         super().__init__()
+
+        self.softmax = softmax
+
         self.resnet = ResNetEstimator(n_out=int(2 * 8))
         self.loss = nn.GaussianNLLLoss(reduction='mean')
         self.lr = lr
@@ -48,7 +51,8 @@ class ResnetPL(pl.LightningModule):
         x = torch.log10(x)
         out = self.resnet(x[:, 0] * ~self.mask)
         mu, logvar = torch.chunk(out, 2, -1)
-        mu = torch.softmax(mu, dim=-1)
+        if self.softmax:
+            mu = torch.softmax(mu, dim=-1)
         loss = self.loss(mu, y, logvar.exp())
         self.log('train_loss', loss)
         return loss
@@ -59,6 +63,7 @@ class ResnetPL(pl.LightningModule):
         x = torch.log10(x)
         out = self.resnet(x[:, 0] * ~self.mask)
         mu, logvar = torch.chunk(out, 2, -1)
-        mu = torch.softmax(mu, dim=-1)
+        if self.softmax:
+            mu = torch.softmax(mu, dim=-1)
         loss = self.loss(mu, y, logvar.exp())
         self.log('val_loss', loss)
