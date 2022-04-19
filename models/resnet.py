@@ -6,6 +6,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import sys
+sys.path.append("../")
+from models.coordconv import CoordConv2d
 
 import torch.nn as nn
 
@@ -109,7 +112,10 @@ class ResNetEstimator(nn.Module):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self.inplanes = 64
+        
         self.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        # self.conv1 = CoordConv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False, with_r=True)
+
         self.bn1 = norm_layer(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
