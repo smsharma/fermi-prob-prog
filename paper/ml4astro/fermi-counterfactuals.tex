@@ -14,6 +14,7 @@
 % \usepackage{icml2022} with \usepackage[nohyperref]{icml2022} above.
 \usepackage{hyperref}
 \usepackage{lipsum}
+\usepackage{amsmath}
 
 
 % Attempt to make hyperref and algorithmic work together better:
@@ -110,7 +111,7 @@
 % \printAffiliationsAndNotice{\icmlEqualContribution} % otherwise use the standard text.
 
 \begin{abstract}
-    \lipsum[1]
+    The increasingly common use of machine learning in astrophysics has led to a need for methods that can explain the decisions of black-box models like neural networks. We explore the use of counterfactuals---perturbations to the data that have a desired downstream effect on the prediction---in the context of testing the robustness of neural networks and interrogating their decisions when applied to the problem of disentangling the contribution of various modeled components in $\gamma$-ray data of the Galactic Center. We introduce a method that can procedurally generate minimal, physically-meaningful counterfactuals for the different components. This lets us probe which features in the data are driving the prediction of the model, as well as which features are used to distinguish between different components. 
 \end{abstract}
 
 \section{Introduction}
@@ -121,24 +122,27 @@ Modeling the GCE including populations of unresolved point sources is challengin
 
 The robustness of a given method to systematic variations is generally tested by inducing a reasonable perturbation in simulated data away from the assumed model, then observing its response. This implicitly contains information about what kinds of systematic effects the model is sensitive to, and the kinds of biases they are likely to introduce.
 
-In this paper, we propose an alternative approach to assessing the robustness of a neural network-based prediction of the composition of the GCE using procedurally-generating counterfactuals of the $\gamma$-ray data---data perturbations that have a desired predictive outcome---under a given predictive model. Since the data is known to not be accurately captured by the forward model, minimal counterfactuals can provide insight into the resiliency of the prediction---if small and reasonable data perturbations can lead to large variations in the predicted outcome, the results may be considered suspicious. Additionally, counterfactuals have significant explanatory power, since data features that modify the predicted contribution of a given modeled component to the $\gamma$-ray are indicative of the features that the neural network is using to drive its decisions for that component.
+In this paper, we propose an approach to assessing the robustness of a neural network-based prediction of the composition of the GCE using procedurally-generating counterfactuals of the $\gamma$-ray data---data perturbations that have a desired predictive outcome---under a given predictive model. Since the data is known to not be accurately captured by the forward model, minimal counterfactuals can provide insight into the resiliency of the prediction---if small and reasonable data perturbations can lead to large variations in the predicted outcome, the results may be considered suspicious. Additionally, counterfactuals have significant explanatory power, since data features that modify the predicted contribution of a given modeled component to the $\gamma$-ray are indicative of the features that the neural network is using to drive its decisions for that component.
 
 \section{Methodology}
 
-\subsection{Data and inference model}
-
-\lipsum[1-3]
-
-\subsection{Normalizing flows for counterfactual generation}
 
 %
 \begin{figure*}
-    \includegraphics[width=0.95\textwidth]{figures/placeholder_1_1.png} \\
-    \includegraphics[width=0.95\textwidth]{figures/placeholder_1_2.png}
-    \caption{\lipsum[1]}
+    \includegraphics[width=0.75\textwidth]{figures/samples_sim.pdf} \includegraphics[width=0.2\textwidth]{figures/power_spectrum.pdf}\\
+    \includegraphics[width=0.75\textwidth]{figures/samples_gen.pdf} \includegraphics[width=0.2\textwidth]{figures/counts_pdf.pdf}
+    \caption{Example simulated maps from the forward model {(top left)} and generated from the trained normalizing flow, $x\sim \hat p(x)$ {(bottom left)}. The isotropic power spectrum {(top right)} and photon counts probabilist distribution function \emph{(top right)} of the maps from the generative model (dashed red lines) and simulations (blue lines). Good visual correspondence between the summary statistics of the simulated maps and those sampled from the flow can be seen.}
     \label{fig:fid_data}
 \end{figure*}
 %
+
+\subsection{Data and inference model}
+
+We use simulated \emph{Fermi}-LAT $\gamma$-ray data to validate our pipeline using the example dataset and templates provided with Refs.~\cite{Mishra-Sharma:2016gis,Buschmann:2020adf}, corresponding to 413 weeks of data in the 2--20\,GeV energy range (see Ref.~\cite{Mishra-Sharma:2016gis} for additional information about the dataset). In addition to the $\gamma$-ray counts data, templates corresponding to resolved PSs from the \emph{Fermi} 3FGL catalog, isotropically-uniform emission, emission from the \emph{Fermi} bubbles~\cite{Su:2010qj}, emission from dark matter annihilation following a squared Navarro-Frenk-White (NFW)~\cite{Navarro:1995iw,Navarro:1996gj} spatial profile, and Galactic diffuse emission modeled using the so-called Model O~\cite{Buschmann:2020adf} are provided. The maps, originally spatially binned using HEALPix~~\cite{Gorski:2004by}, are projected onto a Cartesian grid with a resolution of $0.5^\circ$ to pixel side. The region of interest corresponds to the inner $50^{\circ}$ with the $2^{\circ}$ of the plane masked out. Resolved PSs from the 3FGL catalog masked at $0.8^\circ$. In addition to the smooth components, point sources spatially following the GCE and Galactic disk are included in the model, for a total of 8 modeled components. The parameters of interest in this case are the mean counts-per-pixel contributed by each component.
+
+For the inference network whose predictions we wish to interrogate, we use a standard ResNet-18 convolutional neural network that outputs 8 means and 8 log-variances, corresponding to each modeled component. A loss based on a Gaussian likelihood, $\log \mathcal L = -\log\left(\sum_i \mathcal N(\mu_i, \sigma_i^2) / N_\mathrm{comp}\right)$, is used to optimize the neural network, which is trained for 50 epochs using the Adam optimizer with initial learning rate $3\times 10^{-4}$, decayed by a factor of 10 when the validation loss plateaus.
+
+\subsection{Normalizing flows for counterfactual generation}
 
 \paragraph*{Diffeomorphic counterfactuals}
 Given a differentiable inference network $s(x)$ that predicts the contributions of different modeled components to the GCE, for example through the Gaussian means $s(x)_i \equiv \mu_i$ and log-variances $\log\sigma_i^2$, a straightforward way of constructing counterfactuals for a given component, indexed by $i$, is by performing gradient ascent on the data space starting from the dataset of interest $x^{0} = x$,
@@ -151,39 +155,55 @@ This scheme can be used to generate \emph{adversarial} counterfactuals of the ma
 
 Instead, we leverage generative modeling with normalizing flows to construct counterfactuals that fall within a pre-defined distribution of models $p(x)$. Normalizing flows are a class of models that define bijective invertible transformations (\emph{diffeomorphisms}) $f: U\rightarrow X$ from a base distribution $\pi_{U}(u)$ that is easy to sample from and evaluate the probability density on, to a more complex target distribution $p_{X}(x)$. The transformation is usually parameterized by neural networks such that its Jacobian is numerically tractable, allowing for efficient density estimation and generative sampling. The flow defines a probability density in the target space through the inverse Jacobian determinant, ${p}_X(x)=\pi_U(u)\left|\operatorname{det}\left({\partial u}/{\partial x}\right)\right|=\pi_U\left(f^{-1}(x)\right)\left|\operatorname{det} J_{f^{-1}}(x)\right|$.
 
+Following \citet{dombrowski2021diffeomorphic}, we can use this diffeomorphic mapping to instead perform gradient descent in the base space $U$ of the normalizing flow,
 \begin{equation}
-    u^{t+1}=u^{t}+\lambda \frac{\partial\left[s\left(f(u^{t})\right)\right]_{i}}{\partial u}
+    \label{eq:flow_gradient}
+    u^{t+1}=u^{t}+\lambda \frac{\partial\left[s\left(f(u^{t})\right)\right]_{i}}{\partial u},
 \end{equation}
-
-As shown in \citet{dombrowski2021diffeomorphic}, performing gradient ascent in the base space $U$ ensures that, as long as the learning rate is small, the corresponding push forward $x^t=f(z^t)$ after each gradient update stays on the data manifold $X$ defined by $x\sim p_X(x)$. This allows us to construct physically-meaningful counterfactuals for a given $\gamma$-ray map.
+starting from the pull-back $u^{0} \equiv f^{-1}(x)$ of a given map of interest. As shown in \citet{dombrowski2021diffeomorphic}, performing gradient ascent in the base space $U$ ensures that, as long as the learning rate is small, the corresponding push forward $x^t=f(z^t)$ after each gradient update stays on the data manifold $X$ defined by $x\sim p_X(x)$; steps orthogonal to the learned data manifold are suppressed to order $\mathcal O(\lambda^2)$. This allows us to construct physically-meaningful counterfactuals for different modeled emission components for a given $\gamma$-ray map.
 
 \paragraph*{Generative model for Galactic Center $\gamma$-ray data}
-We use an instantiation of the \texttt{Glow} normalizing flow architecture~\cite{DBLP:conf/nips/KingmaD18} to train a generative model the the Galactic Center $\gamma$-ray data. \texttt{Glow} is multi-scale normalizing flow architecture specialized for image synthesis and manipulation tasks. We configure the flow with $L=5$ layers of $K=18$ steps each and 256 channels.
+We use an instantiation of the \texttt{Glow} normalizing flow architecture~\cite{DBLP:conf/nips/KingmaD18} to train a generative model the the Galactic Center $\gamma$-ray data. \texttt{Glow} is multi-scale normalizing flow architecture specialized for image synthesis and manipulation tasks. We configure the flow with $L=5$ layers of $K=18$ steps each and 256 channels. Since the $\gamma$-ray maps represent raw photon counts, invertible uniform dequantization was added to the architecture~\cite{DBLP:conf/icml/HoCSDA19}.
 
-
-\subsection{Counterfactual analyses of $\gamma$-ray maps}
-
-\lipsum[1-2]
-
-\begin{equation}
-    \mathcal L = s\left(f(u^{t})\right)
-\end{equation}
-
-\begin{equation}
-    \mathcal L = s\left(f(u^{t})\right)_i + \frac{1}{N_\mathrm{comp} - 1}\sum_j \left| s\left(f(u^{t})\right)_{j\neq i} - s(x^0)_{j\neq i} \right|
-\end{equation}
-
-\section{Tests on simulated data}
-
-\lipsum[1-4]
+The model is trained on 100,000 simulated samples for 100 epochs using the Adam optimizer, with the learning rate decayed from an initial value of $3\times 10^{-4}$ using cosine annealing. The log-density $\log \hat p(x)$ is used as the training objective. Five random samples $x\sim p(x)$ from the trained flow are shown in the bottom row of Fig.~\ref{fig:generative}. The mean counts PDF (top) and mean isotropic power spectrum (bottom) of 1000 samples from the flow are shown in the right-most column of Fig.~\ref{fig:generative} (red dotted lines), compared to the corresponding summaries from an ensemble of simulated samples (blue lines). Good visual agreement in the projected summary space can be seen.
 
 %
 \begin{figure*}
-    \includegraphics[width=0.95\textwidth]{figures/placeholder_2.png}
+    \includegraphics[width=0.95\textwidth]{figures/counterfactuals_grid.pdf}
     \caption{\lipsum[1]}
-    \label{fig:fid_data_2}
+    \label{fig:generative}
 \end{figure*}
 %
+
+\subsection{Counterfactual analyses of $\gamma$-ray maps}
+
+We next discuss different ways of constructing counterfactuals for the $\gamma$-ray maps. With a well-trained flow-based generative model, we can use use Eq.~\ref{eq:flow_gradient} to take gradient steps in the base distribution $U$ of the flow starting from the pull-back $u^{0} \equiv f^{-1}(x)$ of a given map. This corresponds to using the loss function
+\begin{equation}
+    \mathcal L = s\left(f(u^{t})\right)_i.
+\end{equation}
+In our predictive model for the means and log-variances of the different components, we could define the minimal positive counterfactual as that which shifts the predicted mean of the contribution of a given component by one standard deviation, $s(x^{t})_i > \mu_i + \sigma_i$. Using $\mathcal L = -s\left(f(u^{t})\right)$, we can define a corresponding minimal negative counterfactual, $s(x^{t})_i < \mu_i - \sigma_i$.
+
+This scheme generates counterfactuals for a given component without regards to the other components; for example, the easiest way to decrease the contribution of a component could be to perturb the data such that the contribution of another component increases. Alternatively, we may add a regularization term to the loss encouraging, for a given component $i$, the contributions of the other components $j\neq i$ to stay close to their original values,
+\begin{align}
+    \label{eq:counterfactual_regularization}
+    \begin{split}
+    \mathcal L &= s\left(f(u^{t})\right)_i \\
+    % &+ \sqrt{\frac{1}{N_\mathrm{comp} - 1}\sum_j \left| s\left(f(u^{t})\right)_{j\neq i} - s(x^0)_{j\neq i} \right|^2},
+    &+ {\frac{1}{N_\mathrm{comp} - 1}\sum_j \left| s\left(f(u^{t})\right)_{j\neq i} - s(x^0)_{j\neq i} \right|},
+    \end{split}
+\end{align}
+where $N_\mathrm{comp}$ is the total number of modeled components, which isolates the effect due to a single component.
+
+Finally, we can ask what minimal deformation of the data can ``swap'' some fraction of the contribution of two different components $i$ and $j$ through the loss 
+\begin{equation}
+    \mathcal L = s\left(f(u^{t})\right)_i - s\left(f(u^{t})\right)_j.
+\end{equation}
+additionally including the regularization term in Eq.~\ref{eq:counterfactual_regularization} to stabilize the contributions of other components. This can be used to implicitly probe which features of the data are driving the discrimination between two modeled components, for example the smooth and PS-like Galactic Center Excess emission.
+
+\section{Tests on simulated data}
+
+\lipsum[1-2]
+
 
 \section{Discussion and conclusions}
 
