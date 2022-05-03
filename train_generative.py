@@ -3,11 +3,13 @@ import sys
 import json
 import logging
 import argparse
+import glob
 from pathlib import Path
 
 import numpy as np
 
 import torch
+from torch.utils.data import TensorDataset, DataLoader, ConcatDataset, random_split
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
@@ -16,20 +18,21 @@ from pytorch_lightning.loggers import WandbLogger
 import wandb
 
 from models.glow_module import GlowPL
+from utils.dataloader import BigDataset
 
-from torch.utils.data import TensorDataset, DataLoader, random_split
 
-def train(data_dir, experiment_name, sample_name='data_uniform',
+def train(data_dir, experiment_name, sample_name='train',
         batch_size=128,
-        num_channels=256, num_levels=5, num_steps=18, add_unif_noise=True,
-        max_epochs=50,
+        num_channels=256, num_levels=5, num_steps=18, quants=20000, add_unif_noise=True,
+        max_epochs=100,
         gradient_clip_val=0.5,
         val_fraction=0.1,
-        lr=2e-4,
+        lr=3e-4,
         optimizer_kwargs={'weight_decay': 1e-5},
         scheduler='cosine',
         scheduler_kwargs=None,
-        n_samples=50000
+        n_files=15,
+        dataset_type="concat"  # concat or big
         ):
 
     # Cache hyperparameters to log
@@ -42,30 +45,35 @@ def train(data_dir, experiment_name, sample_name='data_uniform',
     logging.info("")
 
     # Make sure all GPUs have same seed
-    pl.seed_everything(47)
+    pl.seed_everything(42)
 
     wandb_logger = WandbLogger(save_dir="{}/logs/".format(data_dir), group=experiment_name, name="run-{}".format(wandb.util.generate_id()), project="fermi_counterfactuals")
     wandb_logger.log_hyperparams(params_to_log)
 
-    data = np.load("{}/samples/{}.npz".format(data_dir, sample_name))
+    x_files = glob.glob("data/samples/x_{}_*".format(sample_name))[:n_files]
+    theta_files = glob.glob("data/samples/theta_{}_*".format(sample_name))[:n_files]
 
-    signal_ensemble = data["signal_ensemble"]
-    flux_fraction = data["flux_fraction"]
+    if dataset_type == "concat":
+    
+        ## ConcatDataset dataset 
+        datasets = [TensorDataset(torch.Tensor(np.load(x)), torch.Tensor(np.load(y))) for (x, y) in zip(x_files, theta_files)]
+        dataset = ConcatDataset(datasets)
+        n_samples_val = int(val_fraction * dataset.cumulative_sizes[-1])
+        dataset_train, dataset_val = random_split(dataset, [dataset.cumulative_sizes[-1] - n_samples_val, n_samples_val])
 
-    x = torch.Tensor(signal_ensemble).unsqueeze(1)[:n_samples]
-    y = torch.Tensor(flux_fraction)[:n_samples]
+    elif dataset_type == "memmap":
 
-    x = x[:, :, 2:-2, 2:-2] 
+        ## memmap dataset
+        dataset = BigDataset(x_files, theta_files)
+        n_samples_val = int(val_fraction * dataset.data_count)
+        dataset_train, dataset_val = random_split(dataset, [dataset.data_count - n_samples_val, n_samples_val])
+    else:
+        raise NotImplementedError
 
-    n_samples_val = int(val_fraction * len(x))
+    train_loader = DataLoader(dataset_train, batch_size=batch_size, num_workers=16, pin_memory=True, shuffle=True)
+    val_loader = DataLoader(dataset_val, batch_size=batch_size, num_workers=16, pin_memory=True, shuffle=False)
 
-    dataset = TensorDataset(x, y)
-
-    dataset_train, dataset_val = random_split(dataset, [len(x) - n_samples_val, n_samples_val])
-    train_loader = DataLoader(dataset_train, batch_size=batch_size, num_workers=4, pin_memory=True, shuffle=True)
-    val_loader = DataLoader(dataset_val, batch_size=batch_size, num_workers=4, pin_memory=True, shuffle=False)
-
-    model = GlowPL(num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1, add_unif_noise=add_unif_noise,
+    model = GlowPL(num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=quants, add_unif_noise=add_unif_noise,
                 lr=lr, scheduler=scheduler, optimizer_kwargs=optimizer_kwargs, scheduler_kwargs=scheduler_kwargs)
 
     wandb_logger.experiment
@@ -89,7 +97,7 @@ def train(data_dir, experiment_name, sample_name='data_uniform',
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
     if model.trainer.is_global_zero:
-        model.load_from_checkpoint(checkpoint_callback.best_model_path, num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=x.max() + 1, add_unif_noise=add_unif_noise)
+        model.load_from_checkpoint(checkpoint_callback.best_model_path, num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=quants, add_unif_noise=add_unif_noise)
         torch.save(model.flow, "{}/flow.pt".format(wandb.run.dir))
         torch.save(model.flow.state_dict(), "{}/flow.ckpt".format(wandb.run.dir))
 
@@ -97,9 +105,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Script to train conditional density estimator")
 
     # Command line arguments
-    parser.add_argument("--sample", type=str, default='data_uniform', help='Sample name')
+    parser.add_argument("--sample", type=str, default='train', help='Sample name')
     parser.add_argument("--dir", type=str, default=".", help="Directory; training data will be loaded from the data/samples subfolder, model saved in the data/models subfolder")
-    parser.add_argument("--name", type=str, default='production_run_3', help='Name used to store experiment')
+    parser.add_argument("--name", type=str, default='production_run', help='Name used to store experiment')
 
     parser.add_argument("--add_unif_noise", type=int, default=1, help='Whether to add uniform noise during dequantization')
 

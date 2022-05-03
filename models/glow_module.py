@@ -31,6 +31,10 @@ class GlowPL(pl.LightningModule):
         """
         Given a batch of images, return the loss in bits per dimension (scaled negative log likelihood)
         """
+
+        # Add dummy channel dimension and bring (h w) dim down to (96 96) for compatibility with squeeze/split
+        x = x.unsqueeze(1)[:, :, 2:-2, 2:-2] 
+
         dim = np.prod(x.size()[1:])
         log_p_sum, logdet, _ = self.flow(x)
         log_prob = logdet + log_p_sum  # Note: log_p_sum already includes sldj from quantization step

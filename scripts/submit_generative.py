@@ -3,17 +3,16 @@ import os
 batch = """#!/bin/bash
 #SBATCH --job-name=train
 #SBATCH -n 1
-#SBATCH --mem=32GB
-#SBATCH --time=08:00:00
-#SBATCH -p gpu_test
-#SBATCH --gres=gpu:2
-#SBATCH --account=dvorkin_lab
+#SBATCH --mem=64GB
+#SBATCH --time=23:59:59
+#SBATCH -p gpu
+#SBATCH --gres=gpu:4
+#SBATCH --account=iaifi_lab
 #SBATCH --mail-type=begin
 #SBATCH --mail-type=end
 #SBATCH --mail-user=smsharma@mit.com
 
 source ~/.bashrc
-
 source activate ddp
 
 module load Anaconda3/2020.11

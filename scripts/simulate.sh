@@ -23,4 +23,4 @@ module load git/2.17.0-fasrc01
 
 cd /n/dvorkin_lab/smsharma/mi-attribution/
 
-python -u simulate.py -n 10000 --name train_${SLURM_ARRAY_TASK_ID} --dir /n/dvorkin_lab/smsharma/mi-attribution/
+python -u simulate.py -n 20000 --name train_${SLURM_ARRAY_TASK_ID} --dir /n/dvorkin_lab/smsharma/mi-attribution/
