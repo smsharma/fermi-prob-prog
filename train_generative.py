@@ -24,7 +24,7 @@ from utils.dataloader import BigDataset
 def train(data_dir, experiment_name, sample_name='train',
         batch_size=128,
         num_channels=256, num_levels=5, num_steps=18, quants=20000, add_unif_noise=True,
-        max_epochs=100,
+        max_epochs=75,
         gradient_clip_val=0.5,
         val_fraction=0.1,
         lr=3e-4,
@@ -32,7 +32,7 @@ def train(data_dir, experiment_name, sample_name='train',
         scheduler='cosine',
         scheduler_kwargs=None,
         n_files=15,
-        dataset_type="concat"  # concat or big
+        dataset_type="memmap"  # concat or memmap
         ):
 
     # Cache hyperparameters to log

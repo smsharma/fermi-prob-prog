@@ -3,7 +3,7 @@ import os
 batch = """#!/bin/bash
 #SBATCH --job-name=train
 #SBATCH -n 1
-#SBATCH --mem=64GB
+#SBATCH --mem=96GB
 #SBATCH --time=23:59:59
 #SBATCH -p gpu
 #SBATCH --gres=gpu:4
