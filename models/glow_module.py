@@ -6,7 +6,7 @@ from models.glow import Glow
 
 class GlowPL(pl.LightningModule):
 
-    def __init__(self, num_channels=256, num_levels=5, num_steps=32, quants=256, add_unif_noise=False, lr=1e-4, optimizer_kwargs={'weight_decay': 1e-5}, scheduler='plateau', scheduler_kwargs={'patience':4}):
+    def __init__(self, mask=None, num_channels=256, num_levels=5, num_steps=32, quants=256, add_unif_noise=False, lr=1e-4, optimizer_kwargs={'weight_decay': 1e-5}, scheduler='plateau', scheduler_kwargs={'patience':4}):
         """
         Inputs:
             flows - A list of flows (each a nn.Module) that should be applied on the images.
@@ -17,6 +17,7 @@ class GlowPL(pl.LightningModule):
         self.lr = lr
         self.optimizer_kwargs = optimizer_kwargs
         self.quants = quants
+        self.mask = mask
         
         self.optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, **optimizer_kwargs)
 
@@ -34,6 +35,8 @@ class GlowPL(pl.LightningModule):
 
         # Add dummy channel dimension and bring (h w) dim down to (96 96) for compatibility with squeeze/split
         x = x.unsqueeze(1)[:, :, 2:-2, 2:-2] 
+        if self.mask != None:
+            x = x * ~self.mask
 
         dim = np.prod(x.size()[1:])
         log_p_sum, logdet, _ = self.flow(x)

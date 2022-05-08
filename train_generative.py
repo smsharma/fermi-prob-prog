@@ -19,12 +19,12 @@ import wandb
 
 from models.glow_module import GlowPL
 from utils.dataloader import BigDataset
+from utils.cart import to_cart
 
-
-def train(data_dir, experiment_name, sample_name='train',
+def train(data_dir, experiment_name, sample_name='train', mask_type=None,
         batch_size=128,
         num_channels=256, num_levels=5, num_steps=18, quants=20000, add_unif_noise=True,
-        max_epochs=75,
+        max_epochs=100,
         gradient_clip_val=0.5,
         val_fraction=0.1,
         lr=3e-4,
@@ -53,6 +53,13 @@ def train(data_dir, experiment_name, sample_name='train',
     x_files = glob.glob("data/samples/x_{}_*".format(sample_name))[:n_files]
     theta_files = glob.glob("data/samples/theta_{}_*".format(sample_name))[:n_files]
 
+    if mask_type == "roi":
+        mask = torch.Tensor(np.load("data/fermi_data/mask_roi.npy"))[2:-2, 2:-2]
+    elif mask_type == "plane":
+        mask = torch.Tensor(np.load("data/fermi_data/mask_plane.npy"))[2:-2, 2:-2]
+    else:
+        mask = None
+
     if dataset_type == "concat":
     
         ## ConcatDataset dataset 
@@ -73,7 +80,7 @@ def train(data_dir, experiment_name, sample_name='train',
     train_loader = DataLoader(dataset_train, batch_size=batch_size, num_workers=16, pin_memory=True, shuffle=True)
     val_loader = DataLoader(dataset_val, batch_size=batch_size, num_workers=16, pin_memory=True, shuffle=False)
 
-    model = GlowPL(num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=quants, add_unif_noise=add_unif_noise,
+    model = GlowPL(mask=mask, num_channels=num_channels, num_levels=num_levels, num_steps=num_steps, quants=quants, add_unif_noise=add_unif_noise,
                 lr=lr, scheduler=scheduler, optimizer_kwargs=optimizer_kwargs, scheduler_kwargs=scheduler_kwargs)
 
     wandb_logger.experiment
@@ -108,8 +115,8 @@ def parse_args():
     parser.add_argument("--sample", type=str, default='train', help='Sample name')
     parser.add_argument("--dir", type=str, default=".", help="Directory; training data will be loaded from the data/samples subfolder, model saved in the data/models subfolder")
     parser.add_argument("--name", type=str, default='production_run', help='Name used to store experiment')
-
     parser.add_argument("--add_unif_noise", type=int, default=1, help='Whether to add uniform noise during dequantization')
+    parser.add_argument("--mask_type", type="str", default="None", help='"plane" or "roi" mask, optionally')
 
     # Training option
     return parser.parse_args()
@@ -123,6 +130,12 @@ if __name__ == "__main__":
 
     args = parse_args()
 
-    train(data_dir="{}/data/".format(args.dir), experiment_name=args.name, sample_name=args.sample, add_unif_noise=args.add_unif_noise)
+    # If using a ROI mask, set maximum photons to a smaller value
+    if args.mask_type == "roi":
+        quants = 1000
+    else:
+        quants = 20000
+
+    train(mask_type=args.mask_type, data_dir="{}/data/".format(args.dir), experiment_name=args.name, sample_name=args.sample, add_unif_noise=args.add_unif_noise, quants=quants)
 
     logging.info("All done!")

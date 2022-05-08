@@ -26,11 +26,23 @@ module load git/2.17.0-fasrc01
 cd /n/dvorkin_lab/smsharma/mi-attribution/
 """
 
-for add_unif_noise in [0,1]:
+# for add_unif_noise in [0,1]:
+
+#     batchn = batch + "\n"
+
+#     batchn += "python -u train_generative.py --add_unif_noise {}".format(add_unif_noise)
+#     fname = "batch/submit.batch"
+#     f = open(fname, "w")
+#     f.write(batchn)
+#     f.close()
+#     os.system("chmod +x " + fname)
+#     os.system("sbatch " + fname)
+
+for mask_type in ["roi", "plane"]:
 
     batchn = batch + "\n"
 
-    batchn += "python -u train_generative.py --add_unif_noise {}".format(add_unif_noise)
+    batchn += "python -u train_generative.py --mask_type {}".format(mask_type)
     fname = "batch/submit.batch"
     f = open(fname, "w")
     f.write(batchn)

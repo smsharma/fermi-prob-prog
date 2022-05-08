@@ -23,4 +23,4 @@ module load git/2.17.0-fasrc01
 
 cd /n/dvorkin_lab/smsharma/mi-attribution/
 
-python -u train_generative.py --add_unif_noise 1
+python -u train_generative.py --mask_type plane
