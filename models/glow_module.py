@@ -35,8 +35,10 @@ class GlowPL(pl.LightningModule):
 
         # Add dummy channel dimension and bring (h w) dim down to (96 96) for compatibility with squeeze/split
         x = x.unsqueeze(1)[:, :, 2:-2, 2:-2] 
+
         if self.mask != None:
-            x = x * ~self.mask
+            mask = self.mask.type_as(x).int()
+            x = x * mask
 
         dim = np.prod(x.size()[1:])
         log_p_sum, logdet, _ = self.flow(x)

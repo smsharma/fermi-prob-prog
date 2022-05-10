@@ -24,14 +24,14 @@ from utils.cart import to_cart
 def train(data_dir, experiment_name, sample_name='train', mask_type=None,
         batch_size=128,
         num_channels=256, num_levels=5, num_steps=18, quants=20000, add_unif_noise=True,
-        max_epochs=100,
+        max_epochs=80,
         gradient_clip_val=0.5,
         val_fraction=0.1,
         lr=3e-4,
         optimizer_kwargs={'weight_decay': 1e-5},
         scheduler='cosine',
         scheduler_kwargs=None,
-        n_files=15,
+        n_files=1,
         dataset_type="memmap"  # concat or memmap
         ):
 
@@ -54,9 +54,9 @@ def train(data_dir, experiment_name, sample_name='train', mask_type=None,
     theta_files = glob.glob("data/samples/theta_{}_*".format(sample_name))[:n_files]
 
     if mask_type == "roi":
-        mask = torch.Tensor(np.load("data/fermi_data/mask_roi.npy"))[2:-2, 2:-2]
+        mask = (torch.Tensor(np.load("data/fermi_data/mask_roi.npy"))[2:-2, 2:-2] == 0.).bool().int()
     elif mask_type == "plane":
-        mask = torch.Tensor(np.load("data/fermi_data/mask_plane.npy"))[2:-2, 2:-2]
+        mask = (torch.Tensor(np.load("data/fermi_data/mask_plane.npy"))[2:-2, 2:-2] == 0.).bool().int()
     else:
         mask = None
 
@@ -101,6 +101,8 @@ def train(data_dir, experiment_name, sample_name='train', mask_type=None,
 
     trainer = pl.Trainer(max_epochs=max_epochs, strategy="ddp_find_unused_parameters_false", accelerator="gpu", devices=-1, gradient_clip_val=gradient_clip_val, callbacks=[checkpoint_callback, lr_monitor], logger=wandb_logger)
 
+    # trainer = pl.Trainer(max_epochs=max_epochs, accelerator="gpu", devices=[0], gradient_clip_val=gradient_clip_val, callbacks=[checkpoint_callback, lr_monitor], logger=wandb_logger)
+
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
     if model.trainer.is_global_zero:
@@ -116,7 +118,7 @@ def parse_args():
     parser.add_argument("--dir", type=str, default=".", help="Directory; training data will be loaded from the data/samples subfolder, model saved in the data/models subfolder")
     parser.add_argument("--name", type=str, default='production_run', help='Name used to store experiment')
     parser.add_argument("--add_unif_noise", type=int, default=1, help='Whether to add uniform noise during dequantization')
-    parser.add_argument("--mask_type", type="str", default="None", help='"plane" or "roi" mask, optionally')
+    parser.add_argument("--mask_type", type=str, default="None", help='"plane" or "roi" mask, optionally')
 
     # Training option
     return parser.parse_args()

@@ -3,7 +3,7 @@ import os
 batch = """#!/bin/bash
 #SBATCH --job-name=train
 #SBATCH -n 1
-#SBATCH --mem=96GB
+#SBATCH --mem=80GB
 #SBATCH --time=23:59:59
 #SBATCH -p gpu
 #SBATCH --gres=gpu:4
@@ -21,7 +21,6 @@ module load cudnn/8.1.0.77_cuda11.2-fasrc01
 module load glib/2.56.1-fasrc01
 module load openmpi/4.0.1-fasrc01
 module load git/2.17.0-fasrc01
-
 
 cd /n/dvorkin_lab/smsharma/mi-attribution/
 """
