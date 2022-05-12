@@ -31,7 +31,7 @@ def train(data_dir, experiment_name, sample_name='train', mask_type=None,
         optimizer_kwargs={'weight_decay': 1e-5},
         scheduler='cosine',
         scheduler_kwargs=None,
-        n_files=1,
+        n_files=15,
         dataset_type="memmap"  # concat or memmap
         ):
 

@@ -20,7 +20,6 @@ module load glib/2.56.1-fasrc01
 module load openmpi/4.0.1-fasrc01
 module load git/2.17.0-fasrc01
 
-
 cd /n/dvorkin_lab/smsharma/mi-attribution/
 
 python -u train_generative.py --mask_type plane
