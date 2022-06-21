@@ -6,7 +6,7 @@ from models.glow import Glow
 
 class GlowPL(pl.LightningModule):
 
-    def __init__(self, mask=None, num_channels=256, num_levels=5, num_steps=32, quants=256, add_unif_noise=False, lr=1e-4, optimizer_kwargs={'weight_decay': 1e-5}, scheduler='plateau', scheduler_kwargs={'patience':4}):
+    def __init__(self, mask=None, num_channels=256, num_levels=5, num_steps=18, quants=256, add_unif_noise=False, lr=1e-4, optimizer_kwargs={'weight_decay': 1e-5}, scheduler='plateau', scheduler_kwargs={'patience':4}):
         """
         Inputs:
             flows - A list of flows (each a nn.Module) that should be applied on the images.
