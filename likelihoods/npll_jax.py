@@ -3,65 +3,65 @@ import sys
 sys.path.append("./")
 
 import jax
+from jax import jit
 import jax.numpy as jnp
+import numpy as np
 from jax.config import config
 config.update("jax_enable_x64", True)
 
 from models.scd import dnds
 
+from functools import partial
 
-def log_like_np(pt_sum_compressed, theta, npt_compressed, data, f_ary, df_rho_div_f_ary):
+
+@partial(jit, static_argnums=(6,7,))
+def log_like_np(theta, pt_sum_compressed, npt_compressed, data, f_ary, df_rho_div_f_ary, k_max, npixROI):
     """ Organize and combine non-Poissonian likelihoods across multiple templates
     """
-
-    k_max = jnp.max(data) + 1
-    npixROI = len(pt_sum_compressed)
-
-    x_m_ary = jnp.zeros((npixROI, int(k_max) + 1))
+    
+    x_m_ary = jnp.zeros((npixROI, k_max + 1))
     x_m_sum = jnp.zeros(npixROI)
 
-    s_ary = jnp.logspace(-2, 2, 1000)
+    s_ary = jnp.logspace(-2, 2, 200)
 
     for i in jnp.arange(len(theta)):
         dnds_ary = dnds(s_ary, theta[i])
 
-        x_m_ary_out, x_m_sum_out = return_x_m(f_ary, df_rho_div_f_ary, npt_compressed[i], data, s_ary, dnds_ary)
+        x_m_ary_out, x_m_sum_out = return_x_m(f_ary, df_rho_div_f_ary, npt_compressed[i], data, s_ary, dnds_ary, k_max)
         x_m_ary += x_m_ary_out
         x_m_sum += x_m_sum_out
 
-    return log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum)
+    return log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum, k_max, npixROI)
 
-
-def log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum):
+@partial(jit, static_argnums=(4,5,))
+def log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum, k_max, npixROI):
     """ Non-Poissonian likelihood for single template, given x_m and x_m_sum
     """
-
-    k_max = jnp.max(data) + 1
-    npixROI = len(pt_sum_compressed)
 
     f0_ary = -(pt_sum_compressed + x_m_sum)
     f1_ary = pt_sum_compressed + x_m_ary[:, 1]
 
-    pk_ary = jnp.zeros((npixROI, int(k_max) + 1))
+    pk_ary = jnp.zeros((npixROI, k_max + 1))
 
     pk_ary = pk_ary.at[:, 0].set(jnp.exp(f0_ary))
     pk_ary = pk_ary.at[:, 1].set(pk_ary[:, 0] * f1_ary)
-
-    for k in jnp.arange(2, k_max + 1):
-
+    
+    for k in np.arange(2, k_max + 1):
+                
         n = jnp.arange(k - 1)
         pk_ary = pk_ary.at[:, k].set(jnp.sum((k - n) / k * x_m_ary[:, k - n] * pk_ary[:, n], axis=1) + f1_ary * pk_ary[:, k - 1] / k)
-    
+        
     pk_dat_ary = (pk_ary[jnp.arange(npixROI), data])
+        
+    # return (jnp.log(pk_dat_ary))
+    return jnp.sum(jnp.log(pk_dat_ary))
 
-    return jnp.log(pk_dat_ary)
 
-
-def return_x_m(f_ary, df_rho_div_f_ary, npt_compressed, data, s_ary, dnds_ary):
+@partial(jit, static_argnums=(6,))
+def return_x_m(f_ary, df_rho_div_f_ary, npt_compressed, data, s_ary, dnds_ary, k_max):
     """ Dedicated calculation of x_m and x_m_sum
     """
 
-    k_max = jnp.max(data) + 1
     m_ary = jnp.arange(k_max + 1 , dtype=jnp.float64)
     gamma_ary = jnp.exp(jax.lax.lgamma(m_ary + 1))
 

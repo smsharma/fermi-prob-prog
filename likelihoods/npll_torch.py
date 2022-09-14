@@ -6,7 +6,7 @@ import torch
 from models.scd import dnds_torch as dnds
 
 
-def log_like_np(pt_sum_compressed, theta, npt_compressed, data, f_ary, df_rho_div_f_ary):
+def log_like_np(theta, pt_sum_compressed, npt_compressed, data, f_ary, df_rho_div_f_ary):
     """ Organize and combine non-Poissonian likelihoods across multiple templates
     """
 
@@ -50,7 +50,7 @@ def log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum):
 
     pk_dat_ary = (pk_ary[torch.arange(npixROI), data.long()]).double()
 
-    return torch.log(pk_dat_ary)
+    return torch.log(pk_dat_ary).sum()
 
 
 def return_x_m(f_ary, df_rho_div_f_ary, npt_compressed, data, s_ary, dnds_ary):
