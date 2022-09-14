@@ -50,7 +50,7 @@ def log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum):
 
     pk_dat_ary = (pk_ary[torch.arange(npixROI), data.long()]).double()
 
-    return torch.log(pk_dat_ary).sum()
+    return torch.log(pk_dat_ary)
 
 
 def return_x_m(f_ary, df_rho_div_f_ary, npt_compressed, data, s_ary, dnds_ary):

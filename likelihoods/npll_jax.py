@@ -3,7 +3,7 @@ import sys
 sys.path.append("./")
 
 import jax
-from jax import jit
+from jax import jit, vmap
 import jax.numpy as jnp
 import numpy as np
 from jax.config import config
@@ -23,8 +23,9 @@ def log_like_np(theta, pt_sum_compressed, npt_compressed, data, f_ary, df_rho_di
     x_m_sum = jnp.zeros(npixROI)
 
     s_ary = jnp.logspace(-2, 2, 200)
-
+        
     for i in jnp.arange(len(theta)):
+        
         dnds_ary = dnds(s_ary, theta[i])
 
         x_m_ary_out, x_m_sum_out = return_x_m(f_ary, df_rho_div_f_ary, npt_compressed[i], data, s_ary, dnds_ary, k_max)
@@ -53,9 +54,7 @@ def log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum, k_max, npixROI)
         
     pk_dat_ary = (pk_ary[jnp.arange(npixROI), data])
         
-    # return (jnp.log(pk_dat_ary))
-    return jnp.sum(jnp.log(pk_dat_ary))
-
+    return jnp.log(pk_dat_ary)
 
 @partial(jit, static_argnums=(6,))
 def return_x_m(f_ary, df_rho_div_f_ary, npt_compressed, data, s_ary, dnds_ary, k_max):
@@ -69,8 +68,6 @@ def return_x_m(f_ary, df_rho_div_f_ary, npt_compressed, data, s_ary, dnds_ary, k
     x_m_ary = jnp.sum(x_m_ary, axis=0)
 
     x_m_ary = jnp.outer(npt_compressed, x_m_ary)
-
-    # Get x_m_sum_ary array
 
     x_m_sum_ary = jnp.sum((df_rho_div_f_ary * f_ary)[:, None] * jnp.trapz(dnds_ary, s_ary), axis=0)
     x_m_sum_ary = jnp.sum(x_m_sum_ary, axis=0)
