@@ -24,6 +24,6 @@ def make_wcs(center, size, pixelsize, frame="Galactic", projection="CAR"):
     w.wcs.equinox = 2000.0
     return w
 
-def to_cart(temp_hp, n_pixels=96, pixelsize=0.5, frame="Galactic"):
-    wcs = make_wcs(center=(0.,0.), size=(n_pixels,n_pixels), pixelsize=pixelsize, frame=frame)
+def to_cart(temp_hp, n_pixels=96, pixelsize=0.5, frame="Galactic", offset=(0.5,-0.5)):
+    wcs = make_wcs(center=offset, size=(n_pixels,n_pixels), pixelsize=pixelsize, frame=frame)
     return reproject_from_healpix((temp_hp, "Galactic"), wcs, shape_out=(n_pixels, n_pixels), nested=False)[0]
