@@ -1,8 +1,14 @@
-outputs:
-  repo:
-    type: volume
-uses: git-checkout@v1
-with:
-  url: https://github.com/smsharma/fermi-prob-prog
-  username: smsharma
-  password: secret:MY_SECRET_NAME
+'on':
+  github:
+    branches:
+      only: main
+jobs:
+  CloneRepo:
+    outputs:
+      repo:
+        type: volume
+    uses: git-checkout@v1
+    with:
+      url: https://github.com/smsharma/fermi-prob-prog
+      username: smsharma
+      password: secret:MY_SECRET_NAME
