@@ -8,6 +8,7 @@ import numpyro.distributions as dist
 from numpyro.infer import SVI, Predictive, Trace_ELBO, autoguide
 from numpyro import optim
 import optax
+import arviz as az
 
 from models.scd import dnds
 from models.templates import NFWTemplate, GaussianDiskTemplate
@@ -18,8 +19,9 @@ from utils import create_mask as cm
 from models.psf import KingPSF
 from utils.psf_correction import PSFCorrection
 
+
 class NPModel:
-    def __init__(self, data, r_outer=20, l_max=0, dif="ModelO", template_name="macias2019"):
+    def __init__(self, data, r_outer=25, l_max=0, dif="ModelO", vary_disk=True, vary_gamma=True, bulge_hybrid=True, bulge_template_name="macias2019"):
         
         self.nside = 128
 
@@ -32,7 +34,7 @@ class NPModel:
         self.nfw_template = NFWTemplate()
         self.gaussian_disk_template = GaussianDiskTemplate()
 
-        self.bulge_template = BulgeTemplates(template_name=template_name)()
+        self.bulge_template = BulgeTemplates(template_name=bulge_template_name)()
 
         self.l_max = l_max
         self.dif = dif
@@ -40,6 +42,10 @@ class NPModel:
         self.load_templates()
         self.get_sphharms()
         self.get_psf_correction()
+        
+        self.bulge_hybrid = bulge_hybrid
+        self.vary_gamma = vary_gamma
+        self.vary_disk = vary_disk
 
         self.k_max = np.max(np.array(data)[~self.mask_roi])
 
@@ -70,6 +76,7 @@ class NPModel:
         self.temp_psc = np.load("../data/fermi_data/template_psc.npy")
         self.temp_iso = np.load("../data/fermi_data/template_iso.npy")
         self.temp_bub = np.load("../data/fermi_data/template_bub.npy")
+        self.temp_dsk = np.load("../data/fermi_data/template_dsk.npy")
 
         # Load Model O templates
         self.temp_mO_pibrem = np.load("../data/fermi_data/ModelO_r25_q1_pibrem.npy")
@@ -94,8 +101,6 @@ class NPModel:
             self.ics = self.temp_mF_ics
 
     def model(self, data, subsample_frac=0.8):
-                
-        subsample_size = int(subsample_frac * len(data[~self.mask_roi]))
 
         S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 3.))
             
@@ -129,39 +134,47 @@ class NPModel:
             else:
                 A_temp = S_temp / jnp.mean(temp[~self.mask_plane])
                 mu += A_temp * temp     
-                                    
-        zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
-        sigma_r = numpyro.sample("sigma_r", dist.Uniform(0.1, 7.))
-        
-        gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.))
-        gamma_poiss = numpyro.sample("gamma_poiss", dist.Uniform(0.2, 2.))
+                                            
+        if self.vary_gamma:
+            gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.))
+            gamma_poiss = numpyro.sample("gamma_poiss", dist.Uniform(0.2, 2.))
+        else:
+            gamma_poiss = gamma_ps = 1.2
 
-        temp_gce_ps_jax = self.nfw_template.get_NFW2_template(gamma=gamma_ps)
-        temp_gce_poiss_jax = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
-        
-        temp_dsk_jax = self.gaussian_disk_template.get_gaussian_template(zs=zs, sigma_r=sigma_r)
-
-        f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
-        f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.))
-        
+        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps)
+        temp_gce_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
+            
+        if self.vary_disk:
+            zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
+            sigma_r = numpyro.sample("sigma_r", dist.Uniform(0.1, 7.))
+            temp_dsk = self.gaussian_disk_template.get_gaussian_template(zs=zs, sigma_r=sigma_r)
+        else:
+            temp_dsk = self.temp_dsk
+                
+        if self.bulge_hybrid:
+            f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
+            f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.))
+        else:
+            f_bulge_poiss = f_bulge_ps = 0.
+            
         # Normalize to same mean
-        A_gce_nfw = S_gce / jnp.mean(temp_gce_poiss_jax[~self.mask_plane])
+        A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.mask_plane])
         A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.mask_plane])
         
         # Get hybrid template
-        temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_poiss_jax + f_bulge_ps * A_gce_bulge * temp_bulge
+        temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_nfw_poiss + f_bulge_ps * A_gce_bulge * temp_bulge
         
         A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.mask_plane])
         mu += A_gce * temp_gce_poiss
         
         # Normalize to same mean
-        A_gce_nfw = 1 / jnp.mean(temp_gce_ps_jax[~self.mask_plane])
+        A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.mask_plane])
         A_gce_bulge = 1 / jnp.mean(temp_bulge[~self.mask_plane])
         
         # Get hybrid template
-        temp_gce_ps = (1 - f_bulge_ps) * A_gce_nfw * temp_gce_ps_jax + f_bulge_ps * A_gce_bulge * temp_bulge
+        temp_gce_ps = (1 - f_bulge_ps) * A_gce_nfw * temp_gce_nfw_ps + f_bulge_ps * A_gce_bulge * temp_bulge
             
-        npt_compressed = jnp.array([temp_gce_ps, temp_dsk_jax])
+        npt_compressed = jnp.array([temp_gce_ps, temp_dsk])
 
         theta = []    
         
@@ -177,7 +190,7 @@ class NPModel:
             
             theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
             
-            s_ary = jnp.logspace(0., 2, 100)
+            s_ary = jnp.logspace(0., 2, 1000)
             dnds_ary = dnds(s_ary, theta_tmp)
                     
             A = Sps / jnp.mean(npt_compressed[ips][~self.mask_plane] * jnp.trapz(s_ary * dnds_ary, s_ary))
@@ -186,15 +199,27 @@ class NPModel:
             
         theta = jnp.array(theta)
         
+        subsample_size = int(subsample_frac * len(data[~self.mask_roi]))
         with numpyro.plate("data", len(mu[~self.mask_roi]), subsample_size=subsample_size) as ind:
                 
             loglike = log_like_np(theta, mu[~self.mask_roi][ind], npt_compressed[:, ~self.mask_roi][:, ind], self.data[~self.mask_roi][ind], self.f_ary, self.df_rho_div_f_ary, self.k_max, subsample_size)
+            
             return numpyro.factor('log-likelihood', loglike)
 
-    def fit_svi(self, n_steps=5000, lr=5e-3, num_particles=2, subsample_frac=0.8):
+    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, subsample_frac=0.8):
 
-        guide = autoguide.AutoMultivariateNormal(self.model)
+        self.guide = autoguide.AutoMultivariateNormal(self.model)
         optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(10.0), optax.adam(lr)))
         
-        svi = SVI(self.model, guide, optimizer, Trace_ELBO(num_particles=num_particles))
-        svi_results = svi.run(jax.random.PRNGKey(1), n_steps, self.data, subsample_frac=subsample_frac)
+        svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
+        self.svi_results = svi.run(rng_key, n_steps, self.data, subsample_frac=subsample_frac)
+        
+        return self.svi_results
+        
+    def get_posterior_samples(self, rng_key=jax.random.PRNGKey(1), num_samples=50000):
+        
+        rng_key, key = jax.random.split(rng_key)
+        posterior = self.guide.sample_posterior(rng_key=rng_key, params=self.svi_results.params, sample_shape=(num_samples,))
+        arviz_post = az.from_dict(posterior)
+        
+        return arviz_post

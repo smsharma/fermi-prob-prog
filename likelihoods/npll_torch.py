@@ -16,7 +16,7 @@ def log_like_np(theta, pt_sum_compressed, npt_compressed, data, f_ary, df_rho_di
     x_m_ary = torch.zeros((npixROI, int(k_max) + 1), dtype=torch.float64)
     x_m_sum = torch.zeros(npixROI, dtype=torch.float64)
 
-    s_ary = torch.logspace(-2, 2, 1000, dtype=torch.float64)
+    s_ary = torch.logspace(0, 2, 1000, dtype=torch.float64)
 
     for i in torch.arange(len(theta)):
         dnds_ary = dnds(s_ary, theta[i])
