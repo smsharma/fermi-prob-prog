@@ -87,12 +87,12 @@ class LorimerDiskTemplate:
         self.mask_idx = jnp.arange(self.npix)[~mask]
         self.b_ary = np.pi / 2. - theta_ary
         self.l_ary = NFWTemplate.mod(phi_ary + np.pi, 2. * np.pi) - np.pi
-        self.s_ary = jnp.linspace(0, 40, 500)
+        self.s_ary = jnp.linspace(0, 100, 2000)
 
         self.L_integ_Lorimer_vmap = jit(vmap(self.L_integ_Lorimer, in_axes=(0, 0, None, None, None)))
 
     @partial(jit, static_argnums=(0,))
-    def get_lorimer_template(self, zs=0.63, B=2.75, C=5.94):
+    def get_template(self, zs=0.63, B=0., C=5.94):
         int_rho_temp = self.L_integ_Lorimer_vmap(self.b_ary, self.l_ary, zs, B, C)
         int_rho = jnp.zeros(self.npix)
         int_rho = int_rho.at[self.mask_idx].set(int_rho_temp)
@@ -125,68 +125,7 @@ class LorimerDiskTemplate:
         R, z = self.R_z_GC(s, b, l)
         return self.rho_V_Lorimer(R, z, zs, B, C, rsun)
 
-    def L_integ_Lorimer(self, b, l, zs=0.63, B=2.75, C=5.94, rsun=8.224):
+    def L_integ_Lorimer(self, b, l, zs=0.63, B=0., C=5.94, rsun=8.224):
         """ Line-of-sight integral (discrete sum) for Lorimer disk profile
         """
-        s_ary = jnp.linspace(0, 100, 2000)  # Integration range
-        return jnp.trapz(self.rho_V_Lorimer_lonlat(s_ary, b, l, zs, B, C, rsun), s_ary)
-
-
-class GaussianDiskTemplate:
-    """ Gaussian disk spatial template in Healpy projection
-    """
-
-    def __init__(self, nside=128, outer=40):
-
-        mask = cm.make_mask_total(nside=nside, mask_ring=True, inner=0, outer=outer)
-        mask_restrict = np.where(mask == 0)[0]
-        theta_ary, phi_ary = hp.pix2ang(nside, mask_restrict)
-
-        self.npix = hp.nside2npix(nside)
-        self.mask_idx = jnp.arange(self.npix)[~mask]
-        self.b_ary = np.pi / 2. - theta_ary
-        self.l_ary = NFWTemplate.mod(phi_ary + np.pi, 2. * np.pi) - np.pi
-        self.s_ary = jnp.linspace(0, 40, 500)
-
-        self.L_integ_Gaussian_vmap = jit(vmap(self.L_integ_Gaussian, in_axes=(0, 0, None, None)))
-
-    @partial(jit, static_argnums=(0,))
-    def get_gaussian_template(self, zs=1.3, sigma_r=1.):
-        int_rho_temp = self.L_integ_Gaussian_vmap(self.b_ary, self.l_ary, zs, sigma_r)
-        int_rho = jnp.zeros(self.npix)
-        int_rho = int_rho.at[self.mask_idx].set(int_rho_temp)
-        return int_rho
-
-    def R_z_GC(self, s, b, l, rsun=8.224):
-        """ Convert lon/lat to cylindrical coordinates
-        
-            :param s: distance from Earth [kpc]
-            :param b: latitude in galactic coordinates [rad]
-            :param l: longitude in galactic coordinates [rad]
-            :returns: distance from GC [kpc]
-        """
-        R = jnp.sqrt(s ** 2 - 2 * rsun * s * jnp.cos(l) + rsun ** 2)
-        z = s * jnp.tan(b)
-        return R, z
-
-    def rho_V_Gaussian(self, r, z, zs=0.5, sigma_r=3.):
-        """ Spatial number density according to Lorimer disk profile (unnormalized)
-            Eq. (6) of Bartels et al (1805.11097), after removing constant terms
-        """
-        pref = 1 / (4 * np.pi * sigma_r ** 2 * zs)
-        return pref * jnp.exp(-r ** 2 / (2 * sigma_r ** 2)) * jnp.exp(-jnp.abs(z) / zs)
-
-
-    def rho_V_Gaussian_lonlat(self, s, b, l, zs, sigma_r, rsun=8.224):
-        """ Lorimer density, this time in lot/lat
-        """
-        z = s * jnp.tan(b)
-        r = jnp.sqrt(s ** 2 - 2. * rsun * s * jnp.cos(b) * jnp.cos(l) + rsun ** 2)
-            
-        return self.rho_V_Gaussian(r, z, zs, sigma_r)
-
-    def L_integ_Gaussian(self, b, l, zs=0.63, sigma_r=0.5):
-        """ Line-of-sight integral (discrete sum) for Lorimer disk profile
-        """
-        s_ary = jnp.linspace(0, 100, 2000)  # Integration range
-        return jnp.trapz(self.rho_V_Gaussian_lonlat(s_ary, b, l, zs, zs, sigma_r), s_ary)
+        return jnp.trapz(self.rho_V_Lorimer_lonlat(self.s_ary, b, l, zs, B, C, rsun), self.s_ary)

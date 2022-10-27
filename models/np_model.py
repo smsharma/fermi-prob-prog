@@ -11,7 +11,7 @@ import optax
 import arviz as az
 
 from models.scd import dnds
-from models.templates import NFWTemplate, GaussianDiskTemplate
+from models.templates import NFWTemplate, LorimerDiskTemplate
 from models.bulge_models import BulgeTemplates
 from likelihoods.npll_jax import log_like_np
 from utils.sph_harm import Ylm
@@ -32,7 +32,7 @@ class NPModel:
         self.data = data
 
         self.nfw_template = NFWTemplate()
-        self.gaussian_disk_template = GaussianDiskTemplate()
+        self.disk_template = LorimerDiskTemplate()
 
         self.bulge_template = BulgeTemplates(template_name=bulge_template_name)()
 
@@ -146,8 +146,8 @@ class NPModel:
             
         if self.vary_disk:
             zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
-            sigma_r = numpyro.sample("sigma_r", dist.Uniform(0.1, 7.))
-            temp_dsk = self.gaussian_disk_template.get_gaussian_template(zs=zs, sigma_r=sigma_r)
+            C = numpyro.sample("C", dist.Uniform(0.05, 15.))
+            temp_dsk = self.disk_template.get_template(zs=zs, C=C)
         else:
             temp_dsk = self.temp_dsk
                 
