@@ -21,15 +21,26 @@ from utils.psf_correction import PSFCorrection
 
 
 class NPModel:
-    def __init__(self, data, r_outer=25, l_max=0, dif="ModelO", vary_disk=True, vary_gamma=True, bulge_hybrid=True, bulge_template_name="macias2019"):
+    def __init__(self, r_outer=25, l_max=0, dif="ModelO", vary_disk=True, vary_gamma=True, bulge_hybrid=True, bulge_template_name="macias2019", ps_cat="3fgl", nside=128):
         
-        self.nside = 128
+        self.nside = nside
+        self.ps_cat = ps_cat
+        
+        self.data_dir = "../data/fermi_data_573w/fermi_data_{}".format(self.nside)
 
+        self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
+
+        # mask_ps = np.load("{}/fermidata_pscmask_{}.npy".format(self.data_dir, self.ps_cat)) == 1
         mask_ps = np.load("../data/mask_3fgl_0p8deg.npy") == 1
+        
+        if ps_cat != "3fgl":
+            raise NotImplementedError("Catalogs other than 3FGL not supported at the moment.")
+        
+        if nside != 128:
+            raise NotImplementedError("NSIDE other than 128 not supported at the moment.")
+
         self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=r_outer, custom_mask=mask_ps)
         self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
-
-        self.data = data
 
         self.nfw_template = NFWTemplate()
         self.disk_template = LorimerDiskTemplate()
@@ -47,7 +58,7 @@ class NPModel:
         self.vary_gamma = vary_gamma
         self.vary_disk = vary_disk
 
-        self.k_max = np.max(np.array(data)[~self.mask_roi])
+        self.k_max = np.max(np.array(self.data)[~self.mask_roi])
 
     def get_psf_correction(self):
 
@@ -73,22 +84,22 @@ class NPModel:
 
     def load_templates(self):
 
-        self.temp_psc = np.load("../data/fermi_data/template_psc.npy")
-        self.temp_iso = np.load("../data/fermi_data/template_iso.npy")
-        self.temp_bub = np.load("../data/fermi_data/template_bub.npy")
-        self.temp_dsk = np.load("../data/fermi_data/template_dsk.npy")
+        self.temp_psc = np.load("{}/template_psc_{}.npy".format(self.data_dir, self.ps_cat))
+        self.temp_iso = np.load("{}/template_iso.npy".format(self.data_dir))
+        self.temp_bub = np.load("{}/template_bub.npy".format(self.data_dir))
+        self.temp_dsk = np.load("{}/template_dsk_z0p3.npy".format(self.data_dir))
 
         # Load Model O templates
-        self.temp_mO_pibrem = np.load("../data/fermi_data/ModelO_r25_q1_pibrem.npy")
-        self.temp_mO_ics = np.load("../data/fermi_data/ModelO_r25_q1_ics.npy")
+        self.temp_mO_pibrem = np.load("{}/template_Opi.npy".format(self.data_dir))
+        self.temp_mO_ics = np.load("{}/template_Oic.npy".format(self.data_dir))
 
         # Load Model A templates
-        self.temp_mA_pibrem = np.load("../data/external/template_Api.npy")
-        self.temp_mA_ics = np.load("../data/external/template_Aic.npy")
+        self.temp_mA_pibrem = np.load("{}/template_Api.npy".format(self.data_dir))
+        self.temp_mA_ics = np.load("{}/template_Aic.npy".format(self.data_dir))
 
         # Load Model F templates
-        self.temp_mF_pibrem = np.load("../data/external/template_Fpi.npy")
-        self.temp_mF_ics = np.load("../data/external/template_Fic.npy")
+        self.temp_mF_pibrem = np.load("{}/template_Fpi.npy".format(self.data_dir))
+        self.temp_mF_ics = np.load("{}/template_Fic.npy".format(self.data_dir))
 
         if self.dif == "ModelO":
             self.pibrem = self.temp_mO_pibrem

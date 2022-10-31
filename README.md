@@ -1,1 +1,1 @@
-# Counterfactual generation for GCE maps
+# Differentiable probabilistic programming for the GCE
