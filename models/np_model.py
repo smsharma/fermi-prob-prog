@@ -31,21 +31,18 @@ class NPModel:
         self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
 
         # mask_ps = np.load("{}/fermidata_pscmask_{}.npy".format(self.data_dir, self.ps_cat)) == 1
-        mask_ps = np.load("../data/mask_3fgl_0p8deg.npy") == 1
+        mask_ps = hp.ud_grade(np.load("../data/mask_3fgl_0p8deg.npy"), nside_out=self.nside) > 0
         
         if ps_cat != "3fgl":
             raise NotImplementedError("Catalogs other than 3FGL not supported at the moment.")
         
-        if nside != 128:
-            raise NotImplementedError("NSIDE other than 128 not supported at the moment.")
-
         self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=r_outer, custom_mask=mask_ps)
         self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
 
-        self.nfw_template = NFWTemplate()
-        self.disk_template = LorimerDiskTemplate()
+        self.nfw_template = NFWTemplate(nside=self.nside)
+        self.disk_template = LorimerDiskTemplate(nside=self.nside)
 
-        self.bulge_template = BulgeTemplates(template_name=bulge_template_name)()
+        self.bulge_template = BulgeTemplates(template_name=bulge_template_name, nside_out=self.nside)()
 
         self.l_max = l_max
         self.dif = dif
@@ -59,16 +56,17 @@ class NPModel:
         self.vary_disk = vary_disk
 
         self.k_max = np.max(np.array(self.data)[~self.mask_roi])
+        print("Max photon count is {}".format(self.k_max))
 
     def get_psf_correction(self):
 
         kp = KingPSF()
 
-        pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15)
+        pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside)
         pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
         pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
         pc_inst.psf_samples = 10000
-        pc_inst.psf_tag = "Fermi_PSF_2GeV2"
+        pc_inst.psf_tag = "Fermi_PSF_2GeV2_nside{}".format(self.nside)
         pc_inst.make_or_load_psf_corr()
 
         self.f_ary = pc_inst.f_ary
