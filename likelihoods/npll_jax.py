@@ -22,17 +22,17 @@ def log_like_np(theta, pt_sum_compressed, npt_compressed, data, f_ary, df_rho_di
     x_m_ary = jnp.zeros((npixROI, k_max + 1))
     x_m_sum = jnp.zeros(npixROI)
 
-    s_ary = jnp.logspace(0., 2., 100)
+    s_ary = jnp.logspace(0., 2.5, 200)
+    
+    return_x_m_vmapped = vmap(return_x_m, in_axes=(None, None, 0, None, None, 0, None))
         
-    for i in jnp.arange(len(theta)):
-        
-        dnds_ary = dnds(s_ary, theta[i])
-
-        x_m_ary_out, x_m_sum_out = return_x_m(f_ary, df_rho_div_f_ary, npt_compressed[i], data, s_ary, dnds_ary, k_max)
-        x_m_ary += x_m_ary_out
-        x_m_sum += x_m_sum_out
-
-    return log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum, k_max, npixROI)
+    dnds_ary = vmap(dnds, in_axes=(None,0))(s_ary, theta)
+    x_m, x_m_sum = return_x_m_vmapped(f_ary, df_rho_div_f_ary, npt_compressed, data, s_ary, dnds_ary, k_max)
+    
+    x_m = jnp.sum(x_m, axis=0)
+    x_m_sum = jnp.sum(x_m_sum, axis=0)
+    
+    return log_like_internal(pt_sum_compressed, data, x_m, x_m_sum, k_max, npixROI)
 
 @partial(jit, static_argnums=(4,5,))
 def log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum, k_max, npixROI):
