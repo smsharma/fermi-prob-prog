@@ -111,7 +111,7 @@ class NPModel:
     
     def model(self, data):
 
-        S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 3.))
+        S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 2.))
             
         temps = [self.temp_iso, self.temp_bub, self.temp_psc, self.pibrem, self.ics]
         temp_labels = ["iso", "bub", "psc", "dif", "ics"]
@@ -123,7 +123,7 @@ class NPModel:
         for temp, temp_label in zip(temps, temp_labels):
             
             if temp_label in ["dif"]:
-                prior_dist = dist.Uniform(1e-5, 20.0)
+                prior_dist = dist.Uniform(8., 14.)
             else:
                 prior_dist = dist.Uniform(1e-5, 5.0)
     
@@ -189,11 +189,11 @@ class NPModel:
         
         for ips, ps in enumerate(["gce", "dsk"]):
             
-            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-5, 3.))
+            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-5, 2.))
             
-            n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(3.0, 10.0))
+            n1 = numpyro.sample("n1_{}".format(ps), dist.Normal(5.0, 0.2))
             n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 2.))
-            n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-5., -4.))
+            n3 = numpyro.sample("n3_{}".format(ps), dist.Normal(-5., 0.2))
             sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
             lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.99))
             
