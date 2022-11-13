@@ -108,8 +108,8 @@ class NPModel:
         elif self.dif == "ModelF":
             self.pibrem = self.temp_mF_pibrem
             self.ics = self.temp_mF_ics
-
-    def model(self, data, subsample_frac=0.8):
+    
+    def model(self, data):
 
         S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 3.))
             
@@ -208,20 +208,19 @@ class NPModel:
             
         theta = jnp.array(theta)
         
-        subsample_size = int(subsample_frac * len(data[~self.mask_roi]))
-        with numpyro.plate("data", len(mu[~self.mask_roi]), subsample_size=subsample_size) as ind:
+        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
                 
-            loglike = log_like_np(theta, mu[~self.mask_roi][ind], npt_compressed[:, ~self.mask_roi][:, ind], self.data[~self.mask_roi][ind], self.f_ary, self.df_rho_div_f_ary, self.k_max, subsample_size)
+            loglike = log_like_np(theta, mu[~self.mask_roi], npt_compressed[:, ~self.mask_roi], self.data[~self.mask_roi], self.f_ary, self.df_rho_div_f_ary, self.k_max, len(data[~self.mask_roi]))
             
             return numpyro.factor('log-likelihood', loglike)
 
-    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, subsample_frac=0.8):
+    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2):
 
         self.guide = autoguide.AutoMultivariateNormal(self.model)
         optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(10.0), optax.adam(lr)))
         
         svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
-        self.svi_results = svi.run(rng_key, n_steps, self.data, subsample_frac=subsample_frac)
+        self.svi_results = svi.run(rng_key, n_steps, self.data)
         
         return self.svi_results
         
