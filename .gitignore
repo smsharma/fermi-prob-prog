@@ -163,3 +163,4 @@ auto
 
 paper/fermi-counterfactuals.pdf
 data/*.fits
+cross_check/data
