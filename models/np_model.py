@@ -6,7 +6,9 @@ import jax
 import numpyro.distributions as dist
 
 from numpyro.infer import SVI, Predictive, Trace_ELBO, autoguide
+from numpyro.infer.initialization import init_to_median, init_to_uniform
 from numpyro import optim
+from tensorflow_probability import distributions as tfd
 import optax
 import arviz as az
 
@@ -214,10 +216,31 @@ class NPModel:
             
             return numpyro.factor('log-likelihood', loglike)
 
-    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2):
+    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, num_base_mixture=10, guide="bnaf"):
+        
+        
+        class AutoBNAFMixture(autoguide.AutoBNAFNormal):
+            def get_base_dist(self):
+                C = num_base_mixture
+                mixture = dist.MixtureSameFamily(dist.Categorical(probs=jnp.ones(C) / C),
+                                                 dist.Normal(jnp.arange(float(C)), 
+                                                             1.))
+                
+                return mixture.expand([self.latent_dim]).to_event()
 
-        self.guide = autoguide.AutoMultivariateNormal(self.model)
-        optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(10.0), optax.adam(lr)))
+        
+        if guide == "iaf":
+            self.guide = autoguide.AutoIAFNormal(self.model, num_flows=4, hidden_dims=[24, 24], skip_connections=False)
+        elif guide == "mvn":
+            self.guide = autoguide.AutoMultivariateNormal(self.model)
+        elif guide == "bnaf":
+            self.guide = autoguide.AutoBNAFNormal(self.model, num_flows=4, hidden_factors=[24, 24])
+        elif guide == "bnaf_mixture":
+            self.guide = AutoBNAFMixture(self.model, num_flows=12, hidden_factors=[24, 24])
+        else:
+            raise NotImplementedError
+            
+        optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(1.), optax.adamw(lr)))
         
         svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
         self.svi_results = svi.run(rng_key, n_steps, self.data)
