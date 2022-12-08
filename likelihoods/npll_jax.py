@@ -51,6 +51,15 @@ def log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum, k_max, npixROI)
                 
         n = jnp.arange(k - 1)
         pk_ary = pk_ary.at[:, k].set(jnp.sum((k - n) / k * x_m_ary[:, k - n] * pk_ary[:, n], axis=1) + f1_ary * pk_ary[:, k - 1] / k)
+            
+#     def recursion(pk_ary, k):
+
+#         n = jnp.arange(k_max - 1)
+
+#         pk_ary = pk_ary.at[:, k].set(jnp.cumsum((k - n) / k * x_m_ary[:, k - n] * pk_ary[:, n], axis=1)[:, k - 2] + f1_ary * pk_ary[:, k - 1] / k)
+#         return pk_ary, pk_ary
+    
+#     pk_ary, _ jax.lax.scan(recursion, pk_ary, jnp.arange(2, k_max + 1))
         
     pk_dat_ary = pk_ary[jnp.arange(npixROI), data]
         
