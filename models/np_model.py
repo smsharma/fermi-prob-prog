@@ -24,7 +24,7 @@ from utils.psf_correction import PSFCorrection
 
 
 class NPModel:
-    def __init__(self, r_outer=25, l_max=0, dif="ModelO", vary_disk=True, vary_gamma=True, bulge_hybrid=True, bulge_template_name="macias2019", ps_cat="3fgl", nside=128, n_exp=5):
+    def __init__(self, r_outer=25, l_max=0, dif="ModelO", vary_disk=True, vary_gamma=True, bulge_hybrid=True, bulge_template_name="macias2019", ps_cat="3fgl", nside=128, n_exp=1):
         
         self.nside = nside
         self.ps_cat = ps_cat
