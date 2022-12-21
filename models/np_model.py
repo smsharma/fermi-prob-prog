@@ -11,6 +11,7 @@ from numpyro import optim
 from tensorflow_probability import distributions as tfd
 import optax
 import arviz as az
+from einops import repeat
 
 from models.scd import dnds
 from models.templates import NFWTemplate, LorimerDiskTemplate
@@ -23,7 +24,7 @@ from utils.psf_correction import PSFCorrection
 
 
 class NPModel:
-    def __init__(self, r_outer=25, l_max=0, dif="ModelO", vary_disk=True, vary_gamma=True, bulge_hybrid=True, bulge_template_name="macias2019", ps_cat="3fgl", nside=128):
+    def __init__(self, r_outer=25, l_max=0, dif="ModelO", vary_disk=True, vary_gamma=True, bulge_hybrid=True, bulge_template_name="macias2019", ps_cat="3fgl", nside=128, n_exp=5):
         
         self.nside = nside
         self.ps_cat = ps_cat
@@ -31,7 +32,8 @@ class NPModel:
         self.data_dir = "../data/fermi_data_573w/fermi_data_{}".format(self.nside)
 
         self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
-
+        self.exposure_map = np.load("{}/fermidata_exposure.npy".format(self.data_dir))
+    
         # mask_ps = np.load("{}/fermidata_pscmask_{}.npy".format(self.data_dir, self.ps_cat)) == 1
         mask_ps = hp.ud_grade(np.load("../data/mask_3fgl_0p8deg.npy"), nside_out=self.nside) > 0
         
@@ -59,6 +61,8 @@ class NPModel:
 
         self.k_max = np.max(np.array(self.data)[~self.mask_roi])
         print("Max photon count is {}".format(self.k_max))
+        
+        self.get_exp_regions(n_exp)
 
     def get_psf_correction(self):
 
@@ -201,7 +205,7 @@ class NPModel:
             
             theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
             
-            s_ary = jnp.logspace(0., 2, 1000)
+            s_ary = jnp.logspace(0., 2, 100)
             dnds_ary = dnds(s_ary, theta_tmp)
                     
             A = Sps / jnp.mean(npt_compressed[ips][~self.mask_plane] * jnp.trapz(s_ary * dnds_ary, s_ary))
@@ -210,14 +214,75 @@ class NPModel:
             
         theta = jnp.array(theta)
         
-        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
+#         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
                 
-            loglike = log_like_np(theta, mu[~self.mask_roi], npt_compressed[:, ~self.mask_roi], self.data[~self.mask_roi], self.f_ary, self.df_rho_div_f_ary, self.k_max, len(data[~self.mask_roi]))
+#             loglike = log_like_np(theta, mu[~self.mask_roi], npt_compressed[:, ~self.mask_roi], self.data[~self.mask_roi], self.f_ary, self.df_rho_div_f_ary, self.k_max, len(data[~self.mask_roi]))
             
+#             return numpyro.factor('log-likelihood', loglike)
+        
+        # Pad the last exposure region so that all are the same size
+        exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
+        n_pad = exp_lens[0] - exp_lens[-1]
+        self.expreg_indices[-1] = jnp.pad(self.expreg_indices[-1], (0, n_pad))
+
+        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
+        
+        # Get relevant arrays for different exposure regions
+        mu_batch = mu[~self.mask_roi][jnp.array(self.expreg_indices)]
+        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(self.expreg_indices)]
+        data_batch = self.data[~self.mask_roi][jnp.array(self.expreg_indices)]
+        
+        exposure_multiplier = self.exposure_means_list / self.exposure_mean
+        
+        # Scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
+        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(self.expreg_indices))
+        theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
+        theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
+        theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
+
+        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):            
+                
+            log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(self.expreg_indices[0]))
+            
+            # Concatenate exposure regions
+            loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
+                    
             return numpyro.factor('log-likelihood', loglike)
 
-    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, num_base_mixture=10, guide="bnaf"):
-        
+    def get_exp_regions(self, nexp):
+        """ Divide up ROI into exposure regions
+        """
+
+        # Determine the pixels of the exposure regions
+        pix_array = np.where(self.mask_roi == False)[0]
+        exp_array = np.array([[pix_array[i], self.exposure_map[pix_array[i]]] for i in range(len(pix_array))])
+        array_sorted = exp_array[np.argsort(exp_array[:, 1])]
+
+        # Convert from list of exreg pixels to masks (int as used to index)
+        array_split = np.array_split(array_sorted, nexp)
+        expreg_array = [np.array([array_split[i][j][0] for j in range(len(array_split[i]))], dtype="int32") for i in range(len(array_split))]
+
+        npix = len(self.mask_roi)
+
+        self.expreg_mask = []
+        for i in range(nexp):
+            temp_mask = np.logical_not(np.zeros(npix))
+            for j in range(len(expreg_array[i])):
+                temp_mask[expreg_array[i][j]] = False
+            self.expreg_mask.append(temp_mask)
+
+        # Store the total and region by region mean exposure
+        expreg_values = [[array_split[i][j][1] for j in range(len(array_split[i]))] for i in range(len(array_split))]
+
+        self.exposure_means_list = jnp.array([np.mean(expreg_values[i]) for i in range(nexp)])
+        self.exposure_mean = jnp.mean(self.exposure_means_list)
+
+        self.expreg_indices = []
+        for i in range(nexp):
+            expreg_indices_temp = np.array([np.where(pix_array == elem)[0][0] for elem in expreg_array[i]])
+            self.expreg_indices.append(jnp.array(expreg_indices_temp))
+            
+    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, num_base_mixture=10, guide="mvn"):
         
         class AutoBNAFMixture(autoguide.AutoBNAFNormal):
             def get_base_dist(self):
@@ -228,7 +293,6 @@ class NPModel:
                 
                 return mixture.expand([self.latent_dim]).to_event()
 
-        
         if guide == "iaf":
             self.guide = autoguide.AutoIAFNormal(self.model, num_flows=4, hidden_dims=[24, 24], skip_connections=False)
         elif guide == "mvn":
