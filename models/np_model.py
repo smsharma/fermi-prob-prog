@@ -45,8 +45,14 @@ class NPModel:
 
         self.nfw_template = NFWTemplate(nside=self.nside)
         self.disk_template = LorimerDiskTemplate(nside=self.nside)
+        
+        # Load all bulge templates
+        bulge_template_names = ["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"]
+        self.bulge_templates = jnp.array([BulgeTemplates(template_name=template_name)() for template_name in bulge_template_names])
+        self.n_bulge_templates = len(self.bulge_templates)
 
-        self.bulge_template = BulgeTemplates(template_name=bulge_template_name, nside_out=self.nside)()
+        # Individually normalize the bulge templates
+        self.bulge_templates = self.bulge_templates / jnp.mean(self.bulge_templates[:, ~self.mask_plane], axis=-1)[:, None]
 
         self.l_max = l_max
         self.dif = dif
@@ -121,9 +127,7 @@ class NPModel:
             
         temps = [self.temp_iso, self.temp_bub, self.temp_psc, self.pibrem, self.ics]
         temp_labels = ["iso", "bub", "psc", "dif", "ics"]
-        
-        temp_bulge = self.bulge_template
-        
+                
         mu = jnp.zeros_like(data)
         
         for temp, temp_label in zip(temps, temp_labels):
@@ -172,6 +176,11 @@ class NPModel:
         else:
             f_bulge_poiss = f_bulge_ps = 0.
             
+        
+        # Get mixed bulge template
+        theta_bulge_poiss = numpyro.sample("theta_bulge_poiss", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
+        temp_bulge = jnp.sum(theta_bulge_poiss[:, None] * self.bulge_templates, 0)
+        
         # Normalize to same mean
         A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.mask_plane])
         A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.mask_plane])
@@ -182,6 +191,10 @@ class NPModel:
         A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.mask_plane])
         mu += A_gce * temp_gce_poiss
         
+        # Get mixed bulge template
+        theta_bulge_ps = numpyro.sample("theta_bulge_ps", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
+        temp_bulge = jnp.sum(theta_bulge_ps[:, None] * self.bulge_templates, 0)
+
         # Normalize to same mean
         A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.mask_plane])
         A_gce_bulge = 1 / jnp.mean(temp_bulge[~self.mask_plane])
@@ -312,9 +325,8 @@ class NPModel:
         return self.svi_results
         
     def get_posterior_samples(self, rng_key=jax.random.PRNGKey(1), num_samples=50000):
-        
+        """ Sample from the variational posterior; returns a dictionary of posterior samples
+        """
         rng_key, key = jax.random.split(rng_key)
         posterior = self.guide.sample_posterior(rng_key=rng_key, params=self.svi_results.params, sample_shape=(num_samples,))
-        arviz_post = az.from_dict(posterior)
-        
-        return arviz_post
+        return posterior
