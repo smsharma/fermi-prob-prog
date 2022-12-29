@@ -24,7 +24,7 @@ from utils.psf_correction import PSFCorrection
 
 
 class NPModel:
-    def __init__(self, r_outer=25, l_max=0, dif="ModelO", vary_disk=True, vary_gamma=True, bulge_hybrid=True, bulge_template_name="macias2019", ps_cat="3fgl", nside=128, n_exp=1):
+    def __init__(self, r_outer=25, l_max=0, dif_names=["ModelO", "ModelA", "ModelF"], vary_disk=True, vary_gamma=True, bulge_hybrid=True, bulge_template_name="macias2019", ps_cat="3fgl", nside=128, n_exp=1):
         
         self.nside = nside
         self.ps_cat = ps_cat
@@ -48,6 +48,7 @@ class NPModel:
         
         # Load all bulge templates
         bulge_template_names = ["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"]
+        self.dif_names = dif_names
         self.bulge_templates = jnp.array([BulgeTemplates(template_name=template_name)() for template_name in bulge_template_names])
         self.n_bulge_templates = len(self.bulge_templates)
 
@@ -55,7 +56,6 @@ class NPModel:
         self.bulge_templates = self.bulge_templates / jnp.mean(self.bulge_templates[:, ~self.mask_plane], axis=-1)[:, None]
 
         self.l_max = l_max
-        self.dif = dif
 
         self.load_templates()
         self.get_sphharms()
@@ -110,22 +110,38 @@ class NPModel:
         # Load Model F templates
         self.temp_mF_pibrem = np.load("{}/template_Fpi.npy".format(self.data_dir))
         self.temp_mF_ics = np.load("{}/template_Fic.npy".format(self.data_dir))
+                
+        self.pibrem = []
+        self.ics = []
+        
+        if "ModelO" in self.dif_names:
+            self.pibrem.append(self.temp_mO_pibrem)
+            self.ics.append(self.temp_mO_ics)
+        if "ModelA" in self.dif_names:
+            self.pibrem.append(self.temp_mA_pibrem)
+            self.ics.append(self.temp_mA_ics)
+        if "ModelF" in self.dif_names:
+            self.pibrem.append(self.temp_mF_pibrem)
+            self.ics.append(self.temp_mF_ics)
+            
+        self.pibrem = jnp.array(self.pibrem)
+        self.ics = jnp.array(self.ics)
+        
+        self.n_dif_templates = len(self.pibrem)
 
-        if self.dif == "ModelO":
-            self.pibrem = self.temp_mO_pibrem
-            self.ics = self.temp_mO_ics
-        elif self.dif == "ModelA":
-            self.pibrem = self.temp_mA_pibrem
-            self.ics = self.temp_mA_ics
-        elif self.dif == "ModelF":
-            self.pibrem = self.temp_mF_pibrem
-            self.ics = self.temp_mF_ics
-    
     def model(self, data):
+        
+        # Get mixed bulge template
+        theta_pibrem = numpyro.sample("theta_pibrem", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
+        temp_pibrem = jnp.sum(theta_pibrem[:, None] * self.pibrem, 0)
+
+        # Get mixed bulge template
+        theta_ics = numpyro.sample("theta_ics", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
+        temp_ics = jnp.sum(theta_ics[:, None] * self.ics, 0)
 
         S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 2.))
             
-        temps = [self.temp_iso, self.temp_bub, self.temp_psc, self.pibrem, self.ics]
+        temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pibrem, temp_ics]
         temp_labels = ["iso", "bub", "psc", "dif", "ics"]
                 
         mu = jnp.zeros_like(data)
