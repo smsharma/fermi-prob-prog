@@ -3,12 +3,17 @@ import healpy as hp
 import numpy as np
 import jax.numpy as jnp
 import jax
-import numpyro.distributions as dist
+from jax.example_libraries import stax
 
+import numpyro.distributions as dist
 from numpyro.infer import SVI, Predictive, Trace_ELBO, autoguide
 from numpyro.infer.initialization import init_to_median, init_to_uniform
+from numpyro.infer.reparam import NeuTraReparam
+from numpyro.infer import MCMC, NUTS
 from numpyro import optim
-from tensorflow_probability import distributions as tfd
+from numpyro.contrib.tfp.mcmc import ReplicaExchangeMC
+from tensorflow_probability.substrates import jax as tfp
+
 import optax
 import arviz as az
 from einops import repeat
@@ -24,7 +29,10 @@ from utils.psf_correction import PSFCorrection
 
 
 class NPModel:
-    def __init__(self, r_outer=25, l_max=0, dif_names=["ModelO", "ModelA", "ModelF"], vary_disk=True, vary_gamma=True, bulge_hybrid=True, bulge_template_name="macias2019", ps_cat="3fgl", nside=128, n_exp=1):
+    def __init__(self, r_outer=25, l_max=0, 
+                 dif_names=["ModelO", "ModelA", "ModelF"], bulge_template_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"], 
+                 vary_disk=True, vary_gamma=True, bulge_hybrid=True, 
+                 ps_cat="3fgl", nside=128, n_exp=1):
         
         self.nside = nside
         self.ps_cat = ps_cat
@@ -46,9 +54,9 @@ class NPModel:
         self.nfw_template = NFWTemplate(nside=self.nside)
         self.disk_template = LorimerDiskTemplate(nside=self.nside)
         
-        # Load all bulge templates
-        bulge_template_names = ["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"]
         self.dif_names = dif_names
+
+        # Load all bulge templates
         self.bulge_templates = jnp.array([BulgeTemplates(template_name=template_name)() for template_name in bulge_template_names])
         self.n_bulge_templates = len(self.bulge_templates)
 
@@ -242,36 +250,33 @@ class NPModel:
             theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
             
         theta = jnp.array(theta)
-        
-#         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
                 
-#             loglike = log_like_np(theta, mu[~self.mask_roi], npt_compressed[:, ~self.mask_roi], self.data[~self.mask_roi], self.f_ary, self.df_rho_div_f_ary, self.k_max, len(data[~self.mask_roi]))
-            
-#             return numpyro.factor('log-likelihood', loglike)
-        
         # Pad the last exposure region so that all are the same size
         exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
         n_pad = exp_lens[0] - exp_lens[-1]
-        self.expreg_indices[-1] = jnp.pad(self.expreg_indices[-1], (0, n_pad))
+        
+        expreg_indices = jnp.zeros_like(self.expreg_indices)
+        expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
+        expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
 
         log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
         
         # Get relevant arrays for different exposure regions
-        mu_batch = mu[~self.mask_roi][jnp.array(self.expreg_indices)]
-        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(self.expreg_indices)]
-        data_batch = self.data[~self.mask_roi][jnp.array(self.expreg_indices)]
+        mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
+        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
+        data_batch = self.data[~self.mask_roi][jnp.array(expreg_indices)]
         
         exposure_multiplier = self.exposure_means_list / self.exposure_mean
         
         # Scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
-        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(self.expreg_indices))
+        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
         theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
         theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
         theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
 
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):            
                 
-            log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(self.expreg_indices[0]))
+            log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
             
             # Concatenate exposure regions
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
@@ -311,25 +316,24 @@ class NPModel:
             expreg_indices_temp = np.array([np.where(pix_array == elem)[0][0] for elem in expreg_array[i]])
             self.expreg_indices.append(jnp.array(expreg_indices_temp))
             
-    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, num_base_mixture=10, guide="mvn"):
+        self.expreg_indices = jnp.array(self.expreg_indices)
+            
+    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, num_base_mixture=5, guide="mvn"):
         
-        class AutoBNAFMixture(autoguide.AutoBNAFNormal):
+        class AutoIAFMixture(autoguide.AutoIAFNormal):
             def get_base_dist(self):
                 C = num_base_mixture
                 mixture = dist.MixtureSameFamily(dist.Categorical(probs=jnp.ones(C) / C),
-                                                 dist.Normal(jnp.arange(float(C)), 
-                                                             1.))
+                                                 dist.Normal(jnp.arange(float(C)), 1.))
                 
                 return mixture.expand([self.latent_dim]).to_event()
 
         if guide == "iaf":
-            self.guide = autoguide.AutoIAFNormal(self.model, num_flows=4, hidden_dims=[24, 24], skip_connections=False)
+            self.guide = autoguide.AutoIAFNormal(self.model, num_flows=4, hidden_dims=[128, 128], nonlinearity=stax.Tanh)
         elif guide == "mvn":
             self.guide = autoguide.AutoMultivariateNormal(self.model)
-        elif guide == "bnaf":
-            self.guide = autoguide.AutoBNAFNormal(self.model, num_flows=4, hidden_factors=[24, 24])
-        elif guide == "bnaf_mixture":
-            self.guide = AutoBNAFMixture(self.model, num_flows=12, hidden_factors=[24, 24])
+        elif guide == "iaf_mixture":
+            self.guide = AutoIAFMixture(self.model, num_flows=4, hidden_dims=[128, 128], nonlinearity=stax.Tanh)
         else:
             raise NotImplementedError
             
@@ -344,5 +348,47 @@ class NPModel:
         """ Sample from the variational posterior; returns a dictionary of posterior samples
         """
         rng_key, key = jax.random.split(rng_key)
-        posterior = self.guide.sample_posterior(rng_key=rng_key, params=self.svi_results.params, sample_shape=(num_samples,))
-        return posterior
+        self.posterior_dict = self.guide.sample_posterior(rng_key=rng_key, params=self.svi_results.params, sample_shape=(num_samples,))
+        return self.posterior_dict
+    
+    def get_neutra_model(self):
+        neutra = NeuTraReparam(self.guide, self.svi_results.params)
+        self.model_neutra = neutra.reparam(self.model)
+        
+    def run_nuts(self, num_chains=4, num_samples=5000, step_size=0.1, rng_key=jax.random.PRNGKey(0)):
+        
+        self.get_neutra_model()
+        
+        kernel = NUTS(self.model_neutra, max_tree_depth=4, dense_mass=False, step_size=step_size)
+        self.mcmc = MCMC(kernel, num_warmup=200, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
+        self.mcmc.run(rng_key, data=self.data)
+        
+        return self.mcmc
+    
+    def run_parallel_tempering_hmc(self, num_samples=5000, step_size_base=5e-2, num_leapfrog_steps=3, num_adaptation_steps=600, rng_key=jax.random.PRNGKey(0)):
+        
+        # Geometric temperatures decay
+        inverse_temperatures = 0.5 ** jnp.arange(4.)
+
+        # If everything was Normal, step_size should be ~ sqrt(temperature).
+        step_size = step_size_base / jnp.sqrt(inverse_temperatures)[..., None]
+
+        def make_kernel_fn(target_log_prob_fn):
+
+            hmc = tfp.mcmc.HamiltonianMonteCarlo(
+            target_log_prob_fn=target_log_prob_fn,
+            step_size=step_size, num_leapfrog_steps=num_leapfrog_steps)
+
+            adapted_kernel = tfp.mcmc.SimpleStepSizeAdaptation(
+            inner_kernel=hmc,
+            num_adaptation_steps=num_adaptation_steps)
+
+            return adapted_kernel
+        
+        self.get_neutra_model()
+        
+        kernel = ReplicaExchangeMC(self.model_neutra, inverse_temperatures=inverse_temperatures, make_kernel_fn=make_kernel_fn)
+        self.mcmc = MCMC(kernel, num_warmup=num_adaptation_steps, num_samples=num_samples, num_chains=1, chain_method='vectorized')
+        self.mcmc.run(rng_key, npmodel.data)
+        
+        return self.mcmc

@@ -2,9 +2,8 @@
 
 - [X] Add ability to include multiple bulge models together with a simplex prior
 - [X] Add ability to include multiple diffuse models together with a simplex prior
-- [ ] Sigmoid-bound problematic parameters to hedge against NaN?
+- [X] Sigmoid-bound problematic parameters to hedge against NaN? Update: Seems to work better with ELU -> Tanh nonlinearity
 - [ ] See if n_exp > 1 works with more memory
-- [ ] Clean up pipeline for NeuTra -> MCMC
+- [X] Clean up pipeline for NeuTra -> MCMC
 - [ ] Implement a GP template?
-- [ ] Try running full pipeline (up to MCMC, potentially just SVI if 
-including Ylm or GPs)
+- [ ] Try running full pipeline (up to MCMC, potentially just SVI if including Ylm or GPs)
