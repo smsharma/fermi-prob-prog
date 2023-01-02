@@ -6,12 +6,13 @@ import jax
 from jax.example_libraries import stax
 
 import numpyro.distributions as dist
-from numpyro.infer import SVI, Predictive, Trace_ELBO, autoguide
+from numpyro.infer import SVI, Predictive, Trace_ELBO, TraceGraph_ELBO, RenyiELBO, autoguide
 from numpyro.infer.initialization import init_to_median, init_to_uniform
 from numpyro.infer.reparam import NeuTraReparam
 from numpyro.infer import MCMC, NUTS
 from numpyro import optim
 from numpyro.contrib.tfp.mcmc import ReplicaExchangeMC
+from numpyro import handlers
 from tensorflow_probability.substrates import jax as tfp
 
 import optax
@@ -157,17 +158,18 @@ class NPModel:
         for temp, temp_label in zip(temps, temp_labels):
             
             if temp_label in ["dif"]:
-                prior_dist = dist.Uniform(8., 14.)
+                prior_lo, prior_hi = 8., 14.
             else:
-                prior_dist = dist.Uniform(1e-5, 5.0)
-    
+                prior_lo, prior_hi = 1e-3, 5.0
+                
+            prior_dist = dist.Uniform(prior_lo, prior_hi)
             S_temp = numpyro.sample("S_{}".format(temp_label), prior_dist)
             
             if temp_label in ["dif"]:
                 
                 temp_dif_mod = jnp.zeros_like(data)
                 for ii in range(len(self.Ylm_temps)):
-                    Alm = numpyro.sample("Alm_{}".format(ii), dist.Normal(0., 0.15))
+                    Alm = numpyro.sample("Alm_{}".format(ii), dist.Uniform(-0.05, 0.05))
                     temp_dif_mod += Alm * self.Ylm_temps[ii]
                 
                 temp_dif_mod = (1. + temp_dif_mod) * temp
@@ -234,11 +236,11 @@ class NPModel:
             
             Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-5, 2.))
             
-            n1 = numpyro.sample("n1_{}".format(ps), dist.Normal(5.0, 0.2))
-            n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 2.))
-            n3 = numpyro.sample("n3_{}".format(ps), dist.Normal(-5., 0.2))
+            n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
+            n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
+            n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
             sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
-            lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.99))
+            lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
             
             theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
             
@@ -260,7 +262,7 @@ class NPModel:
         expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
 
         log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
-        
+                
         # Get relevant arrays for different exposure regions
         mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
         npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
@@ -273,15 +275,16 @@ class NPModel:
         theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
         theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
         theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
-
+        
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):            
                 
             log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
             
             # Concatenate exposure regions
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
-                    
-            return numpyro.factor('log-likelihood', loglike)
+                                
+            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
+                return numpyro.factor('log-likelihood', loglike)
 
     def get_exp_regions(self, nexp):
         """ Divide up ROI into exposure regions
@@ -318,7 +321,7 @@ class NPModel:
             
         self.expreg_indices = jnp.array(self.expreg_indices)
             
-    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, num_base_mixture=5, guide="mvn"):
+    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, num_base_mixture=10, guide="mvn"):
         
         class AutoIAFMixture(autoguide.AutoIAFNormal):
             def get_base_dist(self):
@@ -337,6 +340,15 @@ class NPModel:
         else:
             raise NotImplementedError
             
+        warmup_steps = int(0.05 * n_steps)
+        schedule = optax.warmup_cosine_decay_schedule(
+          init_value=0.0,
+          peak_value=lr,
+          warmup_steps=warmup_steps,
+          decay_steps=int(n_steps - warmup_steps),
+          end_value=0.0,
+        )
+
         optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(1.), optax.adamw(lr)))
         
         svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
