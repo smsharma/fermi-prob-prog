@@ -168,3 +168,4 @@ cross_check/data
 fermi_data_processing/tmp
 fermi_data_processing/*.par
 data/exposed_templates
+data/external/CZMS

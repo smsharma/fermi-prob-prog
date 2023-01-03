@@ -1,0 +1,1 @@
+time bash gtsrcmaps_573weeks.sh RUN_NAME TEMPLATE
