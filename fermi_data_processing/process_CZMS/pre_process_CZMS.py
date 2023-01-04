@@ -4,10 +4,10 @@ from astropy.io import fits
 
 in_fn = sys.argv[1]
 out_fn = sys.argv[2]
-print(f'pre-processing {in_fn}... ')
+print(f'[pre_process_CZMS.py]: pre-processing {in_fn}...')
 hdul_czms = fits.open(in_fn)
 
-hdul_ccw = fits.open('ccw_base.fits')
+hdul_ccw = fits.open('/work/submit/yitians/fermi/fermi-prob-prog/fermi_data_processing/ccw_base.fits')
 
 hdul_ccw[0].data = hdul_czms[0].data
 hdul_ccw[0].header['NAXIS1'] = 240
@@ -21,4 +21,4 @@ hdul_ccw[0].header['CRPIX2'] = 120.5
 hdul_ccw[0].header['FLUX'] = -1
 hdul_ccw.writeto(out_fn, overwrite=True)
 
-print(f'written to {out_fn}.')
+print(f'[pre_process_CZMS.py]: written to {out_fn}.')

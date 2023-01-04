@@ -2,9 +2,6 @@
 ## config
 RUN_NAME=$1
 TEMPLATE=$2
-
-#TEMPLATE=/zfs/nrodd/GalPropMap/Models/ccwapibrem.fit
-#TEMPLATE=/zfs/tslatyer/galactic/fermi/diffusemodel/gll_iem_v02_P6_V11_DIFFUSE.fit
 IRFS="P8R3_ULTRACLEANVETO_V3"
 
 ###############
@@ -16,9 +13,9 @@ if [ "$COMPUTER_NAME" = "erebus" ]; then
     OUT_DIR=/zfs/yitians/fermi/fermi-prob-prog/data/exposed_templates
     WORK_DIR=/zfs/yitians/fermi/fermi-prob-prog/fermi_data_processing
 elif [ "$COMPUTER_NAME" = "submit" ]; then
-    DATA_DIR=
-    OUT_DIR=
-    WORK_DIR=
+    DATA_DIR=/work/submit/yitians/fermi/data/pass8_573weeks
+    OUT_DIR=/work/submit/yitians/fermi/fermi-prob-prog/data/exposed_templates/CZMS
+    WORK_DIR=/work/submit/yitians/fermi/fermi-prob-prog/fermi_data_processing
 else
     echo "unknown computer."
     return
@@ -30,7 +27,11 @@ XML_FILE=$WORK_DIR/tmp/$RUN_NAME.xml
 sed "s|REPLACE_WITH_TEMPLATE|$TEMPLATE|" $WORK_DIR/base.xml > $XML_FILE
 
 ## run
-conda activate fermi
+if [ "$COMPUTER_NAME" = "erebus" ]; then
+    conda activate fermi
+elif [ "$COMPUTER_NAME" = "submit" ]; then
+    conda activate fermitools
+fi
 
 OPTS="srcmdl=$XML_FILE \
 bexpmap=$DATA_DIR/exposure-edge-ultracleanveto-bestpsf.fits \
@@ -48,5 +49,5 @@ gtsrcmaps $OPTS \
 # not necessary to do halfsky2
     
 ## post process
-python $WORK_DIR/post_process.py $OUT_FILE
+#python $WORK_DIR/post_process.py $OUT_FILE
 
