@@ -58,7 +58,7 @@ class NPModel:
         self.dif_names = dif_names
 
         # Load all bulge templates
-        self.bulge_templates = jnp.array([BulgeTemplates(template_name=template_name)() for template_name in bulge_template_names])
+        self.bulge_templates = jnp.array([BulgeTemplates(template_name=template_name, nside_out=nside)() for template_name in bulge_template_names])
         self.n_bulge_templates = len(self.bulge_templates)
 
         # Individually normalize the bulge templates
@@ -158,7 +158,7 @@ class NPModel:
         for temp, temp_label in zip(temps, temp_labels):
             
             if temp_label in ["dif"]:
-                prior_lo, prior_hi = 8., 14.
+                prior_lo, prior_hi = 1e-3, 14.
             else:
                 prior_lo, prior_hi = 1e-3, 5.0
                 
@@ -364,6 +364,8 @@ class NPModel:
         return self.posterior_dict
     
     def get_neutra_model(self):
+        """ Get model reparameterized via neural transport
+        """
         neutra = NeuTraReparam(self.guide, self.svi_results.params)
         self.model_neutra = neutra.reparam(self.model)
         
