@@ -140,11 +140,11 @@ class NPModel:
 
     def model(self, data):
         
-        # Get mixed bulge template
+        # Get mixed pibrem template
         theta_pibrem = numpyro.sample("theta_pibrem", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
         temp_pibrem = jnp.sum(theta_pibrem[:, None] * self.pibrem, 0)
 
-        # Get mixed bulge template
+        # Get mixed ics template
         theta_ics = numpyro.sample("theta_ics", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
         temp_ics = jnp.sum(theta_ics[:, None] * self.ics, 0)
 
@@ -212,7 +212,7 @@ class NPModel:
         A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.mask_plane])
         
         # Get hybrid template
-        temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_nfw_poiss + f_bulge_ps * A_gce_bulge * temp_bulge
+        temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_nfw_poiss + f_bulge_poiss * A_gce_bulge * temp_bulge
         
         A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.mask_plane])
         mu += A_gce * temp_gce_poiss
