@@ -163,6 +163,7 @@ auto
 
 paper/fermi-counterfactuals.pdf
 data/*.fits
+data/external/CZMS
 cross_check/data
 
 fermi_data_processing/**/tmp

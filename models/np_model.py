@@ -33,7 +33,7 @@ class NPModel:
     def __init__(self, r_outer=25, l_max=0, 
                  dif_names=["ModelO", "ModelA", "ModelF"], bulge_template_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"], 
                  vary_disk=True, vary_gamma=True, bulge_hybrid=True, 
-                 ps_cat="3fgl", nside=128, n_exp=1):
+                 ps_cat="3fgl", nside=128, n_exp=1, debug_model=False):
         
         self.nside = nside
         self.ps_cat = ps_cat
@@ -78,6 +78,8 @@ class NPModel:
         print("Max photon count is {}".format(self.k_max))
         
         self.get_exp_regions(n_exp)
+        
+        self.debug_model = debug_model
 
     def get_psf_correction(self):
 
@@ -276,15 +278,31 @@ class NPModel:
         theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
         theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
         
+        if self.debug_model:
+            print('mu.shape', mu.shape)
+            print('theta.shape', theta.shape)
+            print('mu_batch.shape', mu_batch.shape)
+            print('npt_compressed_batch.shape', npt_compressed_batch.shape)
+            print('data_batch.shape', data_batch.shape)
+            print('self.f_ary.shape', self.f_ary.shape)
+            print('self.df_rho_div_f_ary.shape', self.df_rho_div_f_ary.shape)
+            print('expreg_indices.shape', expreg_indices.shape)
+        
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):            
                 
             log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
             
             # Concatenate exposure regions
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
+            
+            if self.debug_model:
+                print('log_like_exp.shape', log_like_exp.shape)
+                print('loglike.shape', loglike.shape)
                                 
             with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
                 return numpyro.factor('log-likelihood', loglike)
+            
+        
 
     def get_exp_regions(self, nexp):
         """ Divide up ROI into exposure regions
