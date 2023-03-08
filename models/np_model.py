@@ -22,7 +22,7 @@ from einops import repeat
 from models.scd import dnds
 from models.templates import NFWTemplate, LorimerDiskTemplate
 from models.bulge_models import BulgeTemplates
-from likelihoods.npll_jax import log_like_np
+from likelihoods.npll_jax import log_like_np, log_like_poisson
 from utils.sph_harm import Ylm
 from utils import create_mask as cm
 from models.psf import KingPSF
@@ -33,7 +33,8 @@ class NPModel:
     def __init__(self, r_outer=25, l_max=0, 
                  dif_names=["ModelO", "ModelA", "ModelF"], bulge_template_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"], 
                  vary_disk=True, vary_gamma=True, bulge_hybrid=True, 
-                 ps_cat="3fgl", nside=128, n_exp=1, debug_model=False):
+                 ps_cat="3fgl", nside=128, n_exp=1, debug_model=False,
+                 non_poisson=True):
         
         self.nside = nside
         self.ps_cat = ps_cat
@@ -65,22 +66,27 @@ class NPModel:
         self.bulge_templates = self.bulge_templates / jnp.mean(self.bulge_templates[:, ~self.mask_plane], axis=-1)[:, None]
 
         self.l_max = l_max
+        
+        self.non_poisson = non_poisson
 
         self.load_templates()
         self.get_sphharms()
-        self.get_psf_correction()
+        if self.non_poisson:
+            self.get_psf_correction()
         
         self.bulge_hybrid = bulge_hybrid
         self.vary_gamma = vary_gamma
-        self.vary_disk = vary_disk
+        if self.non_poisson:
+            self.vary_disk = vary_disk
 
-        self.k_max = np.max(np.array(self.data)[~self.mask_roi])
-        print("Max photon count is {}".format(self.k_max))
+        if self.non_poisson:
+            self.k_max = np.max(np.array(self.data)[~self.mask_roi])
+            print("Max photon count is {}".format(self.k_max))
         
         self.get_exp_regions(n_exp)
         
         self.debug_model = debug_model
-
+        
     def get_psf_correction(self):
 
         kp = KingPSF()
@@ -183,26 +189,29 @@ class NPModel:
                 mu += A_temp * temp     
                                             
         if self.vary_gamma:
-            gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.))
+            gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.)) if self.non_poisson else None
             gamma_poiss = numpyro.sample("gamma_poiss", dist.Uniform(0.2, 2.))
         else:
-            gamma_poiss = gamma_ps = 1.2
+            gamma_ps = 1.2 if self.non_poisson else None
+            gamma_poiss = 1.2
 
-        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps)
+        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps) if self.non_poisson else None
         temp_gce_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
             
-        if self.vary_disk:
-            zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
-            C = numpyro.sample("C", dist.Uniform(0.05, 15.))
-            temp_dsk = self.disk_template.get_template(zs=zs, C=C)
-        else:
-            temp_dsk = self.temp_dsk
+        if self.non_poisson:
+            if self.vary_disk:
+                zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
+                C = numpyro.sample("C", dist.Uniform(0.05, 15.))
+                temp_dsk = self.disk_template.get_template(zs=zs, C=C)
+            else:
+                temp_dsk = self.temp_dsk
                 
         if self.bulge_hybrid:
+            f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.)) if self.non_poisson else None
             f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
-            f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.))
         else:
-            f_bulge_poiss = f_bulge_ps = 0.
+            f_bulge_ps = 0. if self.non_poisson else None
+            f_bulge_poiss = 0.
             
         
         # Get mixed bulge template
@@ -219,41 +228,42 @@ class NPModel:
         A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.mask_plane])
         mu += A_gce * temp_gce_poiss
         
-        # Get mixed bulge template
-        theta_bulge_ps = numpyro.sample("theta_bulge_ps", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
-        temp_bulge = jnp.sum(theta_bulge_ps[:, None] * self.bulge_templates, 0)
+        if self.non_poisson:
+            # Get mixed bulge template
+            theta_bulge_ps = numpyro.sample("theta_bulge_ps", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
+            temp_bulge = jnp.sum(theta_bulge_ps[:, None] * self.bulge_templates, 0)
 
-        # Normalize to same mean
-        A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.mask_plane])
-        A_gce_bulge = 1 / jnp.mean(temp_bulge[~self.mask_plane])
-        
-        # Get hybrid template
-        temp_gce_ps = (1 - f_bulge_ps) * A_gce_nfw * temp_gce_nfw_ps + f_bulge_ps * A_gce_bulge * temp_bulge
-            
-        npt_compressed = jnp.array([temp_gce_ps, temp_dsk])
+            # Normalize to same mean
+            A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.mask_plane])
+            A_gce_bulge = 1 / jnp.mean(temp_bulge[~self.mask_plane])
 
-        theta = []    
-        
-        for ips, ps in enumerate(["gce", "dsk"]):
-            
-            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-5, 2.))
-            
-            n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
-            n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
-            n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
-            sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
-            lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
-            
-            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
-            
-            s_ary = jnp.logspace(0., 2, 100)
-            dnds_ary = dnds(s_ary, theta_tmp)
-                    
-            A = Sps / jnp.mean(npt_compressed[ips][~self.mask_plane] * jnp.trapz(s_ary * dnds_ary, s_ary))
-                                        
-            theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
-            
-        theta = jnp.array(theta)
+            # Get hybrid template
+            temp_gce_ps = (1 - f_bulge_ps) * A_gce_nfw * temp_gce_nfw_ps + f_bulge_ps * A_gce_bulge * temp_bulge
+
+            npt_compressed = jnp.array([temp_gce_ps, temp_dsk])
+
+            theta = []    
+
+            for ips, ps in enumerate(["gce", "dsk"]):
+
+                Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-5, 2.))
+
+                n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
+                n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
+                n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
+                sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
+                lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
+
+                theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
+
+                s_ary = jnp.logspace(0., 2, 100)
+                dnds_ary = dnds(s_ary, theta_tmp)
+
+                A = Sps / jnp.mean(npt_compressed[ips][~self.mask_plane] * jnp.trapz(s_ary * dnds_ary, s_ary))
+
+                theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
+
+            theta = jnp.array(theta)
                 
         # Pad the last exposure region so that all are the same size
         exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
@@ -263,34 +273,43 @@ class NPModel:
         expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
         expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
 
-        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
+        if self.non_poisson:
+            log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
+        else:
+            log_like_poisson_exp_vmapped = jax.vmap(log_like_poisson, in_axes=(0, 0))
                 
         # Get relevant arrays for different exposure regions
         mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
-        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
+        if self.non_poisson:
+            npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
         data_batch = self.data[~self.mask_roi][jnp.array(expreg_indices)]
         
         exposure_multiplier = self.exposure_means_list / self.exposure_mean
         
         # Scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
-        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
-        theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
-        theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
-        theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
+        if self.non_poisson:
+            theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
+            theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
+            theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
+            theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
         
         if self.debug_model:
             print('mu.shape', mu.shape)
-            print('theta.shape', theta.shape)
             print('mu_batch.shape', mu_batch.shape)
-            print('npt_compressed_batch.shape', npt_compressed_batch.shape)
             print('data_batch.shape', data_batch.shape)
-            print('self.f_ary.shape', self.f_ary.shape)
-            print('self.df_rho_div_f_ary.shape', self.df_rho_div_f_ary.shape)
             print('expreg_indices.shape', expreg_indices.shape)
+            if self.non_poisson:
+                print('theta.shape', theta.shape)
+                print('npt_compressed_batch.shape', npt_compressed_batch.shape)
+                print('self.f_ary.shape', self.f_ary.shape)
+                print('self.df_rho_div_f_ary.shape', self.df_rho_div_f_ary.shape)
         
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):            
-                
-            log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
+            
+            if self.non_poisson:
+                log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
+            else:
+                log_like_exp = log_like_poisson_exp_vmapped(mu_batch, data_batch)
             
             # Concatenate exposure regions
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]

@@ -9,6 +9,8 @@ import numpy as np
 from jax.config import config
 config.update("jax_enable_x64", True)
 
+import numpyro.distributions as dist
+
 from models.scd import dnds
 
 from functools import partial
@@ -84,3 +86,7 @@ def return_x_m(f_ary, df_rho_div_f_ary, npt_compressed, data, s_ary, dnds_ary, k
     x_m_sum_ary = npt_compressed * x_m_sum_ary - x_m_ary[:, 0]
 
     return x_m_ary, x_m_sum_ary
+
+@jit
+def log_like_poisson(pt_sum_compressed, data):
+    return dist.discrete.Poisson(pt_sum_compressed).log_prob(data)
