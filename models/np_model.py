@@ -156,7 +156,7 @@ class NPModel:
         theta_ics = numpyro.sample("theta_ics", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
         temp_ics = jnp.sum(theta_ics[:, None] * self.ics, 0)
 
-        S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 2.))
+        S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 4.))
             
         temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pibrem, temp_ics]
         temp_labels = ["iso", "bub", "psc", "dif", "ics"]
@@ -165,7 +165,7 @@ class NPModel:
         
         for temp, temp_label in zip(temps, temp_labels):
             
-            if temp_label in ["dif"]:
+            if temp_label in ["dif", "ics"]:
                 prior_lo, prior_hi = 1e-3, 14.
             else:
                 prior_lo, prior_hi = 1e-3, 5.0
