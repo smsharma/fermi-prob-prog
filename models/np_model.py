@@ -358,6 +358,7 @@ class NPModel:
             
         self.expreg_indices = jnp.array(self.expreg_indices)
             
+            
     def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, num_base_mixture=10, guide="mvn"):
         
         class AutoIAFMixture(autoguide.AutoIAFNormal):
@@ -440,6 +441,6 @@ class NPModel:
         
         kernel = ReplicaExchangeMC(self.model_neutra, inverse_temperatures=inverse_temperatures, make_kernel_fn=make_kernel_fn)
         self.mcmc = MCMC(kernel, num_warmup=num_adaptation_steps, num_samples=num_samples, num_chains=1, chain_method='vectorized')
-        self.mcmc.run(rng_key, npmodel.data)
+        self.mcmc.run(rng_key, self.data)
         
         return self.mcmc
