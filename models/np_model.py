@@ -28,64 +28,98 @@ from utils import create_mask as cm
 from models.psf import KingPSF
 from utils.psf_correction import PSFCorrection
 
+import logging
+
 
 class NPModel:
-    def __init__(self, r_outer=25, l_max=0, 
-                 dif_names=["ModelO", "ModelA", "ModelF"], bulge_template_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"], 
-                 vary_disk=True, vary_gamma=True, bulge_hybrid=True, 
-                 ps_cat="3fgl", nside=128, n_exp=1, debug_model=False,
-                 non_poisson=True):
+    """
+    Parameters
+    ----------
+    ...
+    non_poissonian : bool
+        Whether to use non-poissonian template fitting.
+    bulge_hybrid : bool
+        If False, use the first template in bulge_template_names. If True, use a
+        hybrid of the templates in bulge_template_names.
+    ps_cat : {'3fgl', '4fgl'}
+        Point source catalog to use for masks.
+    band_mask_range : float
+        |b| value [deg] below which the galactic plane is masked. Affects
+        self.mask_roi and self.mask_plane
         
+    Attributes
+    ----------
+    ...
+    normalize_mask: mask used to normalize templates
+    """
+    def __init__(
+        self, non_poissonian=True, l_max=0,
+        dif_names=["ModelO", "ModelA", "ModelF"],
+        bulge_hybrid=True,
+        bulge_template_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"],
+        vary_gamma=True,
+        vary_disk=True,
+        ps_cat="3fgl", r_outer=25, band_mask_range=2.,
+        nside=128, n_exp=1, debug_model=False,
+    ):
+        
+        #========== General ==========
         self.nside = nside
         self.ps_cat = ps_cat
+        self.non_poissonian = non_poissonian
         
         self.data_dir = "../data/fermi_data_573w/fermi_data_{}".format(self.nside)
-
         self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
         self.exposure_map = np.load("{}/fermidata_exposure.npy".format(self.data_dir))
     
-        # mask_ps = np.load("{}/fermidata_pscmask_{}.npy".format(self.data_dir, self.ps_cat)) == 1
-        mask_ps = hp.ud_grade(np.load("../data/mask_3fgl_0p8deg.npy"), nside_out=self.nside) > 0
-        
-        if ps_cat != "3fgl":
-            raise NotImplementedError("Catalogs other than 3FGL not supported at the moment.")
-        
-        self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=r_outer, custom_mask=mask_ps)
-        self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
+        #========== Mask ==========
+        if ps_cat == "3fgl":
+            # mask_ps = np.load("{}/fermidata_pscmask_{}.npy".format(self.data_dir, self.ps_cat)) == 1
+            mask_ps = hp.ud_grade(np.load("../data/mask_3fgl_0p8deg.npy"), nside_out=self.nside) > 0
+        elif ps_cat == "4fgl":
+            if non_poissonian:
+                logging.warning('Using 4fgl with non-poissonian fit.')
+            mask_ps = hp.ud_grade(np.load(f"../data/fermi_data_573w/fermi_data_{nside}/fermidata_pscmask_4fgl.npy"), nside_out=self.nside) > 0
+        else:
+            raise NotImplementedError("Other catalogs not supported at the moment.")
+            
+        self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=band_mask_range, mask_ring=True, inner=0, outer=r_outer, custom_mask=mask_ps)
+        self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=band_mask_range, mask_ring=True, inner=0, outer=25,)
+        self.normalize_mask = self.mask_roi
 
+        #========== Templates ==========
+        self.vary_gamma = vary_gamma
         self.nfw_template = NFWTemplate(nside=self.nside)
-        self.disk_template = LorimerDiskTemplate(nside=self.nside)
+        if self.non_poissonian:
+            self.vary_disk = vary_disk
+            self.disk_template = LorimerDiskTemplate(nside=self.nside)
         
         self.dif_names = dif_names
-
         # Load all bulge templates
-        self.bulge_templates = jnp.array([BulgeTemplates(template_name=template_name, nside_out=nside)() for template_name in bulge_template_names])
-        self.n_bulge_templates = len(self.bulge_templates)
-
-        # Individually normalize the bulge templates
-        self.bulge_templates = self.bulge_templates / jnp.mean(self.bulge_templates[:, ~self.mask_plane], axis=-1)[:, None]
-
-        self.l_max = l_max
-        
-        self.non_poisson = non_poisson
-
-        self.load_templates()
-        self.get_sphharms()
-        if self.non_poisson:
-            self.get_psf_correction()
-        
         self.bulge_hybrid = bulge_hybrid
-        self.vary_gamma = vary_gamma
-        if self.non_poisson:
-            self.vary_disk = vary_disk
+        self.bulge_templates = jnp.array([BulgeTemplates(template_name=template_name, nside_out=nside)() for template_name in bulge_template_names])
+        if self.bulge_hybrid:
+            self.n_bulge_templates = len(self.bulge_templates)
+        else:
+            self.n_bulge_templates = 1
+        # Individually normalize the bulge templates
+        self.bulge_templates = self.bulge_templates / jnp.mean(self.bulge_templates[:, ~self.normalize_mask], axis=-1)[:, None]
+        
+        self.load_templates()
 
-        if self.non_poisson:
+        #========== Spherical harmonics ==========
+        self.l_max = l_max
+        self.get_sphharms()
+        
+        #========== NPTF ==========
+        if self.non_poissonian:
+            self.get_psf_correction()
             self.k_max = np.max(np.array(self.data)[~self.mask_roi])
             print("Max photon count is {}".format(self.k_max))
         
         self.get_exp_regions(n_exp)
-        
         self.debug_model = debug_model
+        
         
     def get_psf_correction(self):
 
@@ -146,6 +180,7 @@ class NPModel:
         
         self.n_dif_templates = len(self.pibrem)
 
+        
     def model(self, data):
         
         # Get mixed pibrem template
@@ -182,23 +217,23 @@ class NPModel:
                 
                 temp_dif_mod = (1. + temp_dif_mod) * temp
                 
-                A_temp = S_temp / jnp.mean(temp_dif_mod[~self.mask_plane])
+                A_temp = S_temp / jnp.mean(temp_dif_mod[~self.normalize_mask])
                 mu += A_temp * temp_dif_mod  
             else:
-                A_temp = S_temp / jnp.mean(temp[~self.mask_plane])
+                A_temp = S_temp / jnp.mean(temp[~self.normalize_mask])
                 mu += A_temp * temp     
                                             
         if self.vary_gamma:
-            gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.)) if self.non_poisson else None
+            gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.)) if self.non_poissonian else None
             gamma_poiss = numpyro.sample("gamma_poiss", dist.Uniform(0.2, 2.))
         else:
-            gamma_ps = 1.2 if self.non_poisson else None
+            gamma_ps = 1.2 if self.non_poissonian else None
             gamma_poiss = 1.2
 
-        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps) if self.non_poisson else None
+        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps) if self.non_poissonian else None
         temp_gce_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
             
-        if self.non_poisson:
+        if self.non_poissonian:
             if self.vary_disk:
                 zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
                 C = numpyro.sample("C", dist.Uniform(0.05, 15.))
@@ -207,35 +242,33 @@ class NPModel:
                 temp_dsk = self.temp_dsk
                 
         if self.bulge_hybrid:
-            f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.)) if self.non_poisson else None
+            f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.)) if self.non_poissonian else None
             f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
-        else:
-            f_bulge_ps = 0. if self.non_poisson else None
-            f_bulge_poiss = 0.
             
-        
-        # Get mixed bulge template
-        theta_bulge_poiss = numpyro.sample("theta_bulge_poiss", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
-        temp_bulge = jnp.sum(theta_bulge_poiss[:, None] * self.bulge_templates, 0)
+            theta_bulge_poiss = numpyro.sample("theta_bulge_poiss", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
+            temp_bulge = jnp.sum(theta_bulge_poiss[:, None] * self.bulge_templates, 0)
+        else:
+            f_bulge_ps = 0. if self.non_poissonian else None
+            f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
+            temp_bulge = self.bulge_templates[0]
         
         # Normalize to same mean
-        A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.mask_plane])
-        A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.mask_plane])
+        A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.normalize_mask])
+        A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.normalize_mask])
+        temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_nfw_poiss \
+                            + f_bulge_poiss * A_gce_bulge * temp_bulge
         
-        # Get hybrid template
-        temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_nfw_poiss + f_bulge_poiss * A_gce_bulge * temp_bulge
-        
-        A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.mask_plane])
+        A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.normalize_mask])
         mu += A_gce * temp_gce_poiss
         
-        if self.non_poisson:
+        if self.non_poissonian:
             # Get mixed bulge template
             theta_bulge_ps = numpyro.sample("theta_bulge_ps", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
             temp_bulge = jnp.sum(theta_bulge_ps[:, None] * self.bulge_templates, 0)
 
             # Normalize to same mean
-            A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.mask_plane])
-            A_gce_bulge = 1 / jnp.mean(temp_bulge[~self.mask_plane])
+            A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalize_mask])
+            A_gce_bulge = 1 / jnp.mean(temp_bulge[~self.normalize_mask])
 
             # Get hybrid template
             temp_gce_ps = (1 - f_bulge_ps) * A_gce_nfw * temp_gce_nfw_ps + f_bulge_ps * A_gce_bulge * temp_bulge
@@ -259,7 +292,7 @@ class NPModel:
                 s_ary = jnp.logspace(0., 2, 100)
                 dnds_ary = dnds(s_ary, theta_tmp)
 
-                A = Sps / jnp.mean(npt_compressed[ips][~self.mask_plane] * jnp.trapz(s_ary * dnds_ary, s_ary))
+                A = Sps / jnp.mean(npt_compressed[ips][~self.normalize_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
 
                 theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
 
@@ -273,21 +306,21 @@ class NPModel:
         expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
         expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
 
-        if self.non_poisson:
+        if self.non_poissonian:
             log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
         else:
             log_like_poisson_exp_vmapped = jax.vmap(log_like_poisson, in_axes=(0, 0))
                 
         # Get relevant arrays for different exposure regions
         mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
-        if self.non_poisson:
+        if self.non_poissonian:
             npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
         data_batch = self.data[~self.mask_roi][jnp.array(expreg_indices)]
         
         exposure_multiplier = self.exposure_means_list / self.exposure_mean
         
         # Scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
-        if self.non_poisson:
+        if self.non_poissonian:
             theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
             theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
             theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
@@ -298,7 +331,7 @@ class NPModel:
             print('mu_batch.shape', mu_batch.shape)
             print('data_batch.shape', data_batch.shape)
             print('expreg_indices.shape', expreg_indices.shape)
-            if self.non_poisson:
+            if self.non_poissonian:
                 print('theta.shape', theta.shape)
                 print('npt_compressed_batch.shape', npt_compressed_batch.shape)
                 print('self.f_ary.shape', self.f_ary.shape)
@@ -306,7 +339,7 @@ class NPModel:
         
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):            
             
-            if self.non_poisson:
+            if self.non_poissonian:
                 log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
             else:
                 log_like_exp = log_like_poisson_exp_vmapped(mu_batch, data_batch)
@@ -320,7 +353,6 @@ class NPModel:
                                 
             with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
                 return numpyro.factor('log-likelihood', loglike)
-            
         
 
     def get_exp_regions(self, nexp):
@@ -444,3 +476,15 @@ class NPModel:
         self.mcmc.run(rng_key, self.data)
         
         return self.mcmc
+    
+    
+    def get_MAP_estimates(self, rng_key=jax.random.PRNGKey(42), lr=0.1, n_steps=30000):
+        
+        #optimizer = numpyro.optim.Adam(lr=lr)
+        guide = autoguide.AutoDelta(self.model)
+        optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(1.), optax.adamw(lr)))
+        svi = SVI(self.model, guide, optimizer, loss=Trace_ELBO())
+        svi_results = svi.run(rng_key, n_steps, self.data)
+        self.MAP_estimates = guide.median(svi_results.params)
+        
+        return svi_results

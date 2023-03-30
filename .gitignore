@@ -164,6 +164,8 @@ auto
 paper/fermi-counterfactuals.pdf
 data/*.fits
 data/external/CZMS
+data/posteriors/compare_samplers
+data/posteriors/vary_disk_mask
 cross_check/data
 
 fermi_data_processing/**/tmp
