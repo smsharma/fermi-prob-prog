@@ -45,12 +45,12 @@ class NPModel:
         Point source catalog to use for masks.
     band_mask_range : float
         |b| value [deg] below which the galactic plane is masked. Affects
-        self.mask_roi and self.mask_plane
+        self.mask_roi .
         
     Attributes
     ----------
     ...
-    normalize_mask: mask used to normalize templates
+    normalization_mask: mask used to normalize templates.
     """
     def __init__(
         self, non_poissonian=True, l_max=0,
@@ -84,8 +84,8 @@ class NPModel:
             raise NotImplementedError("Other catalogs not supported at the moment.")
             
         self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=band_mask_range, mask_ring=True, inner=0, outer=r_outer, custom_mask=mask_ps)
-        self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=band_mask_range, mask_ring=True, inner=0, outer=25,)
-        self.normalize_mask = self.mask_roi
+        self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
+        self.normalization_mask = self.mask_plane
 
         #========== Templates ==========
         self.vary_gamma = vary_gamma
@@ -103,7 +103,7 @@ class NPModel:
         else:
             self.n_bulge_templates = 1
         # Individually normalize the bulge templates
-        self.bulge_templates = self.bulge_templates / jnp.mean(self.bulge_templates[:, ~self.normalize_mask], axis=-1)[:, None]
+        self.bulge_templates = self.bulge_templates / jnp.mean(self.bulge_templates[:, ~self.normalization_mask], axis=-1)[:, None]
         
         self.load_templates()
 
@@ -217,10 +217,10 @@ class NPModel:
                 
                 temp_dif_mod = (1. + temp_dif_mod) * temp
                 
-                A_temp = S_temp / jnp.mean(temp_dif_mod[~self.normalize_mask])
+                A_temp = S_temp / jnp.mean(temp_dif_mod[~self.normalization_mask])
                 mu += A_temp * temp_dif_mod  
             else:
-                A_temp = S_temp / jnp.mean(temp[~self.normalize_mask])
+                A_temp = S_temp / jnp.mean(temp[~self.normalization_mask])
                 mu += A_temp * temp     
                                             
         if self.vary_gamma:
@@ -253,12 +253,12 @@ class NPModel:
             temp_bulge = self.bulge_templates[0]
         
         # Normalize to same mean
-        A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.normalize_mask])
-        A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.normalize_mask])
+        A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.normalization_mask])
+        A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.normalization_mask])
         temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_nfw_poiss \
                             + f_bulge_poiss * A_gce_bulge * temp_bulge
         
-        A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.normalize_mask])
+        A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.normalization_mask])
         mu += A_gce * temp_gce_poiss
         
         if self.non_poissonian:
@@ -267,8 +267,8 @@ class NPModel:
             temp_bulge = jnp.sum(theta_bulge_ps[:, None] * self.bulge_templates, 0)
 
             # Normalize to same mean
-            A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalize_mask])
-            A_gce_bulge = 1 / jnp.mean(temp_bulge[~self.normalize_mask])
+            A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
+            A_gce_bulge = 1 / jnp.mean(temp_bulge[~self.normalization_mask])
 
             # Get hybrid template
             temp_gce_ps = (1 - f_bulge_ps) * A_gce_nfw * temp_gce_nfw_ps + f_bulge_ps * A_gce_bulge * temp_bulge
@@ -292,7 +292,7 @@ class NPModel:
                 s_ary = jnp.logspace(0., 2, 100)
                 dnds_ary = dnds(s_ary, theta_tmp)
 
-                A = Sps / jnp.mean(npt_compressed[ips][~self.normalize_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
+                A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
 
                 theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
 
@@ -391,7 +391,7 @@ class NPModel:
         self.expreg_indices = jnp.array(self.expreg_indices)
             
             
-    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, num_base_mixture=10, guide="mvn"):
+    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, num_base_mixture=10, guide="mvn", num_flows=4, hidden_dims=[128, 128]):
         
         class AutoIAFMixture(autoguide.AutoIAFNormal):
             def get_base_dist(self):
@@ -402,29 +402,42 @@ class NPModel:
                 return mixture.expand([self.latent_dim]).to_event()
 
         if guide == "iaf":
-            self.guide = autoguide.AutoIAFNormal(self.model, num_flows=4, hidden_dims=[128, 128], nonlinearity=stax.Tanh)
+            self.guide = autoguide.AutoIAFNormal(self.model, num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
         elif guide == "mvn":
             self.guide = autoguide.AutoMultivariateNormal(self.model)
         elif guide == "iaf_mixture":
-            self.guide = AutoIAFMixture(self.model, num_flows=4, hidden_dims=[128, 128], nonlinearity=stax.Tanh)
+            self.guide = AutoIAFMixture(self.model, num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
         else:
             raise NotImplementedError
             
-        warmup_steps = int(0.05 * n_steps)
-        schedule = optax.warmup_cosine_decay_schedule(
-          init_value=0.0,
-          peak_value=lr,
-          warmup_steps=warmup_steps,
-          decay_steps=int(n_steps - warmup_steps),
-          end_value=0.0,
+        # warmup_steps = int(0.05 * n_steps)
+        # scheduler = optax.warmup_cosine_decay_schedule(
+        #   init_value=0.0,
+        #   peak_value=lr,
+        #   warmup_steps=warmup_steps,
+        #   decay_steps=int(n_steps - warmup_steps),
+        #   end_value=0.0,
+        # )
+        schedule = optax.exponential_decay(
+            lr,
+            transition_steps=2500,
+            decay_rate=0.5,
+            transition_begin=2500,
+            staircase=True,
+            end_value=1e-6
         )
 
-        optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(1.), optax.adamw(lr)))
+        optimizer = optim.optax_to_numpyro(optax.chain(
+            optax.clip(1.),
+            #optax.ema(0.9),
+            optax.adam(schedule),
+        ))
         
         svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
         self.svi_results = svi.run(rng_key, n_steps, self.data)
         
         return self.svi_results
+        
         
     def get_posterior_samples(self, rng_key=jax.random.PRNGKey(1), num_samples=50000):
         """ Sample from the variational posterior; returns a dictionary of posterior samples
@@ -433,21 +446,24 @@ class NPModel:
         self.posterior_dict = self.guide.sample_posterior(rng_key=rng_key, params=self.svi_results.params, sample_shape=(num_samples,))
         return self.posterior_dict
     
+    
     def get_neutra_model(self):
         """ Get model reparameterized via neural transport
         """
         neutra = NeuTraReparam(self.guide, self.svi_results.params)
         self.model_neutra = neutra.reparam(self.model)
         
-    def run_nuts(self, num_chains=4, num_samples=5000, step_size=0.1, rng_key=jax.random.PRNGKey(0)):
+        
+    def run_nuts(self, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1, rng_key=jax.random.PRNGKey(0)):
         
         self.get_neutra_model()
         
         kernel = NUTS(self.model_neutra, max_tree_depth=4, dense_mass=False, step_size=step_size)
-        self.mcmc = MCMC(kernel, num_warmup=200, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
+        self.mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
         self.mcmc.run(rng_key, data=self.data)
         
         return self.mcmc
+    
     
     def run_parallel_tempering_hmc(self, num_samples=5000, step_size_base=5e-2, num_leapfrog_steps=3, num_adaptation_steps=600, rng_key=jax.random.PRNGKey(0)):
         
