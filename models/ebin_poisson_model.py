@@ -129,7 +129,7 @@ class EbinPoissonModel:
         mask_class = 'fwhm000-0512-bestpsf-mask',
         mask_roi_r_outer = 20.,
         mask_roi_b = 2.,
-        dif_names = ['ccwa', 'ccwf'],
+        dif_names = ['ccwa', 'ccwf', 'mO'],
         blg_names = ['mcdermott2022', 'mcdermott2022_bbp', 'mcdermott2022_x', 'macias2019', 'coleman2019'],
         nfw_gamma = 'vary',
         disk_option = 'none',
@@ -384,16 +384,20 @@ class EbinPoissonModel:
             params=self.svi_results.params,
             sample_shape=(num_samples,)
         )
+        
         if expand_samples:
             expand_keys = {}
             expand_keys['theta_pib'] = [f'theta_{n}_pib' for n in self.dif_names]
             expand_keys['theta_ics'] = [f'theta_{n}_ics' for n in self.dif_names]
             expand_keys['theta_blg'] = [f'theta_{n}'     for n in self.blg_names]
+            new_samples = {}
             for k in self.svi_samples.keys():
                 if k in expand_keys:
                     for i in range(self.svi_samples[k].shape[-1]):
-                        self.svi_samples[expand_keys[k][i]] = self.svi_samples[k][...,i]
-                    self.svi_samples.pop(k)
+                        new_samples[expand_keys[k][i]] = self.svi_samples[k][...,i]
+                else:
+                    new_samples[k] = self.svi_samples[k]
+            self.svi_samples = new_samples
         return self.svi_samples
         
                 
