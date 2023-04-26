@@ -22,7 +22,8 @@ from einops import repeat
 from models.scd import dnds
 from models.templates import NFWTemplate, LorimerDiskTemplate
 from models.bulge_models import BulgeTemplates
-from likelihoods.npll_jax import log_like_np, log_like_poisson
+from likelihoods.npll_jax import log_like_np
+from likelihoods.pll_jax import log_like_poisson
 from utils.sph_harm import Ylm
 from utils import create_mask as cm
 from models.psf import KingPSF

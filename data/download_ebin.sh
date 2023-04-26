@@ -1,0 +1,1 @@
+scp -r "yitians@erebus.lns.mit.edu:/zfs/yitians/fermi/fermi-prob-prog/data/fermi_data_573w/ebin/*" /n/holyscratch01/iaifi_lab/yitians/fermi/fermi-prob-prog/data/fermi_data_573w/ebin
