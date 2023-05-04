@@ -180,6 +180,9 @@ class NPModel:
         self.ics = jnp.array(self.ics)
         
         self.n_dif_templates = len(self.pibrem)
+        
+        self.svi = None
+        self.svi_init_state = None
 
         
     def model(self, data):
@@ -401,6 +404,13 @@ class NPModel:
                                                  dist.Normal(jnp.arange(float(C)), 1.))
                 
                 return mixture.expand([self.latent_dim]).to_event()
+            
+        class AutoIAFMultiGaussian(autoguide.AutoIAFNormal):
+            def get_base_dist(self):
+                return dist.Normal(
+                    jnp.array([-5, -2, -1, 0, 1, 2, 5, 20], dtype=jnp.float32),
+                    1.,
+                )
 
         if guide == "iaf":
             self.guide = autoguide.AutoIAFNormal(self.model, num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
@@ -408,6 +418,8 @@ class NPModel:
             self.guide = autoguide.AutoMultivariateNormal(self.model)
         elif guide == "iaf_mixture":
             self.guide = AutoIAFMixture(self.model, num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
+        elif guide == "iaf_gaussians":
+            self.guide = AutoIAFMultiGaussian(self.model, num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
         else:
             raise NotImplementedError
             
@@ -431,20 +443,28 @@ class NPModel:
         optimizer = optim.optax_to_numpyro(optax.chain(
             optax.clip(1.),
             #optax.ema(0.9),
-            optax.adam(schedule),
+            optax.adam(lr),
         ))
         
-        svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
-        self.svi_results = svi.run(rng_key, n_steps, self.data)
+        # if self.svi_init_state is None or reinit:
+        #     self.svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
+        #     self.svi_init_state = self.svi.init(rng_key)
+        self.svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
         
+        self.svi_results = self.svi.run(
+            rng_key, n_steps, self.data,
+            #init_state=self.svi_init_state,
+        )
         return self.svi_results
         
         
-    def get_posterior_samples(self, rng_key=jax.random.PRNGKey(1), num_samples=50000):
+    def get_posterior_samples(self, rng_key=jax.random.PRNGKey(1), num_samples=50000, svi_results=None):
         """ Sample from the variational posterior; returns a dictionary of posterior samples
         """
         rng_key, key = jax.random.split(rng_key)
-        self.posterior_dict = self.guide.sample_posterior(rng_key=rng_key, params=self.svi_results.params, sample_shape=(num_samples,))
+        if svi_results is None:
+            svi_results = self.svi_results
+        self.posterior_dict = self.guide.sample_posterior(rng_key=rng_key, params=svi_results.params, sample_shape=(num_samples,))
         return self.posterior_dict
     
     
