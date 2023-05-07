@@ -165,6 +165,7 @@ paper/fermi-counterfactuals.pdf
 data/*.fits
 data/exposed_templates
 data/external/CZMS
+data/posteriors/fit_process
 data/posteriors/ebin
 data/posteriors/compare_samplers
 data/posteriors/vary_disk_mask
