@@ -125,16 +125,18 @@
 \printAffiliationsAndNotice{\icmlEqualContribution} % otherwise use the standard text.
 
 \begin{abstract}
-    Analysis of $\gamma$-ray data towards the Galactic Center involves a subtle interplay between observations and theoretical models; the complexity of cosmic-ray transport processes in the region, combined with the fact that we only see a two-dimensional projection of this inherently three-dimensional process, means that we typically cannot make precise predictions about crucial emission mechanisms. Consequently, scientific conclusions can depend strongly on specific assumptions made about the modeling of the signal and background, as well as choices involved in the data analysis pipeline. In this work, we use differentiable probabilistic programming, enabled by recent advances in machine learning, in order to account for the large model-space inherent to $\gamma$-ray analyses in a principled manner. Focusing on the ongoing mystery of the Galactic Center Excess (GCE), we construct a differentiable forward model and likelihood that liberally uses GPU acceleration and vectorization in order to simulatneously account for a range of possible spatial morphologies consistent with the Excess emission. Our setup allows for efficient inference over the large model space using variational methods. The goal of this wok is enable analyses that are more robust to specific modeling choices compared to traditional techniques, and to provide a framework for future analyses.
+    We use differentiable probabilistic programming, enabled by recent advances in machine learning, in order to account for the large model-space inherent to $\gamma$-ray analyses in a principled manner. Focusing on the ongoing mystery of the Galactic Center Excess (GCE), we construct a differentiable forward model and likelihood that liberally uses GPU acceleration and vectorization in order to simulatneously account for a range of possible spatial morphologies consistent with the Excess emission. Our setup allows for efficient inference over the large model space using variational methods. The goal of this work is to enable analyses that are more robust to specific modeling choices compared to traditional techniques, and to provide a framework for future analyses.
 \end{abstract}
 
 \section{Introduction} 
 
-Data from the \Fermi Large Area Telescope (LAT) have revolutionized our understanding of $\gamma$-ray astrophysics and continue to provide a wealth of interesting structure to explore. Studying the Inner Galaxy -- the central regions of the Milky Way -- in $\gamma$ rays has proved particularly challenging due to the rich source populations, as well as the frequent interactions of cosmic rays with the high density of gas and radiation in the region. The $\gamma$-ray Galactic Center Excess (GCE), first
-identified over a decade ago~\cite{Goodenough:2009gk} using LAT public data~\cite{Atwood:2009ez}, is an excess of photons in the Inner Galaxy whose physical origin is currently unknown. Although the GCE has properties broadly compatible with those expected from annihilating dark matter (DM)~\cite{Goodenough:2009gk,Hooper:2010mq,Daylan:2014rsa,Calore:2014xka,Fermi-LAT:2015sau}, competing explanations in terms of a population of unresolved astrophysical point sources (PSs), in particular millisecond pulsars (MSPs), remain viable~\cite{Abazajian:2014fta,Abazajian:2010zy}. Significant effort has gone into characterizing the GCE and understanding its origin, including through inferring the properties of unresolved PSs in the Inner Galaxy region. A particularly successful method in this direction, Non-Poissonian Template Fitting (NPTF), aims to characterize different populations of unresolved PSs using their photon statistics, via a likelihood-based analysis~\cite{Lee:2014mza,Lee:2015fea}. In the context of the GCE, initial applications of this method showed overwhelming support for the hypothesis of the GCE being sourced by an unresolved population of PSs spatially correlated with the observed GCE morphology~\cite{Lee:2015fea}. However, more recent studies showed the method to be susceptible to systematic biases~\cite{Leane:2019xiy,Leane:2020nmi,Leane:2020pfc,Chang:2019ars} partly stemming from degeneracies between different emission components in the region (e.g., those spatially correlated with the GCE, centrally-concentrated stellar populations, and the Galactic disk), with results depending strongly on specific assumptions made about the spatial morphologies of components. \emph{All NPTF analyses so far have assumed inflexible, spatially rigid templates, preventing a rigorous expression and exploration of this degeneracy.}
+Analysis of $\gamma$-ray data towards the Galactic Center involves a subtle interplay between observations and theoretical models. The complexity of cosmic-ray transport processes in the region, combined with the fact that we only have access to a two-dimensional projection of this inherently three-dimensional process, means that we typically cannot make precise predictions about crucial emission mechanisms. Consequently, scientific conclusions drawn from $\gamma$-ray analyses can depend strongly on specific assumptions made about the modeling of the signal and background, as well as manual choices involved in the data analysis pipeline.
+
+% Data from the \Fermi Large Area Telescope (LAT) have revolutionized our understanding of $\gamma$-ray astrophysics and continue to provide a wealth of interesting structure to explore. Studying the Inner Galaxy -- the central regions of the Milky Way -- in $\gamma$ rays has proved particularly challenging due to the rich source populations, as well as the frequent interactions of cosmic rays with the high density of gas and radiation in the region. 
+The $\gamma$-ray Galactic Center Excess (GCE), first identified over a decade ago~\cite{Goodenough:2009gk} using public data from the \Fermi-LATE telescope~\cite{Atwood:2009ez}, is an excess of photons in the Inner Galaxy whose physical origin is currently unknown. Although the GCE has properties broadly compatible with those expected from annihilating dark matter (DM)~\cite{Goodenough:2009gk,Hooper:2010mq,Daylan:2014rsa,Calore:2014xka,Fermi-LAT:2015sau}, competing explanations in terms of a population of unresolved astrophysical point sources (PSs), in particular millisecond pulsars (MSPs), remain viable~\cite{Abazajian:2014fta,Abazajian:2010zy}. Significant effort has gone into characterizing the GCE and understanding its origin, including through inferring the properties of unresolved PSs in the Inner Galaxy region. A particularly successful method in this direction, Non-Poissonian Template Fitting (NPTF), aims to characterize different populations of unresolved PSs using their photon statistics, via a likelihood-based analysis~\cite{Lee:2014mza,Lee:2015fea}. In the context of the GCE, initial applications of this method showed overwhelming support for the hypothesis of the GCE being sourced by an unresolved population of PSs spatially correlated with the observed GCE morphology~\cite{Lee:2015fea}. However, more recent studies showed the method to be susceptible to systematic biases~\cite{Leane:2019xiy,Leane:2020nmi,Leane:2020pfc,Chang:2019ars} partly stemming from degeneracies between different emission components in the region (e.g., those spatially correlated with the GCE, centrally-concentrated stellar populations, and the Galactic disk), with results depending strongly on specific assumptions made about the spatial morphologies of components. \emph{All NPTF analyses so far have assumed inflexible, spatially rigid templates, preventing a rigorous expression and exploration of this degeneracy.}
 \vspace{0.05in}
 
-In this work, we use differentiable probabilistic programming to alleviate this major shortcoming of traditional likelihood-based fitting techniques for analyzing $\gamma$-ray data. Using GPU acceleration and vectorization, we construct a forward model for $\gamma$-ray emission in the Galactic Center region that can generate high-resolution spatial templates for various emission components, including those associated with the Galactic Center excess signal, on the fly. This allows for analyses that are robust to specific analysis choices, and opens up the possibility of performing model-independent analyses using the same framework. In the broader context of astrophysics, this work aims to motivate the use of differentiable probabilistic programming as a way to enable high-dimensional Bayesian inference for complex descriptions of diverse astrophysical data.
+In this work, we use differentiable probabilistic programming to alleviate this shortcoming of traditional likelihood-based fitting techniques for analyzing $\gamma$-ray data. Using GPU-native acceleration and vectorization, we construct a forward model for $\gamma$-ray emission in the Galactic Center region that can generate high-resolution spatial templates for various emission components, including those associated with the Galactic Center excess signal, on the fly. This allows for analyses that are robust to specific analysis choices, and opens up the possibility of performing model-independent analyses using the framework. In the broader context of astrophysics, this work aims to motivate the use of differentiable probabilistic programming as a way to enable high-dimensional Bayesian inference for complex descriptions of diverse astrophysical data.
 
 % Although the proposed project is concerned with generally determining the nature of PS populations in the Inner Galaxy region, the results will have important implications for understanding the nature of the GCE. 
 
@@ -144,28 +146,35 @@ In this work, we use differentiable probabilistic programming to alleviate this 
 
 \section {Methodology} 
 
-We describe our forward model and likelihood, its implementation as a differentiable probabilistic program, as well as the inference strategies we use to do Bayesian posterior inference over the model parameters characterizing various emission mechanisms for Galactic Center $\gamma$-ray data.
+We describe our forward model and likelihood, its implementation as a differentiable probabilistic program, as well as the inference strategies used to perform Bayesian posterior inference over the model parameters characterizing various emission mechanisms for Galactic Center $\gamma$-ray data.
 
 \subsection{The likelihood and forward model}
 
-\SM{Brief description of regular template fitting as well as NPTF.}
+In traditional template fitting, photon counts in different pixels $p$ are modeled as Poisson random variables, with mean given by a linear combination of templates $T_i^p$, indexed $i$; $x^p \sim \operatorname{Pois}\left(x^p \mid \sum_i A_i T_i^p\right)$. $A_i$ are the template normalizations and represent the parameters of interest. The full map-levels likelihood factorizes into a produce of pixel-wise likelihoods, $p(x \mid \{A_i\})= \prod_p p(x_p \mid \{A_i\})$.
 
-\SM{Brief description of various templates, and different degrees of freedom.}
+In the presence of populations of unresolved point sources, the likelihood can be augmented to take into account the probability that a given pixel contains a point source from a given population, and the probability of that point source emitting a certain mean number of contributing photons. Point source populations can be indepdently characterized by a spatial distribution, specified by a template $T_{\mathrm{PS},i}^p$, and a source-count distribution ${\mathrm{d} N} / {\mathrm{d} S}$, which jointly describes the distribution of photon counts $S$ from individual PSs, $p(S | \theta_\mathrm{PS})$, and their mean abundance, $\bar n_\mathrm{PS}$;  ${\mathrm{d} N} / {\mathrm{d} S}=\bar n_\mathrm{PS} \, p(S \mid \theta_{\mathrm{PS}})$. 
 
-\SM{Specifics of our forward model; hybrid template descriptions.}
+Unfortunately, the inclusion of point source populations renders the likelihood intractable, since computing it would involve marginalizing over positions, counts, and cardinality of point sources from each population. The NPTF method~\cite{Lee:2014mza,Lee:2015fea} circumvents this issue by instead computing the pixel-wise likelihood, and approximating the full likelihood as $p\left(x \mid \bar n_\mathrm{PS}, \theta_{\mathrm{PS}}\right)=\prod_p p\left(x^p \mid \bar n_\mathrm{PS}, \theta_{\mathrm{PS}}\right)$. See \citet{Mishra-Sharma:2016gis} for further details on the method. We implement a differentiable version of the NPTF likelihood in the Jax framework~\cite{jax2018github}, making liberal use of vectorization and automatic batching to efficiently compute the likelihood for multiple point source populations.
+
+\subsection{Flexible specification of point source populations}
+
+Previous analyses based on the NPTF framework assumed rigidly specified spatial templates for the distribution of point source populations; this is because generating new morphologies adds to considerable overhead in the likelihood calculation, rendering a traditional Monte Carlo sampling-based analysis difficult. In particular, given a morphology for the PS template, $\rho(R, z)$ (assumed cylindrically symmetric), computing the template expectation in a give pixel $p$ involves doing a line-of-sight integral in the pixel direction, $T_{\mathrm{PS}}^p=\int \mathrm{d} l \, \rho\left(R(l, p), z(l, p)\right)$. In Jax, the density over the line of sight as well across the pixel index can be efficiently vectorized, and the computation is just-in-time (JIT) compiled for efficient execution on a GPU.
 
 \begin{figure}
-    \includegraphics[width=0.45\textwidth]{example-image-a}
+    \includegraphics[width=0.45\textwidth]{figures/triangle.pdf}
     \caption{A figure.}
     \label{fig:templates}
 \end{figure}
 
-We implement the NPTF likelihood in the differentiable programming framework Jax~\cite{jax2018github}. This allows us to include parametric variations on different spatial templates that have been previously included in NPTF analyses, including templates for PSs correlated with the Galactic disk and the GCE, directly as part of the inference pipeline. For example, such variations could include the scale height of the Galactic disk and the slope of the GCE radial profile as additional parameters. Jax implements just-in-time (JIT) compilation and efficient vectorization on GPUs, allowing for fast and real-time generation of high-resolution spatial templates at inference time. Furthermore, Jax implements automatic batching, allowing for a large number of spatial templates corresponding to different input parameters to be produced at essentially the same computational cost as a single template.
+This allows us to include parametric variations on different spatial templates that have been previously included in NPTF analyses, including templates for PSs correlated with the Galactic disk and the GCE, directly as part of the inference pipeline. We model a PS population with a generalized NFW profile,:
+$\rho_{\mathrm{gNFW}}(r) \propto\left({r}/{r_s}\right)^{-\gamma}\left(1+{r}/{r_s}\right)^{-3+\gamma}$
+with the inner slope $\gamma$ a free parameter to be inferred during the analysis. We also model a population of PSs spatially correlated with the Galactic disk, modeled as a double exponential, $\rho_{\text {disk }}(R, z) \propto \left({R}/{R_{\odot}}\right)^B\exp \left[-C\left({R-R_{\odot}}\right)/{R_\odot}\right] \exp \left(-{|z|}/{z_s}\right)$ with the parameter $B$, $C$, and the scale height $z_s$ charactering the disk morphology and to be inferred during the analysis.
+
 
 \subsection{Inference techniques}
 
 \begin{figure*}
-    \includegraphics[width=0.95\textwidth]{example-image-16x9}
+    \includegraphics[width=0.95\textwidth]{figures/templates_post.png}
     \caption{A figure.}
     \label{fig:posteriors}
 \end{figure*}
@@ -216,11 +225,11 @@ and Galactic diffuse emission, although the development of improved diffuse mode
 % An orthogonal strategy involves innovating on the base method, and in particular implementing methods that can account for arbitrary inter-pixel correlation. Recent proposals in this direction involve the use of deep learning methods~\cite{2021PhRvD.104l3022L,2022PhRvD.105f3017M} and the construction of probabilistic catalogues with trans-dimensional sampling techniques~\cite{2017ApJ...839....4D}. 
 % The NPTF likelihood implements this model while making several simplifying assumptions for computational feasibility. 
 
-\section{Experiments} 
+\section{Experiments and results} 
 
 \SM{Results of the experiment we will show (posteriors and such).}
 
-\section{Discussion and Future Work} 
+\section{Discussion and future work} 
 
 % For the final stage of this project, we will develop a complementary strategy that leverages recent developments in GPU-accelerated differentiable probabilistic programming that allow for automatic and efficient marginalization over large, discrete latent sites~\cite{2019arXiv190203210O,2023arXiv230200564L} -- in this case, the distribution of the number of unresolved PSs and their individual properties. An illustration of the Bayesian probabilistic graphical model (PGM) for the proposed model of Inner Galaxy $\gamma$-ray emission including smooth emission (left side) and different PS populations (right side) is shown in Fig.~\ref{fig:pgm}. 
 
@@ -244,21 +253,21 @@ The inclusion of flexible spatial templates in the pipeline is enabled by the hi
 \bibliographystyle{icml2023}
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% APPENDIX
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\newpage
-\appendix
-\onecolumn
-\section{You \emph{can} have an appendix here.}
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% % APPENDIX
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \newpage
+% \appendix
+% \onecolumn
+% \section{You \emph{can} have an appendix here.}
 
-You can have as much text here as you want. The main body must be at most $8$ pages long.
-For the final version, one more page can be added.
-If you want, you can use an appendix like this one, even using the one-column format.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% You can have as much text here as you want. The main body must be at most $8$ pages long.
+% For the final version, one more page can be added.
+% If you want, you can use an appendix like this one, even using the one-column format.
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 \end{document}
