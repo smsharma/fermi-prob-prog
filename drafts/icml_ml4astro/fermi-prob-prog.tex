@@ -31,6 +31,7 @@
 \usepackage{mathtools}
 \usepackage{amsthm}
 \usepackage{xcolor}
+\usepackage{lipsum}
 
 \newcommand{\SM}[1]{\textcolor{red}{SM: #1}}
 
@@ -150,6 +151,14 @@ We describe our forward model and likelihood, its implementation as a differenti
 
 \subsection{The likelihood and forward model}
 
+\begin{figure*}[ht!]
+\centering
+\includegraphics[width=0.7\textwidth]{figures/templates_post.png}
+\caption{\lipsum[1]}
+\label{fig:posteriors_temp}
+\end{figure*}
+    
+    
 In traditional template fitting, photon counts in different pixels $p$ are modeled as Poisson random variables, with mean given by a linear combination of templates $T_i^p$, indexed $i$; $x^p \sim \operatorname{Pois}\left(x^p \mid \sum_i A_i T_i^p\right)$. $A_i$ are the template normalizations and represent the parameters of interest. The full map-levels likelihood factorizes into a produce of pixel-wise likelihoods, $p(x \mid \{A_i\})= \prod_p p(x_p \mid \{A_i\})$.
 
 In the presence of populations of unresolved point sources, the likelihood can be augmented to take into account the probability that a given pixel contains a point source from a given population, and the probability of that point source emitting a certain mean number of contributing photons. Point source populations can be indepdently characterized by a spatial distribution, specified by a template $T_{\mathrm{PS},i}^p$, and a source-count distribution ${\mathrm{d} N} / {\mathrm{d} S}$, which jointly describes the distribution of photon counts $S$ from individual PSs, $p(S | \theta_\mathrm{PS})$, and their mean abundance, $\bar n_\mathrm{PS}$;  ${\mathrm{d} N} / {\mathrm{d} S}=\bar n_\mathrm{PS} \, p(S \mid \theta_{\mathrm{PS}})$. 
@@ -160,35 +169,33 @@ Unfortunately, the inclusion of point source populations renders the likelihood 
 
 Previous analyses based on the NPTF framework assumed rigidly specified spatial templates for the distribution of point source populations; this is because generating new morphologies adds to considerable overhead in the likelihood calculation, rendering a traditional Monte Carlo sampling-based analysis difficult. In particular, given a morphology for the PS template, $\rho(R, z)$ (assumed cylindrically symmetric), computing the template expectation in a give pixel $p$ involves doing a line-of-sight integral in the pixel direction, $T_{\mathrm{PS}}^p=\int \mathrm{d} l \, \rho\left(R(l, p), z(l, p)\right)$. In Jax, the density over the line of sight as well across the pixel index can be efficiently vectorized, and the computation is just-in-time (JIT) compiled for efficient execution on a GPU.
 
-\begin{figure}
-    \includegraphics[width=0.45\textwidth]{figures/triangle.pdf}
-    \caption{A figure.}
-    \label{fig:templates}
-\end{figure}
-
 This allows us to include parametric variations on different spatial templates that have been previously included in NPTF analyses, including templates for PSs correlated with the Galactic disk and the GCE, directly as part of the inference pipeline. We model a PS population with a generalized NFW profile,:
 $\rho_{\mathrm{gNFW}}(r) \propto\left({r}/{r_s}\right)^{-\gamma}\left(1+{r}/{r_s}\right)^{-3+\gamma}$
-with the inner slope $\gamma$ a free parameter to be inferred during the analysis. We also model a population of PSs spatially correlated with the Galactic disk, modeled as a double exponential, $\rho_{\text {disk }}(R, z) \propto \left({R}/{R_{\odot}}\right)^B\exp \left[-C\left({R-R_{\odot}}\right)/{R_\odot}\right] \exp \left(-{|z|}/{z_s}\right)$ with the parameter $B$, $C$, and the scale height $z_s$ charactering the disk morphology and to be inferred during the analysis.
+with the inner slope $\gamma$ a free parameter to be inferred during the analysis. We also model a population of PSs spatially correlated with the Galactic disk, modeled as a double exponential, $\rho_{\text {disk }}(R, z) \propto \left({R}/{R_{\odot}}\right)^B\exp \left[-C\left({R-R_{\odot}}\right)/{R_\odot}\right] \exp \left(-{|z|}/{z_s}\right)$ with the parameter $B$, $C$, and the scale height $z_s$ characterizing the disk morphology and to be inferred during the analysis.
 
+The possibility of a population of PSs correlated with the stellar density in the Galactic bulge has been extensively tested in the literature~\cite{Macias:2016nev,Macias:2019omb,Ploeg:2020jeh}, and either substantiated or disfavored depending on the analysis. We allow for this possibility in our analysis by including multiple publicly-available spatial templates following stellar bulge populations~\cite{Macias:2016nev,Macias:2019omb}. For both the PS as well as smooth (Poissonian) components describing the GCE, we model the spatial distribution as a hybrid template allowing for varying fractions of DM-like and bulge-like morphologies, $T_{\mathrm{GCE}}^p=(1 - f_\mathrm{bulge}) T_{\mathrm{DM}}^p+f_\mathrm{bulge} T_{\mathrm{bulge}}^p$. The bulge template itself is modeled as a linear combination of publicly available bulge morphologies, $T_{\mathrm{bulge}}^p=\sum_i \alpha_i T_{\mathrm{bulge}, i}^p$ with $\alpha_i$ modeled with a symmetric Dirichlet prior, enforcing $\sum_i \alpha_i = 1$. The templates are appropriately normalized such that an un-scaled template would produce a single count-per-pixel, allowing for a physically-meaningful interpretation of the bulge fraction $f_\mathrm{bulge}$ parameter as the relative contribution to the GCE PS or smooth component from the composite bulge component.
 
-\subsection{Inference techniques}
+\subsection{Parameter posterior inference}
 
-\begin{figure*}
-    \includegraphics[width=0.95\textwidth]{figures/templates_post.png}
-    \caption{A figure.}
-    \label{fig:posteriors}
-\end{figure*}
-
-Since the entire pipeline is end-to-end differentiable, we can evaluate gradients of the log-likelihood function with respect to the parameters of interest $\theta$ characterizing the smooth as well as PS components, $\nabla_\theta\log\mathcal L(\theta)$. This opens up the possibility of using highly efficient gradient-based posterior inference techniques like Stochastic Variational Inference (SVI)~\cite{2012arXiv1206.7051H} and Hamiltonian Monte Carlo (HMC)~\cite{2011arXiv1111.4246H}. 
-Unlike traditional sampling techniques employed in the context of \Fermi GCE analyses so far, these methods can easily scale up to high-dimensional parameter spaces. In particular, variational methods turn posterior inference into an optimization problem by fitting for a flexible functional ansatz on the posterior density and can easily deal with hundreds of parameters. This is in contrast to current public implementations of NPTF, which cannot efficiently include real-time generated templates at inference and are restricted to a modest $\lesssim30$ parameters with traditional Monte Carlo sampling techniques. 
+Since the entire pipeline from template generation to likelihood evaluation is end-to-end differentiable, we can evaluate gradients of the log-likelihood function with respect to the parameters of interest $\theta$ characterizing the smooth as well as PS components, $\nabla_\theta\log\mathcal L(\theta)$, with minimal overhead. This opens up the possibility of using highly efficient gradient-based posterior inference techniques like Stochastic Variational Inference (SVI)~\cite{2012arXiv1206.7051H} and Hamiltonian Monte Carlo (HMC)~\cite{2011arXiv1111.4246H}. 
+Unlike traditional sampling techniques employed in the context of \Fermi GCE analyses so far, these methods can easily scale up to high-dimensional parameter spaces. In particular, variational methods turn posterior inference into an optimization problem by fitting for a flexible functional ansatz on the posterior density and can easily deal with hundreds of parameters. This is in contrast to current public implementations of NPTF, which cannot efficiently include real-time generated templates at inference and are restricted to a modest number of parameters with traditional Monte Carlo sampling techniques. 
 % We will release this code as an open-source package and make it available to the community for use in custom analyses.  %, following the precedent set by the original NPTF package co-developed by Co-I Mishra-Sharma.
 % Concurrently, we will process and collect a large suite of diffuse foreground templates as well as templates describing possible spatial morphologies of the GCE from existing literature to be used in subsequent stages of the project. The Slatyer group has extensive prior experience with processing and analyzing \Fermi data~\cite{Daylan:2014rsa,Leane:2020nmi,Leane:2020pfc}. 
-We will wrap the constructed likelihood using the probabilistic programming framework NumPyro~\cite{2019arXiv191211554P}, which allows for flexible specification of complex models as well as performing inference on them using gradient-based inference techniques. 
-Illustrative results for the posterior on the GCE and disk template parameters using a preliminary version of the NPTF likelihood written in Jax are shown in \ldots. The scalability of our implementation will also support inclusion of a wider range of templates for Inner Galaxy PS populations 
-% (examples shown in Fig.~\ref{fig:figure}(c)) 
-and Galactic diffuse emission, although the development of improved diffuse models is beyond the scope of this proposal.
+The constructed likelihood is wrapped using the probabilistic programming framework NumPyro~\cite{2019arXiv191211554P}, which allows for flexible specification of complex models as well as performing inference on them using gradient-based techniques. 
 
-\SM{Brief description of SVI.}
+
+% Illustrative results for the posterior on the GCE and disk template parameters using a preliminary version of the NPTF likelihood written in Jax are shown in \ldots. 
+
+% The scalability of our implementation will also support inclusion of a wider range of templates for Inner Galaxy PS populations 
+% % (examples shown in Fig.~\ref{fig:figure}(c)) 
+% and Galactic diffuse emission, although the development of improved diffuse models is beyond the scope of this proposal.
+
+In stochastic variational inference (SVI) an approximation for the posterior distribution, parameterized by $\varphi$ and denoted $q_\varphi(\theta)$, is obtained by minimizing the reverse KL-divergence between the true and variational posterior distributions, $D_\mathrm{KL}\left(q_\varphi\mid\mid p(\theta\mid x)\right)$. This is done by maximizing the model log-evidence $\log p(x)$ or, in practice using the tractable evidence lower bound (ELBO), 
+$\operatorname{ELBO} \equiv \mathbb E_{\vartheta\sim q_\varphi(\theta)}\left[\log p(x, \theta) - \log q_\varphi(\theta)\right]$,
+as the optimization objective since $\log p(x) - \operatorname{ELBO} = D_\mathrm{KL}\left(q_\varphi\mid\mid p(\theta\mid x)\right)$. The expectation in the ELBO is taken through Monte Carlo sampling from the variational distribution at each optimization step.
+
+Since we'd like to be able to model arbitrarily flexible non-Gaussian posterior distributions, the variational family $q_\varphi$ is modeled using an inverse autoregressive normalizing flow (IAF).
+The variational parameters---the parameters of the normalizing flow transformation---are optimized using \texttt{Optax}~\citep{optax2020github} with the AdamW optimizer~\cite{kingma2014adam,loshchilov2017decoupled} over 10,000 steps with learning rate $10^{-3}$. Optimization typically takes $\sim 10$ minutes on a single Nvidia A100 GPU.
 %Taking advantage of the scalability of our implementation, we will consider multiple Galactic diffuse background templates simultaneously, allowing the model to explore the correlation structure in the space of diffuse models. Finally. we will validate the ability of the model to accurately characterize different components in the presence of systematic uncertainties by using simulated data. An example of the joint posterior over three different diffuse templates previously considered in the literature obtained using the preliminary differentiable version of NPTF is shown in Fig.~\ref{fig:figure}(b).
 %\begin{wrapfigure}{l}{0.5\textwidth}
 %  \begin{center}
@@ -197,7 +204,12 @@ and Galactic diffuse emission, although the development of improved diffuse mode
 %  \caption{Multiple signal templates, of astrophysical as well as DM origin, proposed in the literature. Our analysis will be able to characterize Inner Galaxy PS populations without relying on specific assumptions about their morphology.}
 %\end{wrapfigure}
 
-\vspace{0.05in}
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=0.45\textwidth]{figures/triangle.pdf}
+    \caption{Posteriors on select parameters characterizing the GCE and disk PS morphologies obtained by analyzing \Fermi-LAT data in the Inner Galaxy. The bulge fraction $f_\mathrm{bulge}$, distributions on the NFW inner slopes $\gamma$ for the PS and smooth NFW profiles, as well as select parameters characterizing the disk morphology are shown.}
+    \label{fig:posteriors_param}
+\end{figure}
 
 % \emph{Stage 2.---}Having laid the groundwork for the project, we will wrap the constructed likelihood using the probabilistic programming framework NumPyro~\cite{2019arXiv191211554P}, which allows for flexible specification of complex models as well as performing inference on them. After validating the ability of the model to accurately characterize different components in the presence of systematic uncertainties using simulated data, we will condition various configurations of the model on real \emph{Fermi}-LAT data in order to robustly disentangle various emission components in the Galactic Center region without relying on rigid assumptions about signal and background morphologies. We will allow for the spatial distribution of the GCE to follow a \emph{composite hypothesis}, consisting of a linear combination of DM-motivated templates and those following astrophysically-motivated Galactic bulge templates (Fig.~\ref{fig:figure}(c)). Given the ability of our model to easily deal with hundreds of parameters, we will consider an augmented description of the Galactic diffuse background, which has so far been the source of large systematic uncertainties in GCE analyses, consisting of combinations of a large number of different physically-motivated templates with varying normalizations in different parts of the sky. An example of the joint posterior over three different diffuse templates obtained using the preliminary differentiable version of NPTF is shown in Fig.~\ref{fig:figure}(b).
 
@@ -227,26 +239,28 @@ and Galactic diffuse emission, although the development of improved diffuse mode
 
 \section{Experiments and results} 
 
-\SM{Results of the experiment we will show (posteriors and such).}
+We apply our pipeline to 573 weeks of \Fermi-LAT data in the 2--20\,GeV energy range. Smooth templates corresponding to isotropically-uniform emission, emission from (revolved) point sources in the 3FGL catalog, and the \Fermi bubbles are included. Three different diffuse models -- Models `A' and `F' from \citet{Calore:2014xka} and Model `O' from \citet{Macias:2019omb} -- are use to model the Galactic diffuse foreground emission, with the gas-correlated emission and Galactic charge density-correlated emission separately allowed be linear combinations of the corresponding components of the three templates.
 
-\section{Discussion and future work} 
+Summaries of the inferred posteriors for disk-correlated PS, GCE-correlated PS, and GCE-correlated smooth emission morphologies are shown in Fig.~\ref{fig:posteriors_temp}. The top row shows the median inferred pixel-wise morphologies, which the bottom row shows the relative middle-68\% deviation of the posterior from the median (heuristically, the `1-$\sigma$' range of the posterior distribution). Contours for the best-fitting bulge-correlated component are shown using dotted red lines. It can be seen that, for both PS-like as well as smooth emission, the inferred posterior median is fairly spherically symmetric; this reflects a general preference for DM-like morphologies in our analyses. We emphasize that we obtain a full posterior distribution over preferred signal morphologies, departing significantly from the rigid parametric descriptions used in previous works.
+
+Figure~\ref{fig:posteriors_param} shows posteriors on select parameters characterizing the GCE and disk PS morphologies. The bulge fraction $f_\mathrm{bulge}=0.332_{-0.30}^{+0.10}$ quantitatively substantiates a not-insignificant preference for a DM-like morphology in the GCE emission. Posteriors on the NFW inner slopes $\gamma$ for the PS and smooth NFW profiles, as well as select parameters characterizing the disk morphology are shown.
+
+\section{Discussion and outlook} 
 
 % For the final stage of this project, we will develop a complementary strategy that leverages recent developments in GPU-accelerated differentiable probabilistic programming that allow for automatic and efficient marginalization over large, discrete latent sites~\cite{2019arXiv190203210O,2023arXiv230200564L} -- in this case, the distribution of the number of unresolved PSs and their individual properties. An illustration of the Bayesian probabilistic graphical model (PGM) for the proposed model of Inner Galaxy $\gamma$-ray emission including smooth emission (left side) and different PS populations (right side) is shown in Fig.~\ref{fig:pgm}. 
 
-\SM{A summary of our contributions. 
-\begin{itemize}
-    \item We can easily include multiple signal and background template descriptions in a principled manner.
-    \item Scalability to higher number of parameters.
-    \item Departure from rigid parameters -- generate templates on-the-fly during inference.
-    \item Much faster analysis.
-\end{itemize}    
-}
+% \begin{itemize}
+%     \item We can easily include multiple signal and background template descriptions in a principled manner.
+%     \item Scalability to higher number of parameters.
+%     \item Departure from rigid parameters -- generate templates on-the-fly during inference.
+%     \item Much faster analysis.
+% \end{itemize}    
 
+% Modern probabilistic programming languages like NumPyro treat distributions and random variables as first-class objects, allowing for the specification of models in a manner that is syntactically close to the PGM. The model can then by directly used for performing inference (by conditioning it on observed data) as well as producing simulations (via sampling the model in the forward direction). The latter will be used to effectively validate the analysis results via posterior-predictive checks, which assess the compatibility between simulated realizations from the data-conditioned model and real data. Strategies such as \emph{enumeration}~\cite{2019arXiv190203210O}, which parallelize the likelihood computation over all possible combinations of the number of individual PSs, will be used to perform explicit marginalization while retaining the benefits of gradient-based posterior inference. This method will have several advantages over all existing approaches. Unlike the NPTF method, it will be able to fully account for pixel-to-pixel correlations. In contrast to machine learning-based approaches, being likelihood-based it will not require the use of black-box feature extractors, and additionally will easily scale to the larger model-spaces described in previous stages of the project since it will not rely on the use of pre-specified training data that is required to have support over the entire model-space.
 
+We have introduced a scalable and flexible pipeline for disentangling the contribution of various emission sources to the $\gamma$-ray sky using differentiable probabilistic programming techniques. The pipeline makes extensive use of the seamless vectorization, automatic differentiation, just-in-time compilation, and GPU acceleration enabled by the Jax framework as well as the flexible model specification and inference capabilities of the NumPyro framework. 
 
-Modern probabilistic programming languages like NumPyro treat distributions and random variables as first-class objects, allowing for the specification of models in a manner that is syntactically close to the PGM. The model can then by directly used for performing inference (by conditioning it on observed data) as well as producing simulations (via sampling the model in the forward direction). The latter will be used to effectively validate the analysis results via posterior-predictive checks, which assess the compatibility between simulated realizations from the data-conditioned model and real data. Strategies such as \emph{enumeration}~\cite{2019arXiv190203210O}, which parallelize the likelihood computation over all possible combinations of the number of individual PSs, will be used to perform explicit marginalization while retaining the benefits of gradient-based posterior inference. This method will have several advantages over all existing approaches. Unlike the NPTF method, it will be able to fully account for pixel-to-pixel correlations. In contrast to machine learning-based approaches, being likelihood-based it will not require the use of black-box feature extractors, and additionally will easily scale to the larger model-spaces described in previous stages of the project since it will not rely on the use of pre-specified training data that is required to have support over the entire model-space.
-
-Directly building on the work done so far, our next goal will be to characterize the $\gamma$-ray PS populations in the Galactic Center in a fully signal model-independent manner, by scanning over a space of spatial \emph{functions} on the sky map, as opposed to using parametric descriptions of signal templates. We will use Gaussian processes to place a prior over this function space, which will allow us to specify a scale on which we expect the morphology of the signal to vary, leaving the per-pixel normalizations otherwise free. The posteriors over both the smooth as well as unresolved PS population templates will provide an important cross check with the fixed-template descriptions used so far, and will, for the first time, deliver a model-independent characterization of the spatial population of unresolved PSs in the Inner Galaxy. A similar Gaussian process-based technique was successfully implemented in \citet{Mishra-Sharma:2020kjb} to augment the morphology of the diffuse foreground template. 
+While we have assumed parametric or physically-derived morphologies for the spatial distribution of various point source populations, using this pipeline we will be able to characterize Galactic Center in a fully signal model-independent manner, by scanning over a space of spatial \emph{functions} on the sky map e.g., using Gaussian processes to define the function prior. A similar Gaussian process-based technique was successfully implemented in \citet{Mishra-Sharma:2020kjb} to augment the morphology of the diffuse foreground template. 
 The inclusion of flexible spatial templates in the pipeline is enabled by the highly efficient and differentiable version of the NPTF likelihood.
 
 \bibliography{fermi-prob-prog}
