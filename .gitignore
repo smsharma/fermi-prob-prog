@@ -174,3 +174,5 @@ cross_check/data
 fermi_data_processing/**/tmp
 fermi_data_processing/**/slurm
 fermi_data_processing/**/*.par
+
+.tmp.driveupload/
