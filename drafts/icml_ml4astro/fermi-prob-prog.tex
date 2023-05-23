@@ -35,6 +35,7 @@
 \usepackage{xspace}
 
 \newcommand{\SM}[1]{\textcolor{red}{[SM: #1]}}
+\newcommand{\ys}[1]{\textcolor{blue}{[YS: #1]}}
 
 % if you use cleveref..
 \usepackage[capitalize,noabbrev]{cleveref}
@@ -154,9 +155,9 @@ We describe our forward model and likelihood, its implementation as a differenti
     
 In traditional spatial template fitting, photon counts $x^p$ in different pixels $p$ are modeled as Poisson random variables, with mean given by a linear combination of templates $T_i^p$, indexed $i$; $x^p \sim \operatorname{Pois}\left(x^p \mid \sum_i A_i T_i^p\right)$. $A_i$ are the template normalizations and represent the parameters of interest. The full map-levels likelihood factorizes into a product of pixel-wise likelihoods, $p(x \mid \{A_i\})= \prod_p p(x_p \mid \{A_i\})$.
 
-In the presence of populations of unresolved PSs, the likelihood can be augmented to take into account the probability that a given pixel contains a PS from a given population, and the probability of that PS emitting a certain number of contributing photons. Point source populations can be independently characterized by a spatial distribution, specified by a template $T_{\mathrm{PS}}^p$, and a source-count distribution ${\mathrm{d} N} / {\mathrm{d} S}$, which jointly describes the distribution of photon counts $S$ from individual PSs, $p(S | \theta_\mathrm{PS})$, and their mean abundance, $\bar n_\mathrm{PS}$;  ${\mathrm{d} N} / {\mathrm{d} S}=\bar n_\mathrm{PS} \, p(S \mid \theta_{\mathrm{PS}})$. 
+In the presence of populations of unresolved PSs, the likelihood can be augmented to take into account the probability that a given pixel contains a PS from a given population, and the probability of that PS emitting a certain number of contributing photons. Point source populations can be independently characterized by a spatial distribution, specified by a template $T_{\mathrm{PS}}^p$, and a source-count distribution ${\mathrm{d} N} / {\mathrm{d} S}$, which jointly describes \ys{$\rightarrow$ can be factorized into} the distribution of photon counts $S$ from individual PSs, $p(S | \theta_\mathrm{PS})$, and their mean abundance, $\bar n_\mathrm{PS}$; \ys{+as} ${\mathrm{d} N} / {\mathrm{d} S}=\bar n_\mathrm{PS} \, p(S \mid \theta_{\mathrm{PS}})$. 
 
-Unfortunately, the inclusion of PS populations renders the likelihood intractable, since computing it would involve marginalizing over positions, counts, and cardinality of PSs from each population. The Non-Poissonian Template Fitting (NPTF) method~\cite{Lee:2014mza,Lee:2015fea} circumvents this issue by instead computing the pixel-wise likelihood, and approximating the full likelihood in a factorized form; $p\left(x \mid \bar n_\mathrm{PS}, \theta_{\mathrm{PS}}\right)=\prod_p p\left(x^p \mid \bar n_\mathrm{PS}, \theta_{\mathrm{PS}}\right)$. See \citet{Mishra-Sharma:2016gis} for further details on the method. We implement a differentiable version of the NPTF likelihood using \texttt{Jax}~\cite{jax2018github}, making liberal use of vectorization and automatic batching to efficiently compute the likelihood for multiple PS populations.
+Unfortunately, the inclusion of PS populations renders the likelihood intractable, since computing it would involve marginalizing over positions, \ys{+photon} counts, and cardinality \ys{$\rightarrow$ number} \ys{I might not be very familiar with the literature, but is this common usage?)} of PSs from each population. The Non-Poissonian Template Fitting (NPTF) method~\cite{Lee:2014mza,Lee:2015fea} circumvents this issue by instead computing the pixel-wise likelihood, and approximating the full likelihood in a factorized form; $p\left(x \mid \bar n_\mathrm{PS}, \theta_{\mathrm{PS}}\right)=\prod_p p\left(x^p \mid \bar n_\mathrm{PS}, \theta_{\mathrm{PS}}\right)$. See \citet{Mishra-Sharma:2016gis} for further details on the method. We implement a differentiable version of the NPTF likelihood using \texttt{Jax}~\cite{jax2018github}, making liberal use of vectorization and automatic batching to efficiently compute the likelihood for multiple PS populations.
 
 \subsection{Flexible specification of point source populations}
 
@@ -166,11 +167,14 @@ In \texttt{Jax}, the density over the line of sight as well across the pixel ind
 
 This allows us to include parametric variations on different spatial templates that have been previously included in NPTF analyses, including templates for PSs correlated with the Galactic disk and the GCE, directly as part of the inference pipeline. We model a PS population with a generalized Navarro-Frenk-White (NFW) profile, motivated by the DM expectation:
 $\rho_{\mathrm{gNFW}}(r) \propto\left({r}/{r_s}\right)^{-\gamma}\left(1+{r}/{r_s}\right)^{-3+\gamma}$
-with the inner slope $\gamma$ a free parameter to be inferred during the analysis. 
+\ys{gNFW$\rightarrow$ NFW?}
+with the inner slope $\gamma$ a free parameter to be inferred during the analysis\ys{, and $r_s$ a fixed scale radius}.
 
-We also model a population of PSs spatially correlated with the Galactic disk, modeled using a cylindrically symmetric, doubly exponential profile~\cite{bartels2018bayesian,lorimer2006parkes}, $\rho_{\text {disk }}(R, z) \propto {R}^B\exp \left[-C\left({R-R_{\odot}}\right)/{R_\odot}\right] \exp \left(-{|z|}/{z_s}\right)$ with the parameter $B$, $C$, and the scale height $z_s$ characterizing the disk morphology to be inferred during the analysis. $R_{\odot}$ is the distance of the Sun from the Galactic Center, and $r_s$ is the scale radius.
+We also model a population of PSs spatially correlated with the Galactic disk, modeled using a cylindrically symmetric, doubly exponential profile~\cite{bartels2018bayesian,lorimer2006parkes}, $\rho_{\text {disk }}(R, z) \propto {R}^B\exp \left[-C\left({R-R_{\odot}}\right)/{R_\odot}\right] \exp \left(-{|z|}/{z_s}\right)$ with the parameter $B$, $C$, and the scale height $z_s$ characterizing the disk morphology to be inferred during the analysis. $R_{\odot}$ is the distance of the Sun from the Galactic Center. \ys{Moved up:}, and $r_s$ is the scale radius.
 
-The possibility of a population of PSs correlated with the stellar density in the Galactic bulge has been extensively tested in the literature~\cite{Macias:2016nev,Macias:2019omb,Ploeg:2020jeh}, and either substantiated or disfavored depending on the analysis. We allow for this possibility in our analysis by including multiple publicly-available spatial templates following stellar bulge populations~\cite{Macias:2016nev,Macias:2019omb} \SM{Fix citations to actual ones used.}. For both the PS as well as smooth (Poissonian) components describing the GCE, we model the spatial distribution as a hybrid template allowing for varying fractions of DM-like and bulge-like morphologies, $T_{\mathrm{GCE}}^p=(1 - f_\mathrm{bulge}) T_{\mathrm{DM}}^p+f_\mathrm{bulge} T_{\mathrm{bulge}}^p$. The bulge template itself is modeled as a linear combination of publicly available bulge morphologies, $T_{\mathrm{bulge}}^p=\sum_i \alpha_i T_{\mathrm{bulge}, i}^p$ with $\alpha_i$ modeled with a symmetric Dirichlet prior, enforcing $\sum_i \alpha_i = 1$. The templates are appropriately normalized such that an un-scaled template would produce a single count-per-pixel, allowing for a physically-meaningful interpretation of the bulge fraction $f_\mathrm{bulge}$ parameter as the relative contribution to the GCE PS or smooth component from the composite bulge component. 
+The possibility of a population of PSs correlated with the stellar density in the Galactic bulge has been extensively tested in the literature~\cite{Macias:2016nev,Macias:2019omb,Ploeg:2020jeh}, and either substantiated or disfavored depending on the analysis. We allow for this possibility in our analysis by including multiple publicly-available spatial templates following stellar bulge populations~\cite{Macias:2016nev,coleman2020maximum,Macias:2019omb,mcdermott2023morphology}
+\SM{Fix citations to actual ones used.} \ys{added references}.
+For both the PS as well as smooth (Poissonian) components describing the GCE, we model the spatial distribution as a hybrid template allowing for varying fractions of DM-like and bulge-like morphologies, $T_{\mathrm{GCE}}^p=(1 - f_\mathrm{bulge}) T_{\mathrm{DM}}^p+f_\mathrm{bulge} T_{\mathrm{bulge}}^p$. The bulge template itself is modeled as a linear combination of publicly available bulge morphologies, $T_{\mathrm{bulge}}^p=\sum_i \alpha_i T_{\mathrm{bulge}, i}^p$ with $\alpha_i$ modeled with a symmetric Dirichlet prior, enforcing $\sum_i \alpha_i = 1$. The templates are appropriately normalized such that an un-scaled template would produce a single count-per-pixel \ys{$\rightarrow$ one count per pixel?}, allowing for a physically-meaningful interpretation of the bulge fraction $f_\mathrm{bulge}$ parameter as the relative contribution to the GCE PS or smooth component from the composite bulge component. 
 A graphical representation of the model of the spatial morphology of the GCE, as specified for both the PS as well as smooth components, is shown in Fig.~\ref{fig:pgm}.
 
 \begin{figure}[htb!]
@@ -186,7 +190,28 @@ Since the entire pipeline from template generation to likelihood evaluation is e
 Unlike traditional sampling techniques previously employed in the context of \Fermi GCE analyses, these methods can easily scale up to high-dimensional parameter spaces. In particular, variational methods turn posterior inference into an optimization problem by fitting for a flexible functional ansatz on the posterior density and can easily deal with hundreds of parameters. This is in contrast to current public implementations of NPTF, which cannot efficiently include real-time generated templates at inference and are restricted to a modest number of parameters with traditional Monte Carlo sampling techniques. 
 % We will release this code as an open-source package and make it available to the community for use in custom analyses.  %, following the precedent set by the original NPTF package co-developed by Co-I Mishra-Sharma.
 % Concurrently, we will process and collect a large suite of diffuse foreground templates as well as templates describing possible spatial morphologies of the GCE from existing literature to be used in subsequent stages of the project. The Slatyer group has extensive prior experience with processing and analyzing \Fermi data~\cite{Daylan:2014rsa,Leane:2020nmi,Leane:2020pfc}. 
-The constructed likelihood is wrapped using the probabilistic programming framework \texttt{NumPyro}~\cite{2019arXiv191211554P}, which allows for flexible specification of complex forward models as well as performing inference on them using gradient-based techniques. In total, our fiducial model is characterized by 40~\SM{Change to actual number.} parameters of interest. \SM{Specify breakdown of parameters.}
+The constructed likelihood is wrapped using the probabilistic programming framework \texttt{NumPyro}~\cite{2019arXiv191211554P}, which allows for flexible specification of complex forward models as well as performing inference on them using gradient-based techniques. In total, our fiducial model is characterized by 42
+%\SM{Change to actual number.}
+%\ys{nice round number}
+parameters of interest.
+%\SM{Specify breakdown of parameters.}
+\ys{Added: }
+These include
+15 flux parameters for smooth emissions
+(3 each for gas-related and ICS templates,
+ 5 for bulge templates,
+ 1 each for NFW, resolved PS, Fermi bubble, isotropic emissions; see Sec.~\ref{sec:expr});
+6 spherical harmonics (up to $l=2$) to modulate the total gas-related templates \ys{comment why elsewhere}; and
+1 inner slope parameter for the smooth NFW component.
+For PSs, there are
+7 flux parameters for PS templates
+(5 for bulge templates,
+ 1 each for the disk and the NFW);
+10 parameters for source-count functions for the GCE and the disk PS populations (3 slopes, 2 spectral break locations for each source-count function);
+2 shape parameters for the disk PS template; and
+1 inner slope parameter for the PS NFW component.
+% and a partridge in a pear tree.
+\ys{46$\rightarrow$42 because of overcounting $\alpha$s (5 parameters but 4 dof.)}
 
 
 % Illustrative results for the posterior on the GCE and disk template parameters using a preliminary version of the NPTF likelihood written in \texttt{Jax} are shown in \ldots. 
@@ -200,9 +225,10 @@ $\operatorname{ELBO} \equiv \mathbb E_{\vartheta\sim q_\varphi(\theta)}\left[\lo
 as the optimization objective since $\log p(x) - \operatorname{ELBO} = D_\mathrm{KL}\left(q_\varphi\mid\mid p(\theta\mid x)\right)$. The expectation in the ELBO is taken through Monte Carlo sampling from the variational distribution at each optimization step.
 
 Since we'd like to be able to model arbitrarily flexible non-Gaussian posterior distributions, the variational family $q_\varphi$ is modeled using an inverse autoregressive normalizing flow (IAF)~\cite{10.5555/3157382.3157627}.
-The variational parameters -- the parameters of the normalizing flow transformation -- are optimized using \texttt{Optax}~\citep{optax2020github} with the AdamW optimizer~\cite{kingma2014adam,loshchilov2017decoupled} over 10,000 steps \SM{check} with learning rate $10^{-3}$. Optimization typically takes $\sim 10$ minutes on a single Nvidia A100 GPU.
-
-
+The variational parameters -- the parameters of the normalizing flow transformation -- are optimized using \texttt{Optax}~\citep{optax2020github} with the AdamW optimizer~\cite{kingma2014adam,loshchilov2017decoupled} over 7,500 steps
+%\SM{check}
+with \ys{initial learning rate parameter} $10^{-4}$. Optimization typically takes $\sim 10$ minutes on a single Nvidia A100 GPU.
+\ys{Flow architecture? 5 IAF steps with MADE NNs, two hidden layers of 128 neurons each.}
     
 %Taking advantage of the scalability of our implementation, we will consider multiple Galactic diffuse background templates simultaneously, allowing the model to explore the correlation structure in the space of diffuse models. Finally. we will validate the ability of the model to accurately characterize different components in the presence of systematic uncertainties by using simulated data. An example of the joint posterior over three different diffuse templates previously considered in the literature obtained using the preliminary differentiable version of NPTF is shown in Fig.~\ref{fig:figure}(b).
 %\begin{wrapfigure}{l}{0.5\textwidth}
@@ -238,7 +264,7 @@ The variational parameters -- the parameters of the normalizing flow transformat
 % An orthogonal strategy involves innovating on the base method, and in particular implementing methods that can account for arbitrary inter-pixel correlation. Recent proposals in this direction involve the use of deep learning methods~\cite{2021PhRvD.104l3022L,2022PhRvD.105f3017M} and the construction of probabilistic catalogues with trans-dimensional sampling techniques~\cite{2017ApJ...839....4D}. 
 % The NPTF likelihood implements this model while making several simplifying assumptions for computational feasibility. 
 
-\section{Experiments and results} 
+\section{Experiments and results} \label{sec:expr}
 
 We apply our pipeline to 573 weeks of \Fermi-LAT data in the 2--20\,GeV energy range. Smooth templates corresponding to isotropically-uniform emission, emission from (resolved) PSs in the 3FGL catalog~\cite{Fermi-LAT:2015bhf}, and the \Fermi bubbles~\cite{Su:2010qj} are included. Three different diffuse models -- Models `A' and `F' from \citet{Calore:2014xka} and Model `O' from \citet{Macias:2019omb} -- are use to model the Galactic diffuse foreground emission, with the gas-correlated emission and Galactic charge density-correlated emission separately modeled as linear combinations of the corresponding components of the three templates.
 
