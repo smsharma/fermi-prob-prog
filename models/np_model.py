@@ -31,7 +31,7 @@ from utils.psf_correction import PSFCorrection
 
 import logging
 
-data_dir = '/content/drive/Othercomputers/My MacBook Pro/fermi-prob-prog/data'
+data_dir = '../data'
 
 class NPModel:
     """
