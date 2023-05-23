@@ -198,10 +198,10 @@ parameters of interest.
 \ys{Added: }
 These include
 15 flux parameters for smooth emissions
-(3 each for gas-related and ICS templates,
+(3 each for gas-correlated and ICS templates,
  5 for bulge templates,
  1 each for NFW, resolved PS, Fermi bubble, isotropic emissions; see Sec.~\ref{sec:expr});
-6 spherical harmonics (up to $l=2$) to modulate the total gas-related templates \ys{comment why elsewhere}; and
+6 spherical harmonics (up to $l=2$) to modulate the total gas-correlated templates \ys{comment why elsewhere}; and
 1 inner slope parameter for the smooth NFW component.
 For PSs, there are
 7 flux parameters for PS templates
@@ -268,7 +268,7 @@ with \ys{initial learning rate parameter} $10^{-4}$. Optimization typically take
 
 We apply our pipeline to 573 weeks of \Fermi-LAT data in the 2--20\,GeV energy range. Smooth templates corresponding to isotropically-uniform emission, emission from (resolved) PSs in the 3FGL catalog~\cite{Fermi-LAT:2015bhf}, and the \Fermi bubbles~\cite{Su:2010qj} are included. Three different diffuse models -- Models `A' and `F' from \citet{Calore:2014xka} and Model `O' from \citet{Macias:2019omb} -- are use to model the Galactic diffuse foreground emission, with the gas-correlated emission and Galactic charge density-correlated emission separately modeled as linear combinations of the corresponding components of the three templates.
 
-The region of interest is taken to be the inner $25^\circ$, masking the Galactic plane at $2^\circ$. Resolved PSs from the 3FGL catalog are masked at $0.8^\circ$. \texttt{HEALPix}~\cite{Gorski:2004by} pixelization with resolution parameter $\texttt{nside}=128$ is used, corresponding to pixels of side $\sim0.5^\circ$ and a total of \SM{add} pixels in the region of interest.
+The region of interest is taken to be the inner $25^\circ$, masking the Galactic plane at $2^\circ$. Resolved PSs from the 3FGL catalog are masked at $0.8^\circ$. \texttt{HEALPix}~\cite{Gorski:2004by} pixelization with resolution parameter $\texttt{nside}=128$ is used, corresponding to pixels of side $\sim0.5^\circ$ and a total of 6839 pixels in the region of interest.
 
 \begin{figure}[htb!]
     \centering
@@ -277,14 +277,14 @@ The region of interest is taken to be the inner $25^\circ$, masking the Galactic
     \label{fig:posteriors_temp}
     \end{figure}
 
-Figures~\ref{fig:posteriors_temp} and ~\ref{fig:posteriors_param} summarize preliminary results obtained using our pipeline applied to Inner Galaxy \Fermi data. Summaries of the inferred posteriors for disk-correlated PS, GCE-correlated PS, and GCE-correlated smooth emission morphologies are shown in Fig.~\ref{fig:posteriors_temp}. The top row shows the median inferred pixel-wise morphologies, which the bottom row shows the relative middle-68\% deviation of the posterior from the median (heuristically, the `1-$\sigma$' range of the posterior distribution). Contours for the best-fitting bulge-correlated (dotted red lines) and DM-like (dotted black lines) component are shown. It can be seen that, for both PS-like as well as smooth emission, the inferred posterior median is fairly spherically symmetric when contrasted to the bulge profile expectation; this reflects a general preference for DM-like morphologies in our analyses. We emphasize that we obtain a full posterior distribution over preferred signal morphologies, departing significantly from the rigid parametric descriptions used in previous works.
+Figures~\ref{fig:posteriors_temp} and \ref{fig:posteriors_param} summarize preliminary results obtained using our pipeline applied to Inner Galaxy \Fermi data. Summaries of the inferred posteriors for disk-correlated PS, GCE-correlated PS, and GCE-correlated smooth emission morphologies are shown in Fig.~\ref{fig:posteriors_temp}. The top row shows the median inferred pixel-wise morphologies, which the bottom row shows the relative middle-68\% deviation of the posterior from the median (heuristically, the `1-$\sigma$' range of the posterior distribution). Contours for the best-fitting bulge-correlated (dotted red lines) and DM-like (dotted black lines) component are shown. It can be seen that, for both PS-like as well as smooth emission, the inferred posterior median is fairly spherically symmetric when contrasted to the bulge profile expectation; this reflects a general preference for DM-like morphologies in our analyses. We emphasize that we obtain a full posterior distribution over preferred signal morphologies, departing significantly from the rigid parametric descriptions used in previous works.
 
-Figure~\ref{fig:posteriors_param} shows posteriors on select parameters characterizing the GCE and disk PS morphologies. The bulge fraction $f_\mathrm{bulge, PS}\sim 0.3$ quantitatively substantiates a not-insignificant preference for a DM-like morphology in the GCE emission. Posteriors on the NFW inner slopes $\gamma$ for the PS and smooth NFW profiles, as well as select parameters characterizing the disk morphology are shown. A physically-reasonable scale height for the disk-correlated PS population, $z_s\sim 0.4$\,kpc is inferred~\cite{bartels2018bayesian}. Overall, our model assigns a fraction \SM{fill} of the total GCE flux to PSs, \SM{consistent/inconsistent} with recent analyses of unresolved PS contributions to the GCE~\cite{papers}.
+Figure~\ref{fig:posteriors_param} shows posteriors on select parameters characterizing the GCE and disk PS morphologies. The bulge fraction $f_\mathrm{bulge, PS}\sim 0.3$ quantitatively substantiates a not-insignificant preference for a DM-like morphology in the GCE emission. Posteriors on the NFW inner slopes $\gamma$ for the PS and smooth NFW profiles, as well as select parameters characterizing the disk morphology are shown. A physically-reasonable scale height for the disk-correlated PS population, $z_s\sim 0.4$\,kpc is inferred~\cite{bartels2018bayesian}. Overall, our model assigns a fraction $0.73^{+0.09}_{-0.06}$ of the total GCE flux to PSs, \SM{consistent/inconsistent} with recent analyses of unresolved PS contributions to the GCE~\cite{papers}.
     
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=0.49\textwidth]{figures/np_sviiaf_par8.pdf}
-    \caption{Posteriors on select parameters characterizing the GCE and disk PS morphologies obtained by analyzing \Fermi-LAT data in the Inner Galaxy. The bulge fraction $f_\mathrm{bulge}$, distributions on the NFW inner slopes $\gamma$ for the PS and smooth NFW profiles, as well as select parameters characterizing the disk morphology are shown. \SM{Update with PS fraction posterior}}
+    \caption{Posteriors on select parameters characterizing the GCE and disk PS morphologies obtained by analyzing \Fermi-LAT data in the Inner Galaxy. The PS fraction of the GCE $f_\text{PS, GCE}$, the bulge fraction within the PS components $f_\mathrm{bulge, PS}$, distributions on the NFW inner slopes $\gamma$ for the PS and smooth NFW profiles, as well as select parameters characterizing the disk morphology are shown. \SM{Update with PS fraction posterior}}
     \label{fig:posteriors_param}
 \end{figure}
 
