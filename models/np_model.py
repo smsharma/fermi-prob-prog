@@ -31,6 +31,7 @@ from utils.psf_correction import PSFCorrection
 
 import logging
 
+data_dir = '../data'
 
 class NPModel:
     """
@@ -69,18 +70,18 @@ class NPModel:
         self.ps_cat = ps_cat
         self.non_poissonian = non_poissonian
         
-        self.data_dir = "../data/fermi_data_573w/fermi_data_{}".format(self.nside)
+        self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
         self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
         self.exposure_map = np.load("{}/fermidata_exposure.npy".format(self.data_dir))
     
         #========== Mask ==========
         if ps_cat == "3fgl":
             # mask_ps = np.load("{}/fermidata_pscmask_{}.npy".format(self.data_dir, self.ps_cat)) == 1
-            mask_ps = hp.ud_grade(np.load("../data/mask_3fgl_0p8deg.npy"), nside_out=self.nside) > 0
+            mask_ps = hp.ud_grade(np.load(f"{data_dir}/mask_3fgl_0p8deg.npy"), nside_out=self.nside) > 0
         elif ps_cat == "4fgl":
             if non_poissonian:
                 logging.warning('Using 4fgl with non-poissonian fit.')
-            mask_ps = hp.ud_grade(np.load(f"../data/fermi_data_573w/fermi_data_{nside}/fermidata_pscmask_4fgl.npy"), nside_out=self.nside) > 0
+            mask_ps = hp.ud_grade(np.load(f"{data_dir}/fermi_data_573w/fermi_data_{nside}/fermidata_pscmask_4fgl.npy"), nside_out=self.nside) > 0
         else:
             raise NotImplementedError("Other catalogs not supported at the moment.")
             
