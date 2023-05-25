@@ -277,13 +277,6 @@ The region of interest is taken to be the inner $25^\circ$, masking the Galactic
 Figures~\ref{fig:posteriors_temp} and \ref{fig:posteriors_param} summarize preliminary results obtained using our pipeline applied to Inner Galaxy \Fermi data. Summaries of the inferred posteriors for disk-correlated PS, GCE-correlated PS, and GCE-correlated smooth emission morphologies are shown in Fig.~\ref{fig:posteriors_temp}. The top row shows the median inferred pixel-wise morphologies, which the bottom row shows the relative middle-68\% deviation of the posterior from the median (heuristically, the `1-$\sigma$' range of the posterior distribution). Contours for the best-fitting bulge-correlated (dotted red lines) and DM-like (dotted black lines) component are shown. It can be seen that, for both PS-like as well as smooth emission, the inferred posterior median is fairly spherically symmetric when contrasted to the bulge profile expectation; this reflects a general preference for DM-like morphologies in our analyses. We emphasize that we obtain a full posterior distribution over preferred signal morphologies, departing significantly from the rigid parametric descriptions used in previous works.
 
 Figure~\ref{fig:posteriors_param} shows posteriors on select parameters characterizing the GCE and disk PS morphologies. The bulge fraction $f_\mathrm{bulge, PS}\sim 0.3$ quantitatively substantiates a not-insignificant preference for a DM-like morphology in the GCE emission. Posteriors on the NFW inner slopes $\gamma$ for the PS and smooth NFW profiles, as well as select parameters characterizing the disk morphology are shown. A physically-reasonable scale height for the disk-correlated PS population, $z_s\sim 0.4$\,kpc is inferred~\cite{bartels2018bayesian}. Overall, our preliminary analysis assigns $73^{+9}_{-6}\%$ of the total GCE flux to unresolved PS-like structure, qualitatively consistent with a recent NPTF analysis that utilizes the diffuse model considered here, Model O~\cite{Buschmann:2020adf}.
-    
-\begin{figure}[!ht]
-    \centering
-    \includegraphics[width=0.49\textwidth]{figures/np_sviiaf_par8.pdf}
-    \caption{Posteriors on select parameters characterizing the GCE and disk PS morphologies obtained with a preliminary analysis of \Fermi-LAT data in the Inner Galaxy. The PS fraction of the GCE $f_\text{PS, GCE}$, the bulge fraction within the PS components $f_\mathrm{bulge, PS}$, distributions on the NFW inner slopes $\gamma$ for the PS and smooth NFW profiles, as well as select parameters characterizing the disk morphology are shown.}
-    \label{fig:posteriors_param}
-\end{figure}
 
 \section{Discussion and outlook} 
 
@@ -300,6 +293,13 @@ Figure~\ref{fig:posteriors_param} shows posteriors on select parameters characte
 
 We have introduced a scalable and flexible pipeline for disentangling the contribution of various emission components to the observed $\gamma$-ray sky using differentiable probabilistic programming. The pipeline makes extensive use of the seamless vectorization, automatic differentiation, just-in-time compilation, and GPU acceleration enabled by the \texttt{Jax} framework as well as the flexible model specification and inference capabilities of the \texttt{NumPyro}. 
 In a preliminary analysis, we applied our pipeline to Inner Galaxy \Fermi-LAT $\gamma$-ray data with goal of characterizing the longstanding GCE emission while allowing for a richer description of possible signal morphologies and Galactic foreground model descriptions.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{figures/np_sviiaf_par8.pdf}
+    \caption{Posteriors on select parameters characterizing the GCE and disk PS morphologies obtained with a preliminary analysis of \Fermi-LAT data in the Inner Galaxy. The PS fraction of the GCE $f_\text{PS, GCE}$, the bulge fraction within the PS components $f_\mathrm{bulge, PS}$, distributions on the NFW inner slopes $\gamma$ for the PS and smooth NFW profiles, as well as select parameters characterizing the disk morphology are shown.}
+    \label{fig:posteriors_param}
+\end{figure}
 
 We outline possible extensions to the pipeline. While we have used parametric and physically-motivated morphologies for the spatial distribution of various PS populations, using our pipeline we will be able to characterize Galactic Center in a fully signal model-independent manner by scanning over a space of spatial functions on the sky map e.g., using Gaussian processes (GPs) to define the function prior. A similar GP-based technique was implemented in \citet{Mishra-Sharma:2020kjb} to augment the morphology of the diffuse foreground template. Finally, since our pipeline is implemented using differential programming, it can admit arbitrarily flexible descriptions of the Galactic foreground emission, e.g. as a latent-variable generative model that spans a distribution of possible foreground models. We leave a study of these extensions to future work.
 
