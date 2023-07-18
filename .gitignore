@@ -1,3 +1,22 @@
+#===== This project =====
+paper/fermi-counterfactuals.pdf
+data/*.fits
+data/exposed_templates
+data/external/CZMS
+data/posteriors/fit_process
+data/posteriors/ebin
+data/posteriors/compare_samplers
+data/posteriors/vary_disk_mask
+cross_check/data
+outputs/
+
+fermi_data_processing/**/tmp
+fermi_data_processing/**/slurm
+fermi_data_processing/**/*.par
+
+.tmp.driveupload/
+#========================
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -160,19 +179,3 @@ data/logs/wandb
 *.DS_Store
 .DS_Store
 auto
-
-paper/fermi-counterfactuals.pdf
-data/*.fits
-data/exposed_templates
-data/external/CZMS
-data/posteriors/fit_process
-data/posteriors/ebin
-data/posteriors/compare_samplers
-data/posteriors/vary_disk_mask
-cross_check/data
-
-fermi_data_processing/**/tmp
-fermi_data_processing/**/slurm
-fermi_data_processing/**/*.par
-
-.tmp.driveupload/

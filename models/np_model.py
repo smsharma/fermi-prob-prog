@@ -97,7 +97,9 @@ class NPModel:
             self.disk_template = LorimerDiskTemplate(nside=self.nside)
         
         self.dif_names = dif_names
+        
         # Load all bulge templates
+        self.blg_names = bulge_template_names
         self.bulge_hybrid = bulge_hybrid
         self.bulge_templates = jnp.array([BulgeTemplates(template_name=template_name, nside_out=nside)() for template_name in bulge_template_names])
         if self.bulge_hybrid:
@@ -120,6 +122,16 @@ class NPModel:
             print("Max photon count is {}".format(self.k_max))
         
         self.get_exp_regions(n_exp)
+        
+        #========== sample expand keys ==========
+        self.samples_expand_keys = {
+            'theta_pibrem' : [f'theta_pib_{n}' for n in self.dif_names],
+            'theta_ics' : [f'theta_ics_{n}' for n in self.dif_names],
+            'theta_bulge_poiss' : [f'theta_p_{n}' for n in self.blg_names],
+            'theta_bulge_ps' : [f'theta_ps_{n}' for n in self.blg_names],
+        }
+        
+        #========== Other ==========
         self.debug_model = debug_model
         
         
@@ -186,7 +198,59 @@ class NPModel:
         self.svi_init_state = None
 
         
-    def model(self, data):
+    def simulate_mu(self, var_dict):
+        """
+        theta_pib
+        theta_ics
+        S_{iso, bub, psc, pib, ics}
+        S_dsk zs C
+        S_gce gamma_poiss f_bulge_poiss theta_bulge_poiss
+        """
+        
+        mu = jnp.zeros_like(self.data, dtype=float)
+        
+        #===== rigid templates =====
+        theta_pibrem = var_dict['theta_pib']
+        temp_pibrem = jnp.sum(theta_pibrem[:, None] * self.pibrem, 0)
+        theta_ics = var_dict['theta_ics']
+        temp_ics = jnp.sum(theta_ics[:, None] * self.ics, 0)
+        
+        temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pibrem, temp_ics]
+        temp_labels = ['iso', 'bub', 'psc', 'pib', 'ics']
+        for temp, temp_label in zip(temps, temp_labels):
+            S_temp = var_dict[f'S_{temp_label}']
+            A_temp = S_temp / jnp.mean(temp[~self.normalization_mask])
+            mu += A_temp * temp     
+        
+        #===== disk =====
+        S_dsk = var_dict['S_dsk']
+        zs = var_dict['zs']
+        C = var_dict['C']
+        temp_dsk = self.disk_template.get_template(zs=zs, C=C)
+        mu += S_dsk * temp_dsk
+        
+        #===== gce = nfw + bulge =====
+        S_gce = var_dict['S_gce']
+        
+        gamma_poiss = var_dict['gamma_poiss']
+        temp_gce_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
+
+        f_bulge_poiss = var_dict['f_bulge_poiss']
+        theta_bulge_poiss = var_dict['theta_bulge_poiss']
+        temp_bulge = jnp.sum(theta_bulge_poiss[:, None] * self.bulge_templates, 0)
+        
+        A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.normalization_mask])
+        A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.normalization_mask])
+        temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_nfw_poiss \
+                            + f_bulge_poiss * A_gce_bulge * temp_bulge
+        
+        A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.normalization_mask])
+        mu += A_gce * temp_gce_poiss
+        
+        return mu
+        
+            
+    def model(self, data=...):
         
         # Get mixed pibrem template
         theta_pibrem = numpyro.sample("theta_pibrem", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
@@ -320,7 +384,7 @@ class NPModel:
         mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
         if self.non_poissonian:
             npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
-        data_batch = self.data[~self.mask_roi][jnp.array(expreg_indices)]
+        data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
         
         exposure_multiplier = self.exposure_means_list / self.exposure_mean
         
@@ -396,7 +460,11 @@ class NPModel:
         self.expreg_indices = jnp.array(self.expreg_indices)
             
             
-    def fit_svi(self, rng_key=jax.random.PRNGKey(1), n_steps=5000, lr=5e-3, num_particles=2, num_base_mixture=10, guide="mvn", num_flows=4, hidden_dims=[128, 128]):
+    def fit_svi(
+        self, rng_key=jax.random.PRNGKey(42),
+        guide='iaf', num_flows=5, hidden_dims=[128, 128],
+        n_steps=7500, lr=5e-3, num_particles=8,
+        **model_static_kwargs):
         
         class AutoIAFMixture(autoguide.AutoIAFNormal):
             def get_base_dist(self):
@@ -453,20 +521,38 @@ class NPModel:
         self.svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
         
         self.svi_results = self.svi.run(
-            rng_key, n_steps, self.data,
+            rng_key, n_steps, **model_static_kwargs,
             #init_state=self.svi_init_state,
         )
         return self.svi_results
+    
+    
+    def expand_samples(self, samples):
+        new_samples = {}
+        for k in samples.keys():
+            if k in self.samples_expand_keys:
+                for i in range(samples[k].shape[-1]):
+                    new_samples[self.samples_expand_keys[k][i]] = samples[k][...,i]
+            elif k in ['auto_shared_latent']:
+                pass
+            else:
+                new_samples[k] = samples[k]
+        return new_samples
         
         
-    def get_posterior_samples(self, rng_key=jax.random.PRNGKey(1), num_samples=50000, svi_results=None):
-        """ Sample from the variational posterior; returns a dictionary of posterior samples
-        """
+    def get_svi_samples(self, rng_key=jax.random.PRNGKey(42), num_samples=50000, expand_samples=True):
+        
         rng_key, key = jax.random.split(rng_key)
-        if svi_results is None:
-            svi_results = self.svi_results
-        self.posterior_dict = self.guide.sample_posterior(rng_key=rng_key, params=svi_results.params, sample_shape=(num_samples,))
-        return self.posterior_dict
+        self.svi_samples = self.guide.sample_posterior(
+            rng_key=rng_key,
+            params=self.svi_results.params,
+            sample_shape=(num_samples,)
+        )
+        
+        if expand_samples:
+            self.svi_samples = self.expand_samples(self.svi_samples)
+            
+        return self.svi_samples
     
     
     def get_neutra_model(self):
