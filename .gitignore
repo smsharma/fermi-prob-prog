@@ -15,6 +15,7 @@ fermi_data_processing/**/slurm
 fermi_data_processing/**/*.par
 
 .tmp.driveupload/
+.tmp.drivedownload/
 #========================
 
 # Byte-compiled / optimized / DLL files
