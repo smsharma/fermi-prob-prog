@@ -10,6 +10,8 @@ data/posteriors/vary_disk_mask
 cross_check/data
 outputs/
 
+scripts/slurm_outputs/
+
 fermi_data_processing/**/tmp
 fermi_data_processing/**/slurm
 fermi_data_processing/**/*.par
