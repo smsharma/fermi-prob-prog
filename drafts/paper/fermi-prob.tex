@@ -17,7 +17,7 @@
 \usepackage{multirow}
 \usepackage{dcolumn}
 \usepackage{makecell}
-\usepackage{floatrow}
+%\usepackage{floatrow}
 \usepackage{afterpage}
 \usepackage{longtable}
 \setlength{\LTcapwidth}{\textwidth}
@@ -38,7 +38,11 @@ urlcolor=linkcolor,
 
 \renewcommand{\arraystretch}{1.8}
 \newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
+%===== commenting =====
 \def\trs#1{\textcolor{red}{[TRS: #1]}}
+\definecolor{overleaf}{rgb}{0.0, 0.7, 0.0}
+\newcommand{\ys}[1]{{\color{overleaf} {\bf [YS: #1]}}}
 
 \begin{document}
 
@@ -60,6 +64,7 @@ urlcolor=linkcolor,
 
 \author{Yitian Sun}
 \email{yitians@mit.edu}
+\thanks{ORCID: \href{https://orcid.org/0000-0002-4697-8384}{0000-0002-4697-8384}}
 \affiliation{The NSF AI Institute for Artificial Intelligence and Fundamental Interactions}
 \affiliation{Center for Theoretical Physics, Massachusetts Institute of Technology, Cambridge, MA 02139, USA}
 
@@ -128,9 +133,9 @@ A graphical representation of the model of the spatial morphology of the GCE, as
 
 \trs{Specify which bulge templates we use. Possibly add discussion of Fermi Bubbles template options.}
 
-\begin{figure}[htb!]
+\begin{figure}[ht!]
 \centering
-\includegraphics[width=0.98\textwidth]{figures/gce_pgm.pdf}
+\includegraphics[width=0.48\textwidth]{figures/gce_pgm.pdf}
 \caption{Graphical model of the spatial morphology of the Galactic Center Excess, as specified for both the PS as well as smooth emission components.}
 \label{fig:pgm}
 \end{figure}
@@ -196,7 +201,7 @@ initial learning rate $10^{-4}$. Optimization typically takes $\sim 10$ minutes 
 
 \subsection{Public implementation of SVI pipeline}
 
-\trs{I think it would be good to briefly discuss the public code for the pipeline and show a simple example of a call in a new subsection here. This could also be a good place to briefly discuss and document the energy-dependent Poissonian version of the pipeline, just so that there is a paper to point to for people using it - our discussion earlier said that we would ``focus paper and validation on NP pipeline in a single energy bin, mention briefly that you can go to Poissonian limit and we have github implementation in multiple energy bins, but don’t do focused validation/testing of that pipeline''.}
+\trs{I think it would be good to briefly discuss the public code for the pipeline and show a simple example of a call in a new subsection here. This could also be a good place to briefly discuss and document the energy-dependent Poissonian version of the pipeline, just so that there is a paper to point to for people using it - our discussion earlier said that we would ``focus paper and validation on NP pipeline in a single energy bin, mention briefly that you can go to Poissonian limit and we have github implementation in multiple energy bins, but don't do focused validation/testing of that pipeline''.}
 
 \section{Experiments and results} 
 \label{sec:expr}
@@ -206,7 +211,7 @@ initial learning rate $10^{-4}$. Optimization typically takes $\sim 10$ minutes 
 
 \trs{add more detail here, e.g. on CR rejection / PSF quartile cuts}
 
-We apply our pipeline to 573 weeks of \Fermi-LAT data in the 2--20\,GeV energy range. Smooth templates corresponding to isotropically-uniform emission, emission from (resolved) PSs in the 3FGL catalog~\cite{Fermi-LAT:2015bhf}, and the \Fermi bubbles~\cite{Su:2010qj} are included. Three different diffuse models -- Models `A' and `F' from \citet{Calore:2014xka} and Model `O' from \citet{Macias:2019omb} -- are used to model the Galactic diffuse foreground emission, with the gas-correlated emission and Galactic charge density-correlated emission separately modeled as linear combinations of the corresponding components of the three templates. Following~\cite{Buschmann:2020adf}, we allow for a modulation of the large-scale spatial structure of the gas-correlated templates modifying it as  
+We apply our pipeline to 573 weeks of \Fermi-LAT data in the 2--20\,GeV energy range. Smooth templates corresponding to isotropically-uniform emission, emission from (resolved) PSs in the 3FGL catalog~\cite{Fermi-LAT:2015bhf}, and the \Fermi bubbles~\cite{Su:2010qj} are included. Three different diffuse models -- Models `A' and `F' from \citet{Calore:2014xka} and Model `O' from \citet{Macias:2019omb} -- are used to model the Galactic diffuse foreground emission, with the gas-correlated emission and Galactic charge density-correlated emission separately modeled as linear combinations of the corresponding components of the three templates. Following~\cite{Buschmann:2020adf}, we allow for a modulation of the large-scale spatial structure of the gas-correlated templates modifying it as
 $T^p_{\mathrm{diff}}\rightarrow \left[1 + \sum_{\ell m} {A}_{\ell m} \cdot \operatorname{Re}\left(Y^p_{\ell m}\right) \right]T^p_{\mathrm{diff}}$, where the prior on spherical harmonic coefficients ${A}_{\ell m}$ enforces small deviations from the base template; $p\left({A}_{\ell m}\right) = \mathcal U(-0.05, 0.05)$. 
 
 In total, our fiducial model is characterized by 42
@@ -233,13 +238,15 @@ parameters of interest:
 
 \begin{figure}[!htb]
 \centering
-\includegraphics[width=0.98\textwidth]{figures/templates.pdf}
+\includegraphics[width=0.48\textwidth]{figures/templates.pdf}
 \caption{Summaries of the inferred posteriors for disk-correlated PS, GCE-correlated PS, and GCE-correlated smooth emission morphologies from a preliminary analysis of \Fermi-LAT data. The top row shows the median inferred pixel-wise morphologies, while the bottom row shows the relative middle-68\% deviation of the posterior from the median. For comparison, contours for the best-fitting bulge and DM (NFW) description are shown for the GCE PS and smooth components.}
 \label{fig:posteriors_temp}
 \end{figure}
     
 
 The region of interest is taken to be the inner $25^\circ$, masking the Galactic plane at $2^\circ$. Resolved PSs from the 3FGL catalog are masked at $0.8^\circ$. \texttt{HEALPix}~\cite{Gorski:2004by} pixelization with resolution parameter $\texttt{nside}=128$ is used, corresponding to pixels of side $\sim0.5^\circ$ and a total of 6839 pixels in the region of interest.
+
+\ys{add comment about prior}
 
 \subsection{Results}
 
@@ -264,6 +271,14 @@ Figure~\ref{fig:posteriors_param} shows posteriors on select parameters characte
 \item Check behavior of pipeline under mismodeling (e.g. use p6v11 diffuse for simulation); does extra flexibility in templates help relative to NPTFit?
 \end{itemize}
 
+
+\ys{talk about morphology: maybe show posterior of the bulges}
+\ys{mismodelling effect}
+\ys{with linear comb of templates, does it recover the original templates}
+
+
+
+
 \subsection{Comparisons with \texttt{NPTFit}}
 
 \trs{I think it would be good to put some direct comparisons with NPTFit somewhere in this section, which maybe Yuqing and Yitian can work on together. These could be performance comparisons and/or results comparisons.}
@@ -271,6 +286,11 @@ Figure~\ref{fig:posteriors_param} shows posteriors on select parameters characte
 \begin{itemize}
 \item Compare discrete points in model space with NPTFit to results of the new pipeline, on simulated data (and possibly real data?)
 \end{itemize}
+
+\ys{local behavior of enlarge parameters space in SVI is similar to NPTFit}
+\ys{we should do this on real data instad of simulated, because if both agrees with simulation we expect them to agree with each other on simulations}
+\ys{new pipeline can do something new}
+\ys{run NPTFit on linear combination of templates (NPTF mismodelling)}
 
 \subsection{Comparisons between SVI and HMC}	
 
@@ -312,7 +332,7 @@ In a preliminary analysis, we applied our pipeline to Inner Galaxy \Fermi-LAT $\
 
 \begin{figure}[!ht]
     \centering
-    \includegraphics[clip, width=0.98\textwidth]{figures/np_sviiaf_par8_v2.pdf}
+    \includegraphics[clip, width=0.48\textwidth]{figures/np_sviiaf_par8_v2.pdf}
     \vspace{-0.4cm}
     \caption{Posteriors on select parameters characterizing the GCE and disk PS morphologies obtained with a preliminary analysis of \Fermi-LAT data in the Inner Galaxy. The PS fraction of the GCE $f_\text{PS, GCE}$,
     % the bulge fraction within the PS components $f_\mathrm{bulge, PS}$,
@@ -330,7 +350,6 @@ This material is based upon work supported by the U.S. Department of Energy, Off
 We thank the \Fermi-LAT Collaboration for making publicly available the $\gamma$-ray data used in this work.
 This research has made use of NASA's Astrophysics Data System. 
 This research made use of the \texttt{astropy}~\cite{Price-Whelan:2018hus,Robitaille:2013mpa}, \texttt{dynesty}~\cite{Speagle_2020}, \texttt{getdist}~\cite{Lewis:2019xzd}, \texttt{IPython}~\cite{PER-GRA:2007}, \texttt{Jupyter}~\cite{Kluyver2016JupyterN}, \texttt{matplotlib}~\cite{Hunter:2007}, \texttt{MLflow}~\cite{10.1145/3399579.3399867}, \texttt{nflows}~\cite{nflows}, \texttt{NPTFit}~\cite{Mishra-Sharma:2016gis}, \texttt{NPTFit-Sim}~\cite{NPTFit-Sim}, \texttt{NumPy}~\cite{harris2020array}, \texttt{pandas}~\cite{pandas:2010}, \texttt{PyGSP}~\cite{michael_defferrard_2017_1003158}, \texttt{Pyro}~\cite{bingham2019pyro}, \texttt{PyTorch}~\cite{NEURIPS2019_9015}, \texttt{PyTorch Geometric}~\cite{Fey/Lenssen/2019}, \texttt{PyTorch Lightning}~\cite{william_falcon_2020_3828935}, \texttt{seaborn}~\cite{seaborn}, \texttt{sbi}~\cite{tejero-cantero2020sbi}, \texttt{scikit-learn}~\cite{JMLR:v12:pedregosa11a}, \texttt{SciPy}~\cite{2020SciPy-NMeth}, and \texttt{tqdm}~\cite{casper_da_costa_luis_2021_5517697} software packages.
-
 %\vspace{.5cm}
 %%%%%%%%%%%%%%%
 
