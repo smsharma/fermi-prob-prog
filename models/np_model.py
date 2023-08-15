@@ -395,17 +395,6 @@ class NPModel:
             theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
             theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
         
-        if self.debug_model:
-            print('mu.shape', mu.shape)
-            print('mu_batch.shape', mu_batch.shape)
-            print('data_batch.shape', data_batch.shape)
-            print('expreg_indices.shape', expreg_indices.shape)
-            if self.non_poissonian:
-                print('theta.shape', theta.shape)
-                print('npt_compressed_batch.shape', npt_compressed_batch.shape)
-                print('self.f_ary.shape', self.f_ary.shape)
-                print('self.df_rho_div_f_ary.shape', self.df_rho_div_f_ary.shape)
-        
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):            
             
             if self.non_poissonian:
@@ -415,10 +404,6 @@ class NPModel:
             
             # Concatenate exposure regions
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
-            
-            if self.debug_model:
-                print('log_like_exp.shape', log_like_exp.shape)
-                print('loglike.shape', loglike.shape)
                                 
             with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
                 return numpyro.factor('log-likelihood', loglike)
@@ -464,66 +449,48 @@ class NPModel:
         self, rng_key=jax.random.PRNGKey(42),
         guide='iaf', num_flows=5, hidden_dims=[128, 128],
         n_steps=7500, lr=5e-3, num_particles=8,
-        **model_static_kwargs):
-        
-        class AutoIAFMixture(autoguide.AutoIAFNormal):
-            def get_base_dist(self):
-                C = num_base_mixture
-                mixture = dist.MixtureSameFamily(dist.Categorical(probs=jnp.ones(C) / C),
-                                                 dist.Normal(jnp.arange(float(C)), 1.))
-                
-                return mixture.expand([self.latent_dim]).to_event()
-            
-        class AutoIAFMultiGaussian(autoguide.AutoIAFNormal):
-            def get_base_dist(self):
-                return dist.Normal(
-                    jnp.array([-5, -2, -1, 0, 1, 2, 5, 20], dtype=jnp.float32),
-                    1.,
-                )
+        **model_static_kwargs
+    ):
 
-        if guide == "iaf":
-            self.guide = autoguide.AutoIAFNormal(self.model, num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
-        elif guide == "mvn":
+        iaf_kwargs = dict(num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
+
+        if guide == "mvn":
             self.guide = autoguide.AutoMultivariateNormal(self.model)
+            
+        elif guide == "iaf":
+            self.guide = autoguide.AutoIAFNormal(self.model, **iaf_kwargs)
+            
         elif guide == "iaf_mixture":
-            self.guide = AutoIAFMixture(self.model, num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
+            class AutoIAFMixture(autoguide.AutoIAFNormal):
+                def get_base_dist(self):
+                    C = num_base_mixture
+                    mixture = dist.MixtureSameFamily(
+                        dist.Categorical(probs=jnp.ones(C) / C),
+                        dist.Normal(jnp.arange(float(C)), 1.)
+                    )
+                    return mixture.expand([self.latent_dim]).to_event()
+            self.guide = AutoIAFMixture(self.model, **iaf_kwargs)
+            
         elif guide == "iaf_gaussians":
-            self.guide = AutoIAFMultiGaussian(self.model, num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
+            class AutoIAFMultiGaussian(autoguide.AutoIAFNormal):
+                def get_base_dist(self):
+                    return dist.Normal(
+                        jnp.array([-5, -2, -1, 0, 1, 2, 5, 20], dtype=jnp.float32),
+                        1.,
+                    )
+            self.guide = AutoIAFMultiGaussian(self.model, **iaf_kwargs)
+            
         else:
             raise NotImplementedError
-            
-        # warmup_steps = int(0.05 * n_steps)
-        # scheduler = optax.warmup_cosine_decay_schedule(
-        #   init_value=0.0,
-        #   peak_value=lr,
-        #   warmup_steps=warmup_steps,
-        #   decay_steps=int(n_steps - warmup_steps),
-        #   end_value=0.0,
-        # )
-        schedule = optax.exponential_decay(
-            lr,
-            transition_steps=2500,
-            decay_rate=0.5,
-            transition_begin=2500,
-            staircase=True,
-            end_value=1e-6
-        )
 
         optimizer = optim.optax_to_numpyro(optax.chain(
             optax.clip(1.),
-            #optax.ema(0.9),
             optax.adam(lr),
         ))
-        
-        # if self.svi_init_state is None or reinit:
-        #     self.svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
-        #     self.svi_init_state = self.svi.init(rng_key)
+
         self.svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
+        self.svi_results = self.svi.run(rng_key, n_steps, **model_static_kwargs)
         
-        self.svi_results = self.svi.run(
-            rng_key, n_steps, **model_static_kwargs,
-            #init_state=self.svi_init_state,
-        )
         return self.svi_results
     
     

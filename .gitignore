@@ -20,6 +20,7 @@ fermi_data_processing/**/*.par
 
 .tmp.driveupload/
 .tmp.drivedownload/
+**/.vscode
 #========================
 
 # Byte-compiled / optimized / DLL files
