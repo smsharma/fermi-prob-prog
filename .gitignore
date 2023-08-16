@@ -13,6 +13,7 @@ outputs/
 scripts/slurm_outputs/
 
 notebooks/plots/rott/
+validating/plots/
 
 fermi_data_processing/**/tmp
 fermi_data_processing/**/slurm

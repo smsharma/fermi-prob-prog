@@ -125,9 +125,9 @@ class NPModel:
         
         #========== sample expand keys ==========
         self.samples_expand_keys = {
-            'theta_pibrem' : [f'theta_pib_{n}' for n in self.dif_names],
+            'theta_pib' : [f'theta_pib_{n}' for n in self.dif_names],
             'theta_ics' : [f'theta_ics_{n}' for n in self.dif_names],
-            'theta_bulge_poiss' : [f'theta_p_{n}' for n in self.blg_names],
+            'theta_bulge_poiss' : [f'theta_poiss_{n}' for n in self.blg_names],
             'theta_bulge_ps' : [f'theta_ps_{n}' for n in self.blg_names],
         }
         
@@ -165,34 +165,34 @@ class NPModel:
         self.temp_dsk = np.load("{}/template_dsk_z0p3.npy".format(self.data_dir))
 
         # Load Model O templates
-        self.temp_mO_pibrem = np.load("{}/template_Opi.npy".format(self.data_dir))
+        self.temp_mO_pib = np.load("{}/template_Opi.npy".format(self.data_dir))
         self.temp_mO_ics = np.load("{}/template_Oic.npy".format(self.data_dir))
 
         # Load Model A templates
-        self.temp_mA_pibrem = np.load("{}/template_Api.npy".format(self.data_dir))
+        self.temp_mA_pib = np.load("{}/template_Api.npy".format(self.data_dir))
         self.temp_mA_ics = np.load("{}/template_Aic.npy".format(self.data_dir))
 
         # Load Model F templates
-        self.temp_mF_pibrem = np.load("{}/template_Fpi.npy".format(self.data_dir))
+        self.temp_mF_pib = np.load("{}/template_Fpi.npy".format(self.data_dir))
         self.temp_mF_ics = np.load("{}/template_Fic.npy".format(self.data_dir))
                 
-        self.pibrem = []
+        self.pib = []
         self.ics = []
         
         if "ModelO" in self.dif_names:
-            self.pibrem.append(self.temp_mO_pibrem)
+            self.pib.append(self.temp_mO_pib)
             self.ics.append(self.temp_mO_ics)
         if "ModelA" in self.dif_names:
-            self.pibrem.append(self.temp_mA_pibrem)
+            self.pib.append(self.temp_mA_pib)
             self.ics.append(self.temp_mA_ics)
         if "ModelF" in self.dif_names:
-            self.pibrem.append(self.temp_mF_pibrem)
+            self.pib.append(self.temp_mF_pib)
             self.ics.append(self.temp_mF_ics)
             
-        self.pibrem = jnp.array(self.pibrem)
+        self.pib = jnp.array(self.pib)
         self.ics = jnp.array(self.ics)
         
-        self.n_dif_templates = len(self.pibrem)
+        self.n_dif_templates = len(self.dif_names)
         
         self.svi = None
         self.svi_init_state = None
@@ -200,8 +200,7 @@ class NPModel:
         
     def simulate_mu(self, var_dict):
         """
-        theta_pib
-        theta_ics
+        theta_{pib, ics}
         S_{iso, bub, psc, pib, ics}
         S_dsk zs C
         S_gce gamma_poiss f_bulge_poiss theta_bulge_poiss
@@ -210,12 +209,12 @@ class NPModel:
         mu = jnp.zeros_like(self.data, dtype=float)
         
         #===== rigid templates =====
-        theta_pibrem = var_dict['theta_pib']
-        temp_pibrem = jnp.sum(theta_pibrem[:, None] * self.pibrem, 0)
+        theta_pib = var_dict['theta_pib']
+        temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)
         theta_ics = var_dict['theta_ics']
         temp_ics = jnp.sum(theta_ics[:, None] * self.ics, 0)
         
-        temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pibrem, temp_ics]
+        temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pib, temp_ics]
         temp_labels = ['iso', 'bub', 'psc', 'pib', 'ics']
         for temp, temp_label in zip(temps, temp_labels):
             S_temp = var_dict[f'S_{temp_label}']
@@ -252,9 +251,9 @@ class NPModel:
             
     def model(self, data=...):
         
-        # Get mixed pibrem template
-        theta_pibrem = numpyro.sample("theta_pibrem", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
-        temp_pibrem = jnp.sum(theta_pibrem[:, None] * self.pibrem, 0)
+        # Get mixed pib template
+        theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
+        temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)
 
         # Get mixed ics template
         theta_ics = numpyro.sample("theta_ics", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
@@ -262,14 +261,14 @@ class NPModel:
 
         S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 4.))
             
-        temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pibrem, temp_ics]
-        temp_labels = ["iso", "bub", "psc", "dif", "ics"]
+        temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pib, temp_ics]
+        temp_labels = ["iso", "bub", "psc", "pib", "ics"]
                 
         mu = jnp.zeros_like(data)
         
         for temp, temp_label in zip(temps, temp_labels):
             
-            if temp_label in ["dif", "ics"]:
+            if temp_label in ["pib", "ics"]:
                 prior_lo, prior_hi = 1e-3, 14.
             else:
                 prior_lo, prior_hi = 1e-3, 5.0
@@ -277,17 +276,17 @@ class NPModel:
             prior_dist = dist.Uniform(prior_lo, prior_hi)
             S_temp = numpyro.sample("S_{}".format(temp_label), prior_dist)
             
-            if temp_label in ["dif"]:
+            if temp_label in ["pib"]:
                 
-                temp_dif_mod = jnp.zeros_like(data)
+                temp_pib_mod = jnp.zeros_like(data)
                 for ii in range(len(self.Ylm_temps)):
                     Alm = numpyro.sample("Alm_{}".format(ii), dist.Uniform(-0.05, 0.05))
-                    temp_dif_mod += Alm * self.Ylm_temps[ii]
+                    temp_pib_mod += Alm * self.Ylm_temps[ii]
                 
-                temp_dif_mod = (1. + temp_dif_mod) * temp
+                temp_pib_mod = (1. + temp_pib_mod) * temp
                 
-                A_temp = S_temp / jnp.mean(temp_dif_mod[~self.normalization_mask])
-                mu += A_temp * temp_dif_mod  
+                A_temp = S_temp / jnp.mean(temp_pib_mod[~self.normalization_mask])
+                mu += A_temp * temp_pib_mod  
             else:
                 A_temp = S_temp / jnp.mean(temp[~self.normalization_mask])
                 mu += A_temp * temp     
