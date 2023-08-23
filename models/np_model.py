@@ -394,7 +394,7 @@ class NPModel:
             theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
             theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
         
-        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):            
+        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
             
             if self.non_poissonian:
                 log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
