@@ -18,4 +18,4 @@ source /n/home07/yitians/setup_torch.sh
 
 cd /n/home07/yitians/fermi/fermi-prob-prog/validating/svi_confidence
 
-srun python run_hmc.py -i $SLURM_ARRAY_TASK_ID --use_neutra
+srun python run_hmc.py -i $SLURM_ARRAY_TASK_ID

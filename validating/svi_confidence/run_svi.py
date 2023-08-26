@@ -17,11 +17,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--index", type=int, required=True, help="index")
-    parser.add_argument("--use_neutra", action="store_true", help="use_neutra")
     args = parser.parse_args()
 
     # config
-    save_dir = "../../outputs/poiss_sim/hmc_230826"
+    save_dir = "../../outputs/poiss_sim/hmc_230823"
 
     model = PoissonModel()
     truth_arr = np.load(f"{save_dir}/truth_arr.npy")
@@ -33,15 +32,10 @@ if __name__ == "__main__":
     counts = model.generate_counts(rng_key)
     
     # run
-    print(f"Running index={args.index} with use_neutra={args.use_neutra}...")
-    if args.use_neutra:
-        rng_key, key = jax.random.split(rng_key)
-        model.fit_svi(key, guide='iaf', num_flows=5, hidden_dims=[128, 128],
-                      n_steps=2500, lr=5e-5, num_particles=8, counts=counts)
+    print(f"Running index={args.index}...")
     rng_key, key = jax.random.split(rng_key)
-    mcmc = model.run_nuts(
-        num_chains=4, num_warmup=500, num_samples=20000, step_size=0.01,
-        rng_key=key, use_neutra=args.use_neutra, counts=counts
-    )
+    model.fit_svi(key, guide='iaf', num_flows=5, hidden_dims=[128, 128],
+                  n_steps=2500, lr=5e-5, num_particles=8, counts=counts)
     rng_key, key = jax.random.split(rng_key)
-    pickle.dump(mcmc.get_samples(), open(f"{save_dir}/samples_{args.index}.p", "wb"))
+    samples = model.get_svi_samples(50000, key)
+    pickle.dump(samples, open(f"{save_dir}/samples_{args.index}.p", "wb"))

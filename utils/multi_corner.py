@@ -1,7 +1,10 @@
+import os
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-mpl.rc_file('../notebooks/matplotlibrc')
+
+current_file_path = os.path.abspath(os.path.dirname(__file__))
+mpl.rc_file(os.path.join(current_file_path, '../notebooks/matplotlibrc'))
 
 import corner
 

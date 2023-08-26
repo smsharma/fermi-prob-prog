@@ -177,6 +177,7 @@ class PoissonModel (RandomModel):
         data_dir = os.path.join(current_file_path, f"../data/fermi_data_573w/fermi_data_128")
 
         self.labels = ['psc', 'iso', 'bub', 'dsk', 'Opi', 'Oic', 'Api', 'Aic', 'Fpi', 'Fic', 'nfw']
+        self.temp_label = lambda s: f"temp_{self.labels.index(s)}"
         self.temps_unmasked = [
             np.load(f"{data_dir}/template_psc_3fgl.npy"),
             np.load(f"{data_dir}/template_iso.npy"),
@@ -199,3 +200,13 @@ class PoissonModel (RandomModel):
         self.temps = [temp / np.mean(temp) for temp in self.temps]
         self.size = len(self.temps[0])
         self.n_temp = len(self.temps)
+
+    def set_truth(self, truth_arr):
+        self.truth_arr = truth_arr
+
+    def get_mu(self, unmasked=False):
+        ts = self.temps_unmasked if unmasked else self.temps
+        return jnp.einsum('i,ij->j', self.truth_arr, ts)
+
+    def generate_counts(self, rng_key, unmasked=False):
+        return jax.random.poisson(rng_key, self.get_mu(unmasked=unmasked))
