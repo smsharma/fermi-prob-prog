@@ -1,8 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=hmc_array
-#SBATCH --partition=iaifi_gpu_mig
-#SBATCH --array=0-29
+#SBATCH --job-name=ns20000
+#SBATCH --partition=iaifi_gpu
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=16GB
@@ -18,4 +17,4 @@ source /n/home07/yitians/setup_torch.sh
 
 cd /n/home07/yitians/fermi/fermi-prob-prog/validating/svi_confidence
 
-srun python run_hmc.py -i $SLURM_ARRAY_TASK_ID
+srun python run_svi.py --nsteps 20000
