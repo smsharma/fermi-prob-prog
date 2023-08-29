@@ -16,7 +16,6 @@ from numpyro import handlers
 from tensorflow_probability.substrates import jax as tfp
 
 import optax
-import arviz as az
 from einops import repeat
 
 from models.scd import dnds
@@ -196,58 +195,7 @@ class NPModel:
         
         self.svi = None
         self.svi_init_state = None
-
-        
-    def simulate_mu(self, var_dict):
-        """
-        theta_{pib, ics}
-        S_{iso, bub, psc, pib, ics}
-        S_dsk zs C
-        S_gce gamma_poiss f_bulge_poiss theta_bulge_poiss
-        """
-        
-        mu = jnp.zeros_like(self.data, dtype=float)
-        
-        #===== rigid templates =====
-        theta_pib = var_dict['theta_pib']
-        temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)
-        theta_ics = var_dict['theta_ics']
-        temp_ics = jnp.sum(theta_ics[:, None] * self.ics, 0)
-        
-        temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pib, temp_ics]
-        temp_labels = ['iso', 'bub', 'psc', 'pib', 'ics']
-        for temp, temp_label in zip(temps, temp_labels):
-            S_temp = var_dict[f'S_{temp_label}']
-            A_temp = S_temp / jnp.mean(temp[~self.normalization_mask])
-            mu += A_temp * temp     
-        
-        #===== disk =====
-        S_dsk = var_dict['S_dsk']
-        zs = var_dict['zs']
-        C = var_dict['C']
-        temp_dsk = self.disk_template.get_template(zs=zs, C=C)
-        mu += S_dsk * temp_dsk
-        
-        #===== gce = nfw + bulge =====
-        S_gce = var_dict['S_gce']
-        
-        gamma_poiss = var_dict['gamma_poiss']
-        temp_gce_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
-
-        f_bulge_poiss = var_dict['f_bulge_poiss']
-        theta_bulge_poiss = var_dict['theta_bulge_poiss']
-        temp_bulge = jnp.sum(theta_bulge_poiss[:, None] * self.bulge_templates, 0)
-        
-        A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.normalization_mask])
-        A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.normalization_mask])
-        temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_nfw_poiss \
-                            + f_bulge_poiss * A_gce_bulge * temp_bulge
-        
-        A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.normalization_mask])
-        mu += A_gce * temp_gce_poiss
-        
-        return mu
-        
+    
             
     def model(self, data=...):
         
@@ -522,21 +470,24 @@ class NPModel:
     
     
     def get_neutra_model(self):
-        """ Get model reparameterized via neural transport
-        """
+        """ Get model reparameterized via neural transport """
         neutra = NeuTraReparam(self.guide, self.svi_results.params)
         self.model_neutra = neutra.reparam(self.model)
+    
+    def run_nuts(self, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1,
+                 rng_key=jax.random.PRNGKey(0), use_neutra=True, **model_static_kwargs):
         
+        if use_neutra:
+            self.get_neutra_model()
+            model = self.model_neutra
+        else:
+            model = self.model
         
-    def run_nuts(self, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1, rng_key=jax.random.PRNGKey(0)):
+        kernel = NUTS(model, max_tree_depth=4, dense_mass=False, step_size=step_size)
+        self.nuts_mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
+        self.nuts_mcmc.run(rng_key, **model_static_kwargs)
         
-        self.get_neutra_model()
-        
-        kernel = NUTS(self.model_neutra, max_tree_depth=4, dense_mass=False, step_size=step_size)
-        self.mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
-        self.mcmc.run(rng_key, data=self.data)
-        
-        return self.mcmc
+        return self.nuts_mcmc
     
     
     def run_parallel_tempering_hmc(self, num_samples=5000, step_size_base=5e-2, num_leapfrog_steps=3, num_adaptation_steps=600, rng_key=jax.random.PRNGKey(0)):
