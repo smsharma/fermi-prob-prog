@@ -16,10 +16,10 @@ print(jax.devices())
 if __name__ == "__main__":
 
     # config
-    run_dir = "../outputs/poiss_sim/np_p_230827"
+    run_dir = "../outputs/np_sim/230830"
 
     model = NPModel(
-        non_poissonian=True, l_max=0,
+        non_poissonian=True, l_max=2,
         dif_names=["ModelO", "ModelA", "ModelF"],
         bulge_hybrid=True,
         bulge_template_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"],
@@ -29,16 +29,18 @@ if __name__ == "__main__":
         nside=128, n_exp=1, debug_model=False,
     )
     counts = jnp.array(np.load(f"{run_dir}/counts_0.npy"), dtype=jnp.int32)
+    model.data = counts
 
     # svi
     rng_key = jax.random.PRNGKey(42)
     rng_key, key = jax.random.split(rng_key)
     svi_results = model.fit_svi(
         rng_key,
-        guide='iaf', num_flows=5, hidden_dims=[256, 256],
-        n_steps=200, lr=5e-5, num_particles=8, data=counts
+        guide='iaf', num_flows=5, hidden_dims=[512, 512],
+        n_steps=20000, lr=5e-5, num_particles=16, data=counts
     )
-    model.svi_results = pickle.load(open(f"{run_dir}/svi_results_0.p", "rb"))
+    pickle.dump(svi_results, open(f"{run_dir}/svi_results_0.p", "wb"))
+    #model.svi_results = pickle.load(open(f"{run_dir}/svi_results_0.p", "rb"))
 
     # hmc
     rng_key, key = jax.random.split(rng_key)
