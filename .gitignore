@@ -19,6 +19,8 @@ fermi_data_processing/**/tmp
 fermi_data_processing/**/slurm
 fermi_data_processing/**/*.par
 
+**/psf_dir
+
 .tmp.driveupload/
 .tmp.drivedownload/
 **/.vscode

@@ -35,7 +35,7 @@ if __name__ == "__main__":
         nside=128, n_exp=1, debug_model=False,
     )
 
-    for i in range(1, 30):
+    for i in range(1, 10):
         print(f"Running i={i}...")
 
         counts = jnp.array(np.load(f"{run_dir}/counts_{i}.npy"), dtype=jnp.int32)
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         svi_results = model.fit_svi(
             rng_key,
             guide='iaf', num_flows=5, hidden_dims=[256, 256],
-            n_steps=20000, lr=5e-5, num_particles=16, data=counts
+            n_steps=10000, lr=5e-5, num_particles=16, data=counts
         )
         rng_key, key = jax.random.split(rng_key)
         svi_samples = model.get_svi_samples(key, num_samples=50000)
