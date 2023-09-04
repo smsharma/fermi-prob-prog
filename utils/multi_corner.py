@@ -1,16 +1,15 @@
 import os
 import numpy as np
+import corner
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 current_file_path = os.path.abspath(os.path.dirname(__file__))
 mpl.rc_file(os.path.join(current_file_path, '../notebooks/matplotlibrc'))
 
-import corner
-
 
 def multi_corner(
-    samples_dict, plot_var_names, MAP=None,
+    samples_dict, plot_var_names, point_est=None,
     colors_dict=None, labels_dict=None,
     n_bins_1d=30, save_fn=None, **kwargs
 ):
@@ -41,6 +40,7 @@ def multi_corner(
             plot_density=False,
             plot_datapoints=False,
             fig=fig,
+            hist_kwargs={'density': True},
             **kwargs
         )
     if labels_dict is not None:
@@ -50,19 +50,19 @@ def multi_corner(
             loc='upper right'
         )
 
-    if MAP is not None:
+    if point_est is not None:
         ndim = len(plot_var_names)
         axs = np.array(fig.axes).reshape((ndim, ndim))
-        MAP_color = 'k'
+        point_est_color = 'k'
 
         for i, vn in enumerate(plot_var_names):
-            axs[i, i].axvline(MAP[vn], color=MAP_color)
+            axs[i, i].axvline(point_est[vn], color=point_est_color)
 
         for ri in range(ndim):
             for ci in range(ri):
-                axs[ri, ci].plot(MAP[plot_var_names[ci]],
-                                 MAP[plot_var_names[ri]],
-                                 '*', color=MAP_color, ms=10)
+                axs[ri, ci].plot(point_est[plot_var_names[ci]],
+                                 point_est[plot_var_names[ri]],
+                                 '*', color=point_est_color, ms=10)
                 
     if save_fn is not None:
         plt.savefig(save_fn)

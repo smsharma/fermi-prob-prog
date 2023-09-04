@@ -1,3 +1,4 @@
+import os
 import healpy as hp
 import numpy as np
 from reproject import reproject_to_healpix
@@ -5,6 +6,10 @@ from astropy.io import fits
 
 from utils import create_mask as cm
 from utils.cart import make_wcs
+
+
+wdir = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(wdir, '../data')
 
 
 class BulgeTemplates:
@@ -27,21 +32,21 @@ class BulgeTemplates:
 
         # From https://github.com/chrisgordon1/galactic_bulge_templates
         if template_name == "macias2019":
-            self.template = fits.open("../data/BoxyBulge_arxiv1901.03822_Normalized.fits")[0].data
+            self.template = fits.open(f"{data_dir}/BoxyBulge_arxiv1901.03822_Normalized.fits")[0].data
             self.wcs = make_wcs([0, 0], [200, 200], 0.2)
         elif template_name == "coleman2019":
-            self.template = fits.open("../data/Bulge_modulated_Coleman_etal_2019_Normalized.fits")[0].data
+            self.template = fits.open(f"{data_dir}/Bulge_modulated_Coleman_etal_2019_Normalized.fits")[0].data
             self.wcs = make_wcs([0, 0], [200, 200], 0.2)
 
         # From https://github.com/samueldmcdermott/gcepy/tree/main/gcepy/inputs/excesses
         elif template_name == "mcdermott2022":
-            self.template = np.flip(np.load("../data/external/bb_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
+            self.template = np.flip(np.load(f"{data_dir}/external/bb_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
             self.wcs = make_wcs([0, 0], [400, 400], 0.1)
         elif template_name == "mcdermott2022_bbp":
-            self.template = np.flip(np.load("../data/external/bbp_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
+            self.template = np.flip(np.load(f"{data_dir}/external/bbp_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
             self.wcs = make_wcs([0, 0], [400, 400], 0.1)
         elif template_name == "mcdermott2022_x":
-            self.template = np.flip(np.load("../data/external/x_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
+            self.template = np.flip(np.load(f"{data_dir}/external/x_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
             self.wcs = make_wcs([0, 0], [400, 400], 0.1)
 
     def __call__(self):

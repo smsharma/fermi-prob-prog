@@ -1,3 +1,4 @@
+import os
 import numpyro
 import healpy as hp
 import numpy as np
@@ -30,7 +31,10 @@ from utils.psf_correction import PSFCorrection
 
 import logging
 
-data_dir = '../data'
+
+wdir = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(wdir, '../data')
+
 
 class NPModel:
     """
@@ -456,7 +460,6 @@ class NPModel:
         
     def get_svi_samples(self, rng_key=jax.random.PRNGKey(42), num_samples=50000, expand_samples=True):
         
-        rng_key, key = jax.random.split(rng_key)
         self.svi_samples = self.guide.sample_posterior(
             rng_key=rng_key,
             params=self.svi_results.params,
