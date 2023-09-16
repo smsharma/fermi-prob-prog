@@ -62,7 +62,7 @@ def log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum, k_max, npixROI)
 #         return pk_ary, pk_ary
     
 #     pk_ary, _ jax.lax.scan(recursion, pk_ary, jnp.arange(2, k_max + 1))
-        
+
     pk_dat_ary = pk_ary[jnp.arange(npixROI), data]
         
     return jnp.log(pk_dat_ary)

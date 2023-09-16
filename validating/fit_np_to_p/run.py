@@ -19,7 +19,6 @@ if __name__ == "__main__":
     # parser = argparse.ArgumentParser()
     # parser.add_argument('-i', type=int)
     # args = parser.parse_args()
-    # print(f'Running i={args.i}...')
 
     # config
     run_dir = "/n/home07/yitians/fermi/fermi-prob-prog/outputs/np_p_230827"
@@ -34,12 +33,14 @@ if __name__ == "__main__":
         ps_cat="3fgl", r_outer=25, band_mask_range=2.,
         nside=128, n_exp=1, debug_model=False,
     )
+    print('  loaded model', flush=True)
 
-    for i in range(1, 10):
-        print(f"Running i={i}...")
+    for i in range(10, 29):
+        print(f'Running i={i}...', flush=True)
 
         counts = jnp.array(np.load(f"{run_dir}/counts_{i}.npy"), dtype=jnp.int32)
         model.data = counts
+        print('  loaded counts', flush=True)
 
         # svi
         rng_key = jax.random.PRNGKey(42 * i)
@@ -49,10 +50,12 @@ if __name__ == "__main__":
             guide='iaf', num_flows=5, hidden_dims=[256, 256],
             n_steps=10000, lr=5e-5, num_particles=16, data=counts
         )
+        print('  fit complete', flush=True)
         rng_key, key = jax.random.split(rng_key)
         svi_samples = model.get_svi_samples(key, num_samples=50000)
         pickle.dump(svi_results, open(f"{run_dir}/svi_results_{i}.p", "wb"))
         pickle.dump(svi_samples, open(f"{run_dir}/svi_samples_{i}.p", "wb"))
+        print('  samples generated', flush=True)
 
     # hmc
     # rng_key, key = jax.random.split(rng_key)
