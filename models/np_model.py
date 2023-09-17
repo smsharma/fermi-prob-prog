@@ -66,6 +66,7 @@ class NPModel:
         vary_disk=True,
         ps_cat="3fgl", r_outer=25, band_mask_range=2.,
         nside=128, n_exp=1, debug_model=False,
+        data=None,
     ):
         
         #========== General ==========
@@ -74,7 +75,10 @@ class NPModel:
         self.non_poissonian = non_poissonian
         
         self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
-        self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
+        if data is None:
+            self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
+        else:
+            self.data = data
         self.exposure_map = np.load("{}/fermidata_exposure.npy".format(self.data_dir))
     
         #========== Mask ==========
@@ -91,6 +95,8 @@ class NPModel:
         self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=band_mask_range, mask_ring=True, inner=0, outer=r_outer, custom_mask=mask_ps)
         self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
         self.normalization_mask = self.mask_plane
+
+        print(f'Number of pixels in ROI: {np.sum(~self.mask_roi)}')
 
         #========== Templates ==========
         self.vary_gamma = vary_gamma
@@ -399,7 +405,7 @@ class NPModel:
     def fit_svi(
         self, rng_key=jax.random.PRNGKey(42),
         guide='iaf', num_flows=5, hidden_dims=[128, 128],
-        n_steps=7500, lr=5e-3, num_particles=8,
+        n_steps=7500, lr=5e-3, num_particles=8, vectorize_particles=True,
         **model_static_kwargs
     ):
 
@@ -439,7 +445,7 @@ class NPModel:
             optax.adam(lr),
         ))
 
-        self.svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles))
+        self.svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles, vectorize_particles=vectorize_particles))
         self.svi_results = self.svi.run(rng_key, n_steps, **model_static_kwargs)
         
         return self.svi_results
