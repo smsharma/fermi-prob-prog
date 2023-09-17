@@ -411,16 +411,16 @@ class NPModel:
         elif guide == "iaf":
             self.guide = autoguide.AutoIAFNormal(self.model, **iaf_kwargs)
             
-        elif guide == "iaf_mixture":
-            class AutoIAFMixture(autoguide.AutoIAFNormal):
-                def get_base_dist(self):
-                    C = num_base_mixture
-                    mixture = dist.MixtureSameFamily(
-                        dist.Categorical(probs=jnp.ones(C) / C),
-                        dist.Normal(jnp.arange(float(C)), 1.)
-                    )
-                    return mixture.expand([self.latent_dim]).to_event()
-            self.guide = AutoIAFMixture(self.model, **iaf_kwargs)
+        # elif guide == "iaf_mixture":
+        #     class AutoIAFMixture(autoguide.AutoIAFNormal):
+        #         def get_base_dist(self):
+        #             C = num_base_mixture
+        #             mixture = dist.MixtureSameFamily(
+        #                 dist.Categorical(probs=jnp.ones(C) / C),
+        #                 dist.Normal(jnp.arange(float(C)), 1.)
+        #             )
+        #             return mixture.expand([self.latent_dim]).to_event()
+        #     self.guide = AutoIAFMixture(self.model, **iaf_kwargs)
             
         elif guide == "iaf_gaussians":
             class AutoIAFMultiGaussian(autoguide.AutoIAFNormal):
