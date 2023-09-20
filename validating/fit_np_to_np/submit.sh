@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=np_np-0
+#SBATCH --job-name=np_np_debug_5e-3
 #SBATCH --partition=iaifi_gpu
 #SBATCH --array=0
 #SBATCH --mem=16G
@@ -17,4 +17,4 @@ source /n/home07/yitians/setup_torch.sh
 
 cd /n/home07/yitians/fermi/fermi-prob-prog/validating/fit_np_to_np
 
-python run.py -i $SLURM_ARRAY_TASK_ID
+python run_debug.py -i $SLURM_ARRAY_TASK_ID
