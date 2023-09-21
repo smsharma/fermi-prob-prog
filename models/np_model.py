@@ -262,7 +262,7 @@ class NPModel:
         if self.non_poissonian:
             if self.vary_disk:
                 zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
-                C = numpyro.sample("C", dist.Uniform(0.05, 15.))
+                C = numpyro.sample("C", dist.Uniform(0.05, 8.))
                 temp_dsk = self.disk_template.get_template(zs=zs, C=C)
             else:
                 temp_dsk = self.temp_dsk

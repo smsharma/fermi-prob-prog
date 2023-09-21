@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=np_np_lr
+#SBATCH --job-name=npnp_prior
 #SBATCH --partition=iaifi_gpu
-#SBATCH --array=1-19
+#SBATCH --array=0-19
 #SBATCH --mem=16G
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1

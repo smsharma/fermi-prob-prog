@@ -46,7 +46,7 @@ if __name__ == "__main__":
     svi_results = model.fit_svi(
         rng_key,
         guide='iaf', num_flows=5, hidden_dims=[512, 512],
-        n_steps=20000, lr=5e-4, num_particles=32, data=counts
+        n_steps=2000, lr=5e-4, num_particles=32, data=counts
     )
     print('fit complete.', flush=True)
     rng_key, key = jax.random.split(rng_key)
