@@ -305,7 +305,7 @@ class NPModel:
 
             for ips, ps in enumerate(["gce", "dsk"]):
 
-                Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-5, 2.))
+                Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
 
                 n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
                 n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
@@ -315,7 +315,7 @@ class NPModel:
 
                 theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
 
-                s_ary = jnp.logspace(0., 2, 100)
+                s_ary = jnp.logspace(-1., 2., 100)
                 dnds_ary = dnds(s_ary, theta_tmp)
 
                 A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))

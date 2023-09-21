@@ -41,18 +41,18 @@ if __name__ == "__main__":
     print('loaded counts.', flush=True)
 
     # svi
-    rng_key = jax.random.PRNGKey(424242 + 42 * args.i)
+    rng_key = jax.random.PRNGKey(424242 + 4242 * args.i)
     rng_key, key = jax.random.split(rng_key)
     svi_results = model.fit_svi(
         rng_key,
         guide='iaf', num_flows=5, hidden_dims=[512, 512],
-        n_steps=20000, lr=5e-5, num_particles=32, data=counts
+        n_steps=20000, lr=5e-4, num_particles=32, data=counts
     )
     print('fit complete.', flush=True)
     rng_key, key = jax.random.split(rng_key)
     svi_samples = model.get_svi_samples(key, num_samples=50000)
-    pickle.dump(svi_results, open(f"{run_dir}/svi_results_{args.i}.p", "wb"))
-    pickle.dump(svi_samples, open(f"{run_dir}/svi_samples_{args.i}.p", "wb"))
+    pickle.dump(svi_results, open(f"{run_dir}/svi_results_{args.i}_prior.p", "wb"))
+    pickle.dump(svi_samples, open(f"{run_dir}/svi_samples_{args.i}_prior.p", "wb"))
     print('svi samples generated', flush=True)
 
     # if i == 0:
