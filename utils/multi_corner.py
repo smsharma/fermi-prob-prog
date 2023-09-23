@@ -25,11 +25,7 @@ def multi_corner(
     fig = None
     for ie, (samples_name, samples) in enumerate(samples_dict.items()):
         color = mpl.colors.to_hex(colors_dict[samples_name])
-        fig = corner.corner(
-            samples,
-            bins_1d_arr=bins_1d_arr,
-            range=range_arr,
-            var_names=plot_var_names,
+        default_kwargs = dict(
             show_titles=True,
             title_fmt=None,
             title_kwargs={"fontsize": 12},
@@ -39,9 +35,16 @@ def multi_corner(
             fill_contours=False,
             plot_density=False,
             plot_datapoints=False,
-            fig=fig,
             hist_kwargs={'density': True},
-            **kwargs
+        )
+        default_kwargs.update(kwargs)
+        fig = corner.corner(
+            samples,
+            bins_1d_arr=bins_1d_arr,
+            range=range_arr,
+            var_names=plot_var_names,
+            fig=fig,
+            **default_kwargs
         )
     if labels_dict is not None:
         fig.legend(
