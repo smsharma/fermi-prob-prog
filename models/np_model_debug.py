@@ -38,13 +38,17 @@ data_dir = os.path.join(wdir, '../data')
 
 class NPModelDebug:
     def __init__(self):
-        """ModelO(pib, ics), iso, bub, pcs, gce"""
+        """
+        Current templates:
+            ModelO(pib, ics), S_gce, Sps_gce
+        """
         
         #========== General ==========
         self.nside = 128
         self.ps_cat = "3fgl"
         self.non_poissonian = True
         
+        #========== Data ==========
         self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
         self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
         self.exposure_map = np.load("{}/fermidata_exposure.npy".format(self.data_dir))
@@ -54,7 +58,6 @@ class NPModelDebug:
         self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2, mask_ring=True, inner=0, outer=25, custom_mask=mask_ps)
         self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
         self.normalization_mask = self.mask_plane
-
         print(f'Number of pixels in ROI: {np.sum(~self.mask_roi)}')
 
         #========== Templates ==========
@@ -144,8 +147,8 @@ class NPModelDebug:
 
         S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 4.))
         
-        temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pib, temp_ics]
-        temp_labels = ["iso", "bub", "psc", "pib", "ics"]
+        temps = [temp_pib, temp_ics]
+        temp_labels = ["pib", "ics"]
                 
         mu = jnp.zeros_like(data)
         
@@ -158,10 +161,10 @@ class NPModelDebug:
             prior_dist = dist.Uniform(prior_lo, prior_hi)
             S_temp = numpyro.sample("S_{}".format(temp_label), prior_dist)
             A_temp = S_temp / jnp.mean(temp[~self.normalization_mask])
-            mu += A_temp * temp     
+            mu += A_temp * temp
                                             
         if self.vary_gamma:
-            gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.)) if self.non_poissonian else None
+            gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.))
             gamma_poiss = numpyro.sample("gamma_poiss", dist.Uniform(0.2, 2.))
         else:
             gamma_ps = 1.2 if self.non_poissonian else None
@@ -190,7 +193,7 @@ class NPModelDebug:
             sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
             lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
             theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
-            s_ary = jnp.logspace(0., 2, 100)
+            s_ary = jnp.logspace(-1., 2., 100)
             dnds_ary = dnds(s_ary, theta_tmp)
             A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
             theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
@@ -315,6 +318,7 @@ class NPModelDebug:
         """ Get model reparameterized via neural transport """
         neutra = NeuTraReparam(self.guide, self.svi_results.params)
         self.model_neutra = neutra.reparam(self.model)
+    
     
     def run_nuts(self, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1,
                  rng_key=jax.random.PRNGKey(0), use_neutra=True, **model_static_kwargs):
