@@ -67,7 +67,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
     return the_map
 
 
-def simulator_for_model(m, vd):
+def simulator_for_model(m, vd, no_psc_mask=False):
     """Wrapper for simulator function.
 
     Args:
@@ -143,9 +143,12 @@ def simulator_for_model(m, vd):
     mask_sim = np.zeros_like(m.data, dtype=bool) # simulate all
     mask_normalize_counts = np.array(m.normalization_mask)
     mask_roi = np.array(m.mask_roi)
+    if no_psc_mask:
+        mask_roi = np.array(m.normalization_mask)
 
     kp = KingPSF()
     psf_r_func = lambda r: kp.psf_fermi_r(r)
     exp_map = np.array(m.exposure_map)
+    # print('Uniform check: min, max = ', np.min(exp_map), np.max(exp_map))
 
     return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map)[0]

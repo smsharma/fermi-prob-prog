@@ -65,7 +65,9 @@ class NPModel:
         vary_gamma=True,
         vary_disk=True,
         ps_cat="3fgl", r_outer=25, band_mask_range=2.,
-        nside=128, n_exp=1, debug_model=False,
+        nside=128, n_exp=1,
+        use_flat_exposure=False,
+        debug_model=False,
         data=None,
     ):
         
@@ -80,6 +82,9 @@ class NPModel:
         else:
             self.data = data
         self.exposure_map = np.load("{}/fermidata_exposure.npy".format(self.data_dir))
+        self.use_flat_exposure = use_flat_exposure
+        if self.use_flat_exposure:
+            self.exposure_map = np.full_like(self.exposure_map, np.mean(self.exposure_map))
     
         #========== Mask ==========
         if ps_cat == "3fgl":

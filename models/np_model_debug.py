@@ -47,11 +47,14 @@ class NPModelDebug:
         self.nside = 128
         self.ps_cat = "3fgl"
         self.non_poissonian = True
+        self.use_flat_exposure = False
         
         #========== Data ==========
         self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
         self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
         self.exposure_map = np.load("{}/fermidata_exposure.npy".format(self.data_dir))
+        if self.use_flat_exposure:
+            self.exposure_map = np.full_like(self.exposure_map, np.mean(self.exposure_map))
     
         #========== Mask ==========
         mask_ps = hp.ud_grade(np.load(f"{data_dir}/mask_3fgl_0p8deg.npy"), nside_out=self.nside) > 0
