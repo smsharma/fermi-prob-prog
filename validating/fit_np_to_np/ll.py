@@ -141,6 +141,50 @@ def ll_justSps(m, vd, data):
     return jnp.sum(ll_arr)
 
 
+def ll_justSps_nosum(m, vd, data, mask_fit=None):
+
+    assert m.non_poissonian
+            
+    mu = jnp.zeros_like(data)
+
+    gamma_ps = 1.2
+    temp_gce_nfw_ps = m.nfw_template.get_NFW2_template(gamma=gamma_ps)
+
+    zs = vd["zs"]
+    C = vd["C"]
+    temp_dsk = m.disk_template.get_template(zs=zs, C=C)
+
+    A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~m.normalization_mask])
+
+    temp_gce_ps = A_gce_nfw * temp_gce_nfw_ps
+    npt_compressed = jnp.array([temp_gce_ps, temp_dsk])
+    theta = []    
+    for ips, ps in enumerate(["gce", "dsk"]):
+        Sps = vd["Sps_{}".format(ps)]
+        n1 = vd["n1_{}".format(ps)]
+        n2 = vd["n2_{}".format(ps)]
+        n3 = vd["n3_{}".format(ps)]
+        sb1 = vd["sb1_{}".format(ps)]
+        lambda_s = vd["lambdas_{}".format(ps)]
+        theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
+        s_ary = jnp.logspace(-1., 2, 100)
+        dnds_ary = dnds(s_ary, theta_tmp)
+        A = Sps / jnp.mean(npt_compressed[ips][~m.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
+        theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
+    theta = jnp.array(theta)
+    
+    if mask_fit is not None:
+        mask = mask_fit
+    else:
+        mask = m.normalization_mask
+
+    mu_masked = mu[~mask]
+    npt_compressed_masked = npt_compressed[:, ~mask]
+    data_masked = data[~mask]
+    ll_arr = log_like_np(theta, mu_masked, npt_compressed_masked, data_masked, m.f_ary, m.df_rho_div_f_ary, m.k_max, len(mu_masked))
+    return ll_arr
+
+
 def ll_dsk(m, vd, data):
 
     assert m.non_poissonian

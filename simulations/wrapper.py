@@ -1,12 +1,14 @@
+import sys
 import logging
-
 logger = logging.getLogger(__name__)
 
 import numpy as np
-
 from simulations.simulate_ps import SimulateMap
+
+sys.path.append("..")
 from models.scd import dnds
 from models.psf import KingPSF
+from utils import create_mask as cm
 
 
 def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map):
@@ -67,13 +69,16 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
     return the_map
 
 
-def simulator_for_model(m, vd, no_psc_mask=False):
+def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask=False):
     """Wrapper for simulator function.
 
     Args:
         m (NPModel): model object
         vd (dict): Dictionary of truth parameters
     """
+
+    # mask
+    mask_outer = cm.make_mask_total(nside=m.nside, band_mask=False, mask_ring=True, inner=0, outer=25)
 
     # poiss: nfw iso bub psc pib*3 ics*3 blg*5
     nm = m.normalization_mask
@@ -122,14 +127,9 @@ def simulator_for_model(m, vd, no_psc_mask=False):
     temp_ps_gce = (1 - vd['f_bulge_ps']) * A_gce_nfw * temp_ps_nfw + vd['f_bulge_ps'] * A_gce_blg * temp_ps_blg
     temp_ps_dsk = m.disk_template.get_template(zs=vd['zs'], C=vd['C'])
 
-    # A_gce, A_dsk
-    # s_ary = np.logspace(0., 2., 100)
-    # theta_tmp = np.array([1., vd['n1_gce'], vd['n2_gce'], vd['n3_gce'], vd['sb1_gce'], vd['lambdas_gce'] * vd['sb1_gce']])
-    # dnds_ary = dnds(s_ary, theta_tmp)
-    # A_gce = vd['Sps_gce'] / np.mean(temp_ps_gce[~nm] * np.trapz(s_ary * dnds_ary, s_ary))
-    # theta_tmp = np.array([1., vd['n1_dsk'], vd['n2_dsk'], vd['n3_dsk'], vd['sb1_dsk'], vd['lambdas_dsk'] * vd['sb1_dsk']])
-    # dnds_ary = dnds(s_ary, theta_tmp)
-    # A_dsk = vd['Sps_dsk'] / np.mean(temp_ps_dsk[~nm] * np.trapz(s_ary * dnds_ary, s_ary))
+    # ps: new: iso
+    if 'Sps_iso' in vd:
+        temp_ps_iso = np.ones_like(temp_ps_nfw)
 
     temps_ps = []
     if vd['Sps_gce'] > 0:
@@ -139,16 +139,25 @@ def simulator_for_model(m, vd, no_psc_mask=False):
     if vd['Sps_dsk'] > 0:
         temps_ps.append(np.array(temp_ps_dsk))
         theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['n3_dsk'], vd['sb1_dsk'], vd['lambdas_dsk'] * vd['sb1_dsk']]
+    if 'Sps_iso' in vd and vd['Sps_iso'] > 0:
+        temps_ps.append(np.array(temp_ps_iso))
+        theta += [vd['Sps_iso'], vd['n1_iso'], vd['n2_iso'], vd['n3_iso'], vd['sb1_iso'], vd['lambdas_iso'] * vd['sb1_iso']]
 
     mask_sim = np.zeros_like(m.data, dtype=bool) # simulate all
     mask_normalize_counts = np.array(m.normalization_mask)
     mask_roi = np.array(m.mask_roi)
     if no_psc_mask:
         mask_roi = np.array(m.normalization_mask)
+    if no_plane_mask:
+        mask_roi = np.array(mask_outer)
 
-    kp = KingPSF()
-    psf_r_func = lambda r: kp.psf_fermi_r(r)
+    if delta_psf:
+        sigma = np.deg2rad(0.1) / 3
+        psf_r_func = lambda r: np.exp(-0.5 * (r / sigma) ** 2) / (2 * np.pi * sigma ** 2)
+    else:
+        kp = KingPSF()
+        psf_r_func = lambda r: kp.psf_fermi_r(r)
     exp_map = np.array(m.exposure_map)
-    # print('Uniform check: min, max = ', np.min(exp_map), np.max(exp_map))
 
     return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map)[0]
+
