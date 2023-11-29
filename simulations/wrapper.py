@@ -3,6 +3,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import numpy as np
+import healpy as hp
 from simulations.simulate_ps import SimulateMap
 
 sys.path.append("..")
@@ -44,8 +45,8 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
         exp_map_norm = exp_map / np.mean(exp_map)  #  * exp_ratio
 
         # Draw PSs and simulate map
-
-        sm = SimulateMap(temps_poiss, [norm_gce] + list(norms_poiss), [s_ary] * len(temps_ps), dnds_ary, temps_ps, psf_r_func, exp_map_norm, mask_roi=mask_roi)
+        nside = hp.get_nside(temps_poiss[0])
+        sm = SimulateMap(temps_poiss, [norm_gce] + list(norms_poiss), [s_ary] * len(temps_ps), dnds_ary, temps_ps, psf_r_func, exp_map_norm, mask_roi=mask_roi, nside=nside)
 
         the_map_temp = sm.create_map()
 
@@ -67,6 +68,33 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
             good_map = True
 
     return the_map
+
+
+def toy_simulator(temps, vd, delta_psf=True):
+
+    temps_poiss = [np.ones_like(temps[0])]
+    theta = [1e-10]
+
+    temps_ps = []
+    for i in range(5):
+        if f'Sps_t{i}' in vd and vd[f'Sps_t{i}'] > 0:
+            temps_ps.append(np.array(temps[i]))
+            theta += [vd[f'Sps_t{i}'], vd[f'n1_t{i}'], vd[f'n2_t{i}'], vd[f'n3_t{i}'], vd[f'sb1_t{i}'], vd[f'lambdas_t{i}'] * vd[f'sb1_t{i}']]
+
+    if delta_psf:
+        sigma = np.deg2rad(0.1) / 3
+        psf_r_func = lambda r: np.exp(-0.5 * (r / sigma) ** 2) / (2 * np.pi * sigma ** 2)
+    else:
+        kp = KingPSF()
+        psf_r_func = lambda r: kp.psf_fermi_r(r)
+    exp_map = np.ones_like(temps[0])
+    mask_sim = np.zeros_like(temps[0], dtype=bool)
+    mask_normalize_counts = np.zeros_like(temps[0], dtype=bool)
+    mask_roi = np.zeros_like(temps[0], dtype=bool)
+
+    return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map)[0]
+
+
 
 
 def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask=False):
@@ -120,16 +148,16 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
 
     # ps: nfw+blg*5 dsk
     # temp_ps
-    temp_ps_nfw = m.nfw_template.get_NFW2_template(gamma=vd['gamma_poiss'])
+    temp_ps_nfw = m.nfw_template.get_NFW2_template(gamma=vd['gamma_poiss']) # we are going to assume this is not normalized
+    temp_ps_nfw /= np.mean(temp_ps_nfw[~nm])
     temp_ps_blg = np.einsum('i,ij->j', vd['theta_bulge_ps'], m.bulge_templates)
-    A_gce_nfw = 1 / np.mean(temp_ps_nfw[~nm])
-    A_gce_blg = 1 / np.mean(temp_ps_blg[~nm])
-    temp_ps_gce = (1 - vd['f_bulge_ps']) * A_gce_nfw * temp_ps_nfw + vd['f_bulge_ps'] * A_gce_blg * temp_ps_blg
-    temp_ps_dsk = m.disk_template.get_template(zs=vd['zs'], C=vd['C'])
+    temp_ps_blg /= np.mean(temp_ps_blg[~nm])
+    temp_ps_gce = (1 - vd['f_bulge_ps']) * temp_ps_nfw + vd['f_bulge_ps'] * temp_ps_blg
 
-    # ps: new: iso
-    if 'Sps_iso' in vd:
-        temp_ps_iso = np.ones_like(temp_ps_nfw)
+    temp_ps_dsk = m.disk_template.get_template(zs=vd['zs'], C=vd['C'])
+    temp_ps_dsk /= np.mean(temp_ps_dsk[~nm])
+
+    temp_ps_iso = np.ones_like(temp_ps_nfw)
 
     temps_ps = []
     if vd['Sps_gce'] > 0:
@@ -139,7 +167,7 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
     if vd['Sps_dsk'] > 0:
         temps_ps.append(np.array(temp_ps_dsk))
         theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['n3_dsk'], vd['sb1_dsk'], vd['lambdas_dsk'] * vd['sb1_dsk']]
-    if 'Sps_iso' in vd and vd['Sps_iso'] > 0:
+    if vd['Sps_iso'] > 0:
         temps_ps.append(np.array(temp_ps_iso))
         theta += [vd['Sps_iso'], vd['n1_iso'], vd['n2_iso'], vd['n3_iso'], vd['sb1_iso'], vd['lambdas_iso'] * vd['sb1_iso']]
 

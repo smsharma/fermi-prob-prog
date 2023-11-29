@@ -12,7 +12,7 @@ from utils.pdf_sampler import PDFSampler
 
 
 class DrawSources:
-    def __init__(self, S_ary=None, dNdS_ary=None, n_exp=None):
+    def __init__(self, S_ary=None, dNdS_ary=None, n_exp=None, nside=128):
         """Draw sources following an SCD and create a map. Based on NPTFit-Sim
         (https://github.com/nickrodd/NPTFit-Sim).
         :param S_ary: Array of counts, spaced linearly in log-space
@@ -23,6 +23,7 @@ class DrawSources:
         self.S_ary = S_ary
         self.dNdS_ary = dNdS_ary
         self.n_exp = n_exp
+        self.nside = nside
 
         if self.S_ary is not None:
             self.init_ps()
@@ -99,7 +100,7 @@ class DrawSources:
         # Draw coordinates according to template
         th_ary, ph_ary = self.get_coords(temp, self.n_draw)
 
-        num_phot_ary = np.random.poisson(self.counts_expected_sample * exp_map_norm[hp.ang2pix(128, th_ary, ph_ary)])
+        num_phot_ary = np.random.poisson(self.counts_expected_sample * exp_map_norm[hp.ang2pix(self.nside, th_ary, ph_ary)])
 
         the_map = np.zeros(hp.nside2npix(nside))
 
@@ -157,7 +158,7 @@ class SimulateMap:
 
         if self.S_arys is not None:
             for i_ps in range(len(self.ps_temps)):
-                ds = DrawSources(self.S_arys[i_ps], self.dNdS_arys[i_ps], n_exp=self.n_exp[i_ps])
+                ds = DrawSources(self.S_arys[i_ps], self.dNdS_arys[i_ps], n_exp=self.n_exp[i_ps], nside=self.nside)
                 ps_map = ds.create_ps_map(self.ps_temps[i_ps], self.psf_r, self.exp_map_norm)
                 gamma_map += ps_map.astype(np.int64)
 
