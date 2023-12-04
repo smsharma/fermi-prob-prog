@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 
 import numpy as np
 import healpy as hp
-from simulations.simulate_ps import SimulateMap
+from simulations_mod.simulate_ps import SimulateMap
 
 sys.path.append("..")
 from models.scd import dnds

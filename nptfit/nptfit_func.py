@@ -81,6 +81,7 @@ def psf_corr(nside=128, num_f_bins=10, n_psf=50000, n_pts_per_psf=1000, f_trunc=
         # centre can occasionally still have a theta value outside the default
         # range above. For any sensible PSF (much smaller than the size of the
         # sky) this happens rarely. As such we just cut these values out.
+        #print(np.any(~ ((theta_base <= np.pi) & (theta_base >= 0))))
         good_val = np.where((theta_base <= np.pi) & (theta_base >= 0))[0]
         theta = theta_base[good_val]
         phi = phi_base[good_val]
