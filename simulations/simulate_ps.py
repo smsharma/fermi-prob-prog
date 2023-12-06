@@ -104,19 +104,51 @@ class DrawSources:
 
         the_map = np.zeros(hp.nside2npix(nside))
 
+        verbose = False
+        if verbose:
+            print('drawn ps:', self.n_draw)
+        n_pix_out = 0
+        n_phot_out = 0
         for ips in tqdm(range(self.n_draw), disable=True):
             th = th_ary[ips]
             ph = ph_ary[ips]
             num_phot = num_phot_ary[ips]
-            phm = ph + np.pi / 2.0
-            rotx = np.matrix([[1, 0, 0], [0, np.cos(th), -np.sin(th)], [0, np.sin(th), np.cos(th)]])
-            rotz = np.matrix([[np.cos(phm), -np.sin(phm), 0], [np.sin(phm), np.cos(phm), 0], [0, 0, 1]])
-            dist = pdf(num_phot)
-            randPhi = 2 * np.pi * np.random.random(num_phot)
-            X = hp.ang2vec(dist, randPhi).T
-            Xp = rotz * (rotx * X)
-            posit = np.array(hp.vec2pix(nside, *Xp))
-            np.add.at(the_map, posit, 1)
+            original_pix = hp.ang2pix(nside, th, ph)
+
+            scheme = ''
+            #print(scheme)
+            if scheme == 'anadelta':
+                the_map[original_pix] += num_phot
+            elif scheme == 'deleteout':
+                phm = ph + np.pi / 2.0
+                rotx = np.matrix([[1, 0, 0], [0, np.cos(th), -np.sin(th)], [0, np.sin(th), np.cos(th)]])
+                rotz = np.matrix([[np.cos(phm), -np.sin(phm), 0], [np.sin(phm), np.cos(phm), 0], [0, 0, 1]])
+                dist = pdf(num_phot)
+                randPhi = 2 * np.pi * np.random.random(num_phot)
+                X = hp.ang2vec(dist, randPhi).T
+                Xp = rotz * (rotx * X)
+                posit = np.array(hp.vec2pix(nside, *Xp))
+                the_map[original_pix] += np.sum(posit.flatten()==original_pix)
+            else: # original
+                phm = ph + np.pi / 2.0
+                rotx = np.matrix([[1, 0, 0], [0, np.cos(th), -np.sin(th)], [0, np.sin(th), np.cos(th)]])
+                rotz = np.matrix([[np.cos(phm), -np.sin(phm), 0], [np.sin(phm), np.cos(phm), 0], [0, 0, 1]])
+                dist = pdf(num_phot)
+                randPhi = 2 * np.pi * np.random.random(num_phot)
+                X = hp.ang2vec(dist, randPhi).T
+                Xp = rotz * (rotx * X)
+                posit = np.array(hp.vec2pix(nside, *Xp))
+                # if np.sum(posit==original_pix) != num_phot:
+                #     if verbose:
+                #         print(num_phot, np.sum(posit==original_pix) / num_phot)
+                #     n_pix_out += 1
+                #     n_phot_out += np.sum(posit!=original_pix)
+                np.add.at(the_map, posit, 1)
+        if verbose:
+            print('n_pix_out:', n_pix_out)
+            print('n_phot_out:', n_phot_out)
+            print('n_phot:', np.sum(the_map))
+            print('fraction out:', n_phot_out / np.sum(the_map))
 
         return the_map
 

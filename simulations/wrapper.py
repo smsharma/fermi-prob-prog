@@ -148,7 +148,7 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
 
     # ps: nfw+blg*5 dsk
     # temp_ps
-    temp_ps_nfw = m.nfw_template.get_NFW2_template(gamma=vd['gamma_poiss']) # we are going to assume this is not normalized
+    temp_ps_nfw = m.nfw_template.get_NFW2_template(gamma=vd['gamma_ps']) # we are going to assume this is not normalized
     temp_ps_nfw /= np.mean(temp_ps_nfw[~nm])
     temp_ps_blg = np.einsum('i,ij->j', vd['theta_bulge_ps'], m.bulge_templates)
     temp_ps_blg /= np.mean(temp_ps_blg[~nm])
@@ -171,7 +171,8 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
         temps_ps.append(np.array(temp_ps_iso))
         theta += [vd['Sps_iso'], vd['n1_iso'], vd['n2_iso'], vd['n3_iso'], vd['sb1_iso'], vd['lambdas_iso'] * vd['sb1_iso']]
 
-    mask_sim = np.zeros_like(m.data, dtype=bool) # simulate all
+    #mask_sim = np.zeros_like(m.data, dtype=bool) # simulate all
+    mask_sim = np.array(m.normalization_mask)
     mask_normalize_counts = np.array(m.normalization_mask)
     mask_roi = np.array(m.mask_roi)
     if no_psc_mask:
