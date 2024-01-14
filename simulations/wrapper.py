@@ -167,7 +167,7 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
     if vd['Sps_dsk'] > 0:
         temps_ps.append(np.array(temp_ps_dsk))
         theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['n3_dsk'], vd['sb1_dsk'], vd['lambdas_dsk'] * vd['sb1_dsk']]
-    if vd['Sps_iso'] > 0:
+    if 'Sps_iso' in vd and vd['Sps_iso'] > 0:
         temps_ps.append(np.array(temp_ps_iso))
         theta += [vd['Sps_iso'], vd['n1_iso'], vd['n2_iso'], vd['n3_iso'], vd['sb1_iso'], vd['lambdas_iso'] * vd['sb1_iso']]
 
