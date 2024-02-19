@@ -12,7 +12,7 @@ from models.psf import KingPSF
 from utils import create_mask as cm
 
 
-def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map):
+def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme='original'):
 
     the_map = np.zeros(np.sum(~mask_sim))
     aux_vars = np.zeros(2)
@@ -46,7 +46,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
 
         # Draw PSs and simulate map
         nside = hp.get_nside(temps_poiss[0])
-        sm = SimulateMap(temps_poiss, [norm_gce] + list(norms_poiss), [s_ary] * len(temps_ps), dnds_ary, temps_ps, psf_r_func, exp_map_norm, mask_roi=mask_roi, nside=nside)
+        sm = SimulateMap(temps_poiss, [norm_gce] + list(norms_poiss), [s_ary] * len(temps_ps), dnds_ary, temps_ps, psf_r_func, exp_map_norm, mask_roi=mask_roi, nside=nside, psf_scheme=psf_scheme)
 
         the_map_temp = sm.create_map()
 

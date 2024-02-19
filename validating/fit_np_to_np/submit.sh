@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=npnp
+#SBATCH --job-name=Sps_dsk-shape
 #SBATCH --partition=iaifi_gpu_requeue
-#SBATCH --array=0-29
+#SBATCH --array=12-29
 #SBATCH --mem=16G
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1

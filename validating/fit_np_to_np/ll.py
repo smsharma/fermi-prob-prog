@@ -101,8 +101,6 @@ def ll(m, vd, data):
 
 #@partial(jit, static_argnums=(1,))
 def ll_justSps(m, vd, data):
-
-    assert m.non_poissonian
             
     mu = jnp.zeros_like(data)
 
@@ -132,7 +130,7 @@ def ll_justSps(m, vd, data):
         theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
     theta = jnp.array(theta)
     
-    mask = m.normalization_mask
+    mask = m.mask_roi
 
     mu_masked = mu[~mask]
     npt_compressed_masked = npt_compressed[:, ~mask]

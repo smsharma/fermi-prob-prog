@@ -19,6 +19,8 @@ fermi_data_processing/**/tmp
 fermi_data_processing/**/slurm
 fermi_data_processing/**/*.par
 
+issues/**/*.p
+issues/**/*.npy
 validating/**/*.p
 npll_issue/**/*.p
 

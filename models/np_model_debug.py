@@ -37,50 +37,117 @@ data_dir = os.path.join(wdir, '../data')
 
 
 class NPModelDebug:
-    def __init__(self):
-        """
-        Current templates:
-            ModelO(pib, ics), S_gce, Sps_gce
-        """
+    """
+    Parameters
+    ----------
+    ...
+    non_poissonian : bool
+        Whether to use non-poissonian template fitting.
+    bulge_hybrid : bool
+        If False, use the first template in bulge_template_names. If True, use a
+        hybrid of the templates in bulge_template_names.
+    ps_cat : {'3fgl', '4fgl'}
+        Point source catalog to use for masks.
+    band_mask_range : float
+        |b| value [deg] below which the galactic plane is masked. Affects
+        self.mask_roi .
+        
+    Attributes
+    ----------
+    ...
+    normalization_mask: mask used to normalize templates.
+    """
+    def __init__(
+        self, non_poissonian=True, l_max=0,
+        dif_names=["ModelO", "ModelA", "ModelF"],
+        bulge_hybrid=True,
+        bulge_template_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"],
+        vary_gamma=True,
+        vary_disk=True,
+        ps_cat="3fgl", r_outer=25, band_mask_range=2.,
+        nside=128, n_exp=1,
+        use_flat_exposure=False, # TMP
+        debug_model=False,
+        data=None,
+    ):
         
         #========== General ==========
-        self.nside = 128
-        self.ps_cat = "3fgl"
-        self.non_poissonian = True
-        self.use_flat_exposure = False
+        self.nside = nside
+        self.ps_cat = ps_cat
+        self.non_poissonian = non_poissonian
         
-        #========== Data ==========
         self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
-        self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
+        if data is None:
+            self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
+        else:
+            self.data = data
         self.exposure_map = np.load("{}/fermidata_exposure.npy".format(self.data_dir))
+        self.use_flat_exposure = use_flat_exposure
         if self.use_flat_exposure:
             self.exposure_map = np.full_like(self.exposure_map, np.mean(self.exposure_map))
     
         #========== Mask ==========
-        mask_ps = hp.ud_grade(np.load(f"{data_dir}/mask_3fgl_0p8deg.npy"), nside_out=self.nside) > 0
-        self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2, mask_ring=True, inner=0, outer=25, custom_mask=mask_ps)
+        if ps_cat == "3fgl":
+            # mask_ps = np.load("{}/fermidata_pscmask_{}.npy".format(self.data_dir, self.ps_cat)) == 1
+            mask_ps = hp.ud_grade(np.load(f"{data_dir}/mask_3fgl_0p8deg.npy"), nside_out=self.nside) > 0
+        elif ps_cat == "4fgl":
+            if non_poissonian:
+                logging.warning('Using 4fgl with non-poissonian fit.')
+            mask_ps = hp.ud_grade(np.load(f"{data_dir}/fermi_data_573w/fermi_data_{nside}/fermidata_pscmask_4fgl.npy"), nside_out=self.nside) > 0
+        else:
+            raise NotImplementedError("Other catalogs not supported at the moment.")
+            
+        self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=band_mask_range, mask_ring=True, inner=0, outer=r_outer, custom_mask=mask_ps)
         self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
         self.normalization_mask = self.mask_plane
+
         print(f'Number of pixels in ROI: {np.sum(~self.mask_roi)}')
 
         #========== Templates ==========
-        self.vary_gamma = True
+        self.vary_gamma = vary_gamma
         self.nfw_template = NFWTemplate(nside=self.nside)
+        if self.non_poissonian:
+            self.vary_disk = vary_disk
+            self.disk_template = LorimerDiskTemplate(nside=self.nside)
         
-        self.dif_names = ["ModelO"]
+        self.dif_names = dif_names
+        
+        # Load all bulge templates
+        self.blg_names = bulge_template_names
+        self.bulge_hybrid = bulge_hybrid
+        self.bulge_templates = jnp.array([BulgeTemplates(template_name=template_name, nside_out=nside)() for template_name in bulge_template_names])
+        if self.bulge_hybrid:
+            self.n_bulge_templates = len(self.bulge_templates)
+        else:
+            self.n_bulge_templates = 1
+        # Individually normalize the bulge templates
+        self.bulge_templates = self.bulge_templates / jnp.mean(self.bulge_templates[:, ~self.normalization_mask], axis=-1)[:, None]
+        
         self.load_templates()
+
+        #========== Spherical harmonics ==========
+        self.l_max = l_max
+        self.get_sphharms()
         
         #========== NPTF ==========
-        self.get_psf_correction()
-        self.k_max = np.max(np.array(self.data)[~self.mask_roi])
-        print("Max photon count is {}".format(self.k_max))
-        self.get_exp_regions(1)
+        if self.non_poissonian:
+            self.get_psf_correction()
+            self.k_max = np.max(np.array(self.data)[~self.mask_roi])
+            print("Max photon count is {}".format(self.k_max))
+        
+        self.get_exp_regions(n_exp)
         
         #========== sample expand keys ==========
         self.samples_expand_keys = {
             'theta_pib' : [f'theta_pib_{n}' for n in self.dif_names],
             'theta_ics' : [f'theta_ics_{n}' for n in self.dif_names],
+            'theta_bulge_poiss' : [f'theta_poiss_{n}' for n in self.blg_names],
+            'theta_bulge_ps' : [f'theta_ps_{n}' for n in self.blg_names],
         }
+        
+        #========== Other ==========
+        self.debug_model = debug_model
+        
         
     def get_psf_correction(self):
 
@@ -95,6 +162,14 @@ class NPModelDebug:
 
         self.f_ary = pc_inst.f_ary
         self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
+
+    def get_sphharms(self):
+        
+        npix = hp.nside2npix(self.nside)
+
+        theta_ary, phi_ary = hp.pix2ang(self.nside, np.arange(npix))
+        Ylm_list = [[np.real(Ylm(l, m, theta_ary, phi_ary)) for m in range(-l + 1, l + 1)] for l in range(1, self.l_max + 1)]
+        self.Ylm_temps = np.array([item for sublist in Ylm_list for item in sublist])
 
     def load_templates(self):
 
@@ -132,74 +207,67 @@ class NPModelDebug:
         self.ics = jnp.array(self.ics)
         
         self.n_dif_templates = len(self.dif_names)
+        
+        self.svi = None
+        self.svi_init_state = None
     
             
     def model(self, data=...):
-        
-        if len(self.dif_names) == 1:
-            temp_pib = self.pib[0]
-        else:
-            theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
-            temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)
-
-        if len(self.dif_names) == 1:
-            temp_ics = self.ics[0]
-        else:
-            theta_ics = numpyro.sample("theta_ics", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
-            temp_ics = jnp.sum(theta_ics[:, None] * self.ics, 0)
-
-        S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 4.))
-        
-        temps = [temp_pib, temp_ics]
-        temp_labels = ["pib", "ics"]
                 
-        mu = jnp.zeros_like(data)
-        
-        for temp, temp_label in zip(temps, temp_labels):
-            
-            if temp_label in ["pib", "ics"]:
-                prior_lo, prior_hi = 1e-3, 14.
-            else:
-                prior_lo, prior_hi = 1e-3, 5.0
-            prior_dist = dist.Uniform(prior_lo, prior_hi)
-            S_temp = numpyro.sample("S_{}".format(temp_label), prior_dist)
-            A_temp = S_temp / jnp.mean(temp[~self.normalization_mask])
-            mu += A_temp * temp
+        mu = jnp.full_like(data, 1e-10)
                                             
-        if self.vary_gamma:
-            gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.))
-            gamma_poiss = numpyro.sample("gamma_poiss", dist.Uniform(0.2, 2.))
+        # if self.vary_gamma:
+        #     gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.))
+        # else:
+        #     gamma_ps = 1.2
+
+        # temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps)
+            
+        if self.vary_disk:
+            zs = numpyro.sample("zs", dist.Uniform(0.1, 2.0))
+            C = numpyro.sample("C", dist.Uniform(0.05, 8.))
         else:
-            gamma_ps = 1.2 if self.non_poissonian else None
-            gamma_poiss = 1.2
-
-        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps) if self.non_poissonian else None
-        temp_gce_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
+            zs = 0.5
+            C = 2.5
+        temp_dsk = self.disk_template.get_template(zs=zs, C=C)
         
-        A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.normalization_mask])
-        temp_gce_poiss = A_gce_nfw * temp_gce_nfw_poiss
-        
-        A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.normalization_mask])
-        mu += A_gce * temp_gce_poiss
-        
-        A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
-        temp_gce_ps = A_gce_nfw * temp_gce_nfw_ps
-
-        npt_compressed = jnp.array([temp_gce_ps])
+        # normalization
+        # A_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
+        # temp_gce_ps = A_nfw * temp_gce_nfw_ps
+        A_dsk = 1 / jnp.mean(temp_dsk[~self.normalization_mask])
+        temp_dsk = A_dsk * temp_dsk
+        # npt_compressed = jnp.array([temp_gce_ps, temp_dsk])
+        npt_compressed = jnp.array([temp_dsk])
 
         theta = []
-        for ips, ps in enumerate(["gce"]):
-            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-5, 2.))
-            n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
-            n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
-            n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
-            sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
-            lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
+        for ips, ps in enumerate(["dsk"]):
+
+            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
+            # n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
+            # n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
+            # n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
+            # sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
+            # lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
+
+            if ps == "gce":
+                n1 = 5.5
+                n2 = 1.5
+                n3 = -5.5
+                sb1 = 7.6
+                lambda_s = 0.3
+            else:
+                n1 = 5.0
+                n2 = 1.3
+                n3 = -5.4
+                sb1 = 11.0
+                lambda_s = 0.4
+
             theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
             s_ary = jnp.logspace(-1., 2., 100)
             dnds_ary = dnds(s_ary, theta_tmp)
             A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
             theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
+
         theta = jnp.array(theta)
                 
         # Pad the last exposure region so that all are the same size
@@ -214,7 +282,8 @@ class NPModelDebug:
                 
         # Get relevant arrays for different exposure regions
         mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
-        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
+        if self.non_poissonian:
+            npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
         data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
         
         exposure_multiplier = self.exposure_means_list / self.exposure_mean
@@ -228,6 +297,7 @@ class NPModelDebug:
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
             
             log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
+            
             # Concatenate exposure regions
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
                                 
@@ -273,17 +343,27 @@ class NPModelDebug:
             
     def fit_svi(
         self, rng_key=jax.random.PRNGKey(42),
-        num_flows=5, hidden_dims=[128, 128],
+        guide='iaf', num_flows=5, hidden_dims=[128, 128],
         n_steps=7500, lr=5e-3, num_particles=8, vectorize_particles=True,
         **model_static_kwargs
     ):
 
         iaf_kwargs = dict(num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
-        self.guide = autoguide.AutoIAFNormal(self.model, **iaf_kwargs)
+
+        if guide == "mvn":
+            self.guide = autoguide.AutoMultivariateNormal(self.model)
+            
+        elif guide == "iaf":
+            self.guide = autoguide.AutoIAFNormal(self.model, **iaf_kwargs)
+            
+        else:
+            raise NotImplementedError
+
         optimizer = optim.optax_to_numpyro(optax.chain(
             optax.clip(1.),
             optax.adam(lr),
         ))
+
         self.svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles, vectorize_particles=vectorize_particles))
         self.svi_results = self.svi.run(rng_key, n_steps, **model_static_kwargs)
         
@@ -321,7 +401,6 @@ class NPModelDebug:
         """ Get model reparameterized via neural transport """
         neutra = NeuTraReparam(self.guide, self.svi_results.params)
         self.model_neutra = neutra.reparam(self.model)
-    
     
     def run_nuts(self, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1,
                  rng_key=jax.random.PRNGKey(0), use_neutra=True, **model_static_kwargs):
