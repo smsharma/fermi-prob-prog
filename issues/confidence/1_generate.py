@@ -53,12 +53,12 @@ def simulate(psf='king', sigma=...):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", type=int)
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("-i", type=int)
+    # args = parser.parse_args()
     
-    save_dir = f'iso'
+    save_dir = f'gaus_1e-2'
     os.makedirs(save_dir, exist_ok=True)
 
     for i in tqdm(range(100)):
-        np.save(f"{save_dir}/counts_{i}.npy", simulate(psf='king', sigma=None))
+        np.save(f"{save_dir}/counts_{i}.npy", simulate(psf='gaussian', sigma=1e-2))
