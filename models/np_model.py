@@ -58,7 +58,7 @@ class NPModel:
     normalization_mask: mask used to normalize templates.
     """
     def __init__(
-        self, non_poissonian=True, l_max=0,
+        self, non_poissonian=True, l_max=2,
         dif_names=["ModelO", "ModelA", "ModelF"],
         bulge_hybrid=True,
         bulge_template_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"],
@@ -410,7 +410,7 @@ class NPModel:
     def fit_svi(
         self, rng_key=jax.random.PRNGKey(42),
         guide='iaf', num_flows=5, hidden_dims=[128, 128],
-        n_steps=7500, lr=5e-3, num_particles=8, vectorize_particles=True,
+        n_steps=7500, lr=1e-4, num_particles=8, vectorize_particles=True,
         **model_static_kwargs
     ):
 
