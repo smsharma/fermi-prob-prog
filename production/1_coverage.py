@@ -35,9 +35,9 @@ if __name__ == '__main__':
         prob_samples[k] = np.array(probs)
     prob_samples = np.array(prob_samples).T
 
-    p_nominal_s = []
-    p_actual_s = []
+    p_nominal_actual_dict = {}
     for k in ks:
         p_nominal, p_actual = np.sort(prob_samples[k]), np.linspace(0, 1, len(prob_samples[i]))
-        p_nominal_s.append(p_nominal)
-        p_actual_s.append(p_actual)
+        p_nominal_actual_dict[k] = (p_nominal, p_actual)
+
+    pickle.dump(p_nominal_actual_dict, open(f"{samples_dir}/p_nominal_actual_dict.p", 'wb'))
