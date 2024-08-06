@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     samples_list = []
     for i in tqdm(range(n_sim)):
-        samples_list.append(pickle.load(open(f"{samples_dir}/svi_samples_i{i}_n50000.p", 'rb')))
+        samples_list.append(pickle.load(open(f"{samples_dir}/hmcnt_samples_i{i}_n10000.p", 'rb')))
     
     prob_samples = {}
     for k in tqdm(ks):
@@ -42,4 +42,4 @@ if __name__ == '__main__':
         p_nominal, p_actual = np.sort(prob_samples[k]), np.linspace(0, 1, len(prob_samples[k]))
         p_nominal_actual_dict[k] = (p_nominal, p_actual)
 
-    pickle.dump(p_nominal_actual_dict, open(f"{samples_dir}/p_nominal_actual_dict.p", 'wb'))
+    pickle.dump(p_nominal_actual_dict, open(f"{samples_dir}/p_nominal_actual_dict_hmcnt.p", 'wb'))

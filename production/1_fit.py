@@ -41,6 +41,8 @@ if __name__ == '__main__':
         samples = m.get_svi_samples(num_samples=args.n)
 
     elif args.fit_type in ['hmc', 'hmcnt']:
+        if args.fit_type == 'hmcnt':
+            m.fit_svi(n_steps=args.n_step, data=data_in)
         mcmc = m.run_nuts(
             num_chains=4, num_warmup=500, num_samples=args.n//4,
             use_neutra=(args.fit_type=='hmcnt'), data=data_in
