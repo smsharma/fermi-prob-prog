@@ -153,12 +153,22 @@ class NPModel:
 
         kp = KingPSF()
 
-        pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside)
+        # pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside)
+        # pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
+        # pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
+        # pc_inst.psf_samples = 10000
+        # pc_inst.psf_tag = "Fermi_PSF_2GeV2_nside{}".format(self.nside)
+        # pc_inst.make_or_load_psf_corr()
+
+        pc_inst = PSFCorrection(
+            delay_compute=True, num_f_bins='nonuni', nside=self.nside, f_trunc=0.00,
+            n_psf=100000
+        )
         pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
         pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
         pc_inst.psf_samples = 10000
-        pc_inst.psf_tag = "Fermi_PSF_2GeV2_nside{}".format(self.nside)
-        pc_inst.make_or_load_psf_corr()
+        pc_inst.psf_tag = f"Fermi_PSF_2GeV2_nside{self.nside}"
+        pc_inst.make_or_load_psf_corr(force_recompute=True)
 
         self.f_ary = pc_inst.f_ary
         self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary

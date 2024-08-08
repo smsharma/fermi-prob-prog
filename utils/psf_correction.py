@@ -102,15 +102,15 @@ class PSFCorrection:
         if not delay_compute:
             self.make_or_load_psf_corr()
 
-    def make_or_load_psf_corr(self):
+    def make_or_load_psf_corr(self, force_recompute=False):
         """ Function to load or calculate f_ary and df_rho_div_f_ary and
             append them to self
         """
 
         self.psf_corr_file = self.psf_dir + self.psf_tag + ".npy"
-        if not os.path.exists(self.psf_corr_file):
+        if (not os.path.exists(self.psf_corr_file)) or force_recompute:
             if self.healpix_map:
-                self.f_ary, self.df_rho_div_f_ary = psf_compute.psf_corr(self.nside, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
+                self.f_ary, self.rho_ary, self.df_rho_div_f_ary, self.f_bin_edges = psf_compute.psf_corr(self.nside, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
             else:
                 self.f_ary, self.df_rho_div_f_ary = psf_compute_cart.psf_corr(self.gridsize, self.pixarea, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
             tosave = np.array([self.f_ary, self.df_rho_div_f_ary])
