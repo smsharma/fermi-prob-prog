@@ -160,6 +160,7 @@ class NPModel:
         # pc_inst.psf_tag = "Fermi_PSF_2GeV2_nside{}".format(self.nside)
         # pc_inst.make_or_load_psf_corr()
 
+        # new nonuniform f bin
         pc_inst = PSFCorrection(
             delay_compute=True, num_f_bins='nonuni', nside=self.nside, f_trunc=0.00,
             n_psf=100000

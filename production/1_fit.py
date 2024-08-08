@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
     wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
     data_dir = f"{wdir}/../data/fermi_data_573w/fermi_data_128"
-    save_dir = f"{wdir}/../outputs/fit/svi_240803"
+    save_dir = f"{wdir}/../outputs/fit/svi_240808"
 
     mask_roi = jnp.load(f"{wdir}/mask_roi.npy")
     mask_norm = jnp.load(f"{wdir}/mask_norm.npy")
