@@ -107,7 +107,7 @@ class PSFCorrection:
             append them to self
         """
 
-        self.psf_corr_file = self.psf_dir + self.psf_tag + ".npy"
+        # self.psf_corr_file = self.psf_dir + self.psf_tag + ".npy"
         #if (not os.path.exists(self.psf_corr_file)) or force_recompute:
         if True:
             if self.healpix_map:
