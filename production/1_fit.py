@@ -1,3 +1,4 @@
+import os
 import sys
 import dill as pickle
 import argparse
@@ -23,7 +24,8 @@ if __name__ == '__main__':
 
     wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
     data_dir = f"{wdir}/../data/fermi_data_573w/fermi_data_128"
-    save_dir = f"{wdir}/../outputs/fit/svi_240808"
+    save_dir = f"{wdir}/../outputs/fit/svi_240809_sviquality"
+    os.makedirs(save_dir, exist_ok=True)
 
     mask_roi = jnp.load(f"{wdir}/mask_roi.npy")
     mask_norm = jnp.load(f"{wdir}/mask_norm.npy")
@@ -59,4 +61,4 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError(args.fit_type)
     
-    pickle.dump(samples, open(f"{save_dir}/{args.fit_type}_samples_i{args.i}_n{args.n}.p", 'wb'))
+    pickle.dump(samples, open(f"{save_dir}/{args.fit_type}_samples_i{args.i}_n{args.n}_ns{args.n_step}.p", 'wb'))

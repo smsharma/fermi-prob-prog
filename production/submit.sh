@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=fpp_hmcnt
-#SBATCH --array=1-29
+#SBATCH --job-name=svi_15k
+#SBATCH --array=0
 #SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -19,4 +19,4 @@ source /n/home07/yitians/setup/torch.sh
 
 cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
-python 1_fit.py -i $SLURM_ARRAY_TASK_ID -n 10000 --fit_type hmcnt --n_step 1000
+python 1_fit.py -i $SLURM_ARRAY_TASK_ID -n 50000 --fit_type svi --n_step 15000
