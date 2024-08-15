@@ -153,19 +153,16 @@ class NPModel:
 
         kp = KingPSF()
 
-        # pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside)
-        # pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
-        # pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
-        # pc_inst.psf_samples = 10000
-        # pc_inst.psf_tag = "Fermi_PSF_2GeV2_nside{}".format(self.nside)
-        # pc_inst.make_or_load_psf_corr()
+        # old f binning
+        pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside, f_trunc=0.01)
+        print('!!! USING OLD F BIN !!!')
 
-        # new nonuniform f bin
-        pc_inst = PSFCorrection(
-            delay_compute=True, num_f_bins='nonuni', nside=self.nside, f_trunc=0.00,
-            n_psf=100000
-        )
-        print('!!! USING NEW F BIN: NON-UNIFORM !!!')
+        # new nonuniform f binning
+        # pc_inst = PSFCorrection(
+        #     delay_compute=True, num_f_bins='nonuni', nside=self.nside, f_trunc=0.00,
+        #     n_psf=100000
+        # )
+        # print('!!! USING NEW F BIN: NON-UNIFORM !!!')
         
         pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
         pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0

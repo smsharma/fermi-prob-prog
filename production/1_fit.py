@@ -61,4 +61,4 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError(args.fit_type)
     
-    pickle.dump(samples, open(f"{save_dir}/{args.fit_type}_samples_i{args.i}_n{args.n}_ns{args.n_step}_newf.p", 'wb'))
+    pickle.dump(samples, open(f"{save_dir}/{args.fit_type}_samples_i{args.i}_n{args.n}_ns{args.n_step}_oldf.p", 'wb'))
