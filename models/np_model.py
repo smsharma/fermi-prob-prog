@@ -151,24 +151,45 @@ class NPModel:
         
     def get_psf_correction(self):
 
-        kp = KingPSF()
+        #psf_tags = ['king', 'old']
+        psf_tags = ['delta']
 
-        # old f binning
-        pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside, f_trunc=0.01)
-        print('!!! USING OLD F BIN !!!')
+        if 'king' in psf_tags:
+            kp = KingPSF()
+            if 'old' in psf_tags:
+                pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside, f_trunc=0.01)
+                print('!!! USING OLD F BIN !!!')
+            elif 'new' in psf_tags:
+                # new nonuniform f binning
+                pc_inst = PSFCorrection(
+                    delay_compute=True, num_f_bins='nonuni', nside=self.nside, f_trunc=0.00,
+                    n_psf=100000
+                )
+                print('!!! USING NEW F BIN: NON-UNIFORM !!!')
+            else:
+                raise ValueError(psf_tags)
+            pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
+            pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
+            pc_inst.psf_samples = 10000
+            pc_inst.psf_tag = f"Fermi_PSF_2GeV2_nside{self.nside}"
+            pc_inst.make_or_load_psf_corr(force_recompute=True)
 
-        # new nonuniform f binning
-        # pc_inst = PSFCorrection(
-        #     delay_compute=True, num_f_bins='nonuni', nside=self.nside, f_trunc=0.00,
-        #     n_psf=100000
-        # )
-        # print('!!! USING NEW F BIN: NON-UNIFORM !!!')
-        
-        pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
-        pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
-        pc_inst.psf_samples = 10000
-        pc_inst.psf_tag = f"Fermi_PSF_2GeV2_nside{self.nside}"
-        pc_inst.make_or_load_psf_corr(force_recompute=True)
+        elif 'delta' in psf_tags:
+            pc_inst = PSFCorrection(
+                delay_compute=True, num_f_bins=60, nside=self.nside, f_trunc=0.00,
+                psf_sigma_deg=1e-6,
+                n_psf=100000
+            )
+            pc_inst.sample_psf_max = 1e-6
+            pc_inst.psf_samples = 10000
+            pc_inst.psf_tag = f"Delta_PSF_2GeV2_nside{self.nside}"
+            pc_inst.make_or_load_psf_corr(force_recompute=True)
+            print('!!! DELTA PSF 60 BINS !!!')
+
+        else:
+            raise ValueError(psf_tags)
+
+        # delta psf f binning
 
         self.f_ary = pc_inst.f_ary
         self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
