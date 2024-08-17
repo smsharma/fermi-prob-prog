@@ -42,6 +42,7 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
         temps_ps.append(np.array(temp_ps_gce))
         # theta[0] should be expected photon count per pixel in normalization mask region
         theta += [vd['Sps_gce'], vd['n1_gce'], vd['n2_gce'], vd['n3_gce'], vd['sb1_gce'], vd['lambdas_gce'] * vd['sb1_gce']]
+        print(vd['Sps_gce'])
 
     #mask_sim = np.zeros_like(m.data, dtype=bool) # simulate all
     mask_sim = np.array(m.normalization_mask)
@@ -67,7 +68,7 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
 if __name__ == '__main__':
 
     out_dir = f"{wdir}/../outputs/simulations"
-    n_sim = 100
+    n_sim = 3
 
     truth_dict = json.load(open('truth_dict.json', 'r'))
     m = NPModel()
