@@ -40,6 +40,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
             temp_ratio = np.sum(temp_ps[~mask_normalize_counts]) / np.sum(temp_ps)
             exp_ratio = np.mean(exp_map[~mask_normalize_counts]) / np.mean(exp_map)
             dnds_ary_temp *= theta[idx_theta_ps] * np.sum(~mask_normalize_counts) / s_exp / temp_ratio / exp_ratio
+            print(np.trapz(s_ary * dnds_ary_temp, s_ary))
             dnds_ary.append(dnds_ary_temp)
             idx_theta_ps += 6
 
