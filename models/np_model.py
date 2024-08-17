@@ -152,7 +152,8 @@ class NPModel:
     def get_psf_correction(self):
 
         #psf_tags = ['king', 'old']
-        psf_tags = ['delta']
+        psf_tags = ['delta', 'mod0count']
+        print(f'Using PSF tags: {psf_tags}')
 
         if 'king' in psf_tags:
             kp = KingPSF()
@@ -176,7 +177,7 @@ class NPModel:
 
         elif 'delta' in psf_tags:
             pc_inst = PSFCorrection(
-                delay_compute=True, num_f_bins=60, nside=self.nside, f_trunc=0.00,
+                delay_compute=True, num_f_bins='nonuni', nside=self.nside, f_trunc=0.00,
                 psf_sigma_deg=1e-6,
                 n_psf=100000
             )
@@ -184,12 +185,15 @@ class NPModel:
             pc_inst.psf_samples = 10000
             pc_inst.psf_tag = f"Delta_PSF_2GeV2_nside{self.nside}"
             pc_inst.make_or_load_psf_corr(force_recompute=True)
-            print('!!! DELTA PSF 60 BINS !!!')
+
+            if 'mod0count' in psf_tags:
+                npix_before = np.sum(pc_inst.df_rho_div_f_ary[1:] * pc_inst.f_ary[1:])
+                npix0 = 6839 - npix_before
+                pc_inst.df_rho_div_f_ary[0] = npix0 / pc_inst.f_ary[0]
+                pc_inst.df_rho_div_f_ary /= np.sum(pc_inst.df_rho_div_f_ary * pc_inst.f_ary**2)
 
         else:
             raise ValueError(psf_tags)
-
-        # delta psf f binning
 
         self.f_ary = pc_inst.f_ary
         self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
