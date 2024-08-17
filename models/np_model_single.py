@@ -36,7 +36,7 @@ wdir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(wdir, '../data')
 
 
-class NPModelDebug:
+class NPModel:
     """
     Parameters
     ----------
@@ -58,7 +58,7 @@ class NPModelDebug:
     normalization_mask: mask used to normalize templates.
     """
     def __init__(
-        self, non_poissonian=True, l_max=0,
+        self, non_poissonian=True, l_max=2,
         dif_names=["ModelO", "ModelA", "ModelF"],
         bulge_hybrid=True,
         bulge_template_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"],
@@ -151,14 +151,45 @@ class NPModelDebug:
         
     def get_psf_correction(self):
 
-        kp = KingPSF()
+        #psf_tags = ['king', 'old']
+        psf_tags = ['delta']
 
-        pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside)
-        pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
-        pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
-        pc_inst.psf_samples = 10000
-        pc_inst.psf_tag = "Fermi_PSF_2GeV2_nside{}".format(self.nside)
-        pc_inst.make_or_load_psf_corr()
+        if 'king' in psf_tags:
+            kp = KingPSF()
+            if 'old' in psf_tags:
+                pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside, f_trunc=0.01)
+                print('!!! USING OLD F BIN !!!')
+            elif 'new' in psf_tags:
+                # new nonuniform f binning
+                pc_inst = PSFCorrection(
+                    delay_compute=True, num_f_bins='nonuni', nside=self.nside, f_trunc=0.00,
+                    n_psf=100000
+                )
+                print('!!! USING NEW F BIN: NON-UNIFORM !!!')
+            else:
+                raise ValueError(psf_tags)
+            pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
+            pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
+            pc_inst.psf_samples = 10000
+            pc_inst.psf_tag = f"Fermi_PSF_2GeV2_nside{self.nside}"
+            pc_inst.make_or_load_psf_corr(force_recompute=True)
+
+        elif 'delta' in psf_tags:
+            pc_inst = PSFCorrection(
+                delay_compute=True, num_f_bins=60, nside=self.nside, f_trunc=0.00,
+                psf_sigma_deg=1e-6,
+                n_psf=100000
+            )
+            pc_inst.sample_psf_max = 1e-6
+            pc_inst.psf_samples = 10000
+            pc_inst.psf_tag = f"Delta_PSF_2GeV2_nside{self.nside}"
+            pc_inst.make_or_load_psf_corr(force_recompute=True)
+            print('!!! DELTA PSF 60 BINS !!!')
+
+        else:
+            raise ValueError(psf_tags)
+
+        # delta psf f binning
 
         self.f_ary = pc_inst.f_ary
         self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
@@ -213,62 +244,37 @@ class NPModelDebug:
     
             
     def model(self, data=...):
-                
-        mu = jnp.full_like(data, 1e-10)
-                                            
-        # if self.vary_gamma:
-        #     gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.))
-        # else:
-        #     gamma_ps = 1.2
-
-        # temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps)
-            
-        if self.vary_disk:
-            zs = numpyro.sample("zs", dist.Uniform(0.1, 2.0))
-            C = numpyro.sample("C", dist.Uniform(0.05, 8.))
-        else:
-            zs = 0.5
-            C = 2.5
-        temp_dsk = self.disk_template.get_template(zs=zs, C=C)
         
-        # normalization
-        # A_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
-        # temp_gce_ps = A_nfw * temp_gce_nfw_ps
-        A_dsk = 1 / jnp.mean(temp_dsk[~self.normalization_mask])
-        temp_dsk = A_dsk * temp_dsk
-        # npt_compressed = jnp.array([temp_gce_ps, temp_dsk])
-        npt_compressed = jnp.array([temp_dsk])
+        mu = jnp.zeros_like(data)
+
+        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=1.2)
+        A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
+        temp_gce_ps = A_gce_nfw * temp_gce_nfw_ps
+
+        npt_compressed = jnp.array([temp_gce_ps])
 
         theta = []
-        for ips, ps in enumerate(["dsk"]):
+
+        for ips, ps in enumerate(["gce"]):
 
             Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
-            # n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
-            # n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
-            # n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
-            # sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
-            # lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
 
-            if ps == "gce":
-                n1 = 5.5
-                n2 = 1.5
-                n3 = -5.5
-                sb1 = 7.6
-                lambda_s = 0.3
-            else:
-                n1 = 5.0
-                n2 = 1.3
-                n3 = -5.4
-                sb1 = 11.0
-                lambda_s = 0.4
+            n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
+            n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
+            n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
+            sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
+            lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
 
             theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
-            s_ary = jnp.logspace(-1., 2., 100)
+
+            s_ary = jnp.logspace(-1., 2., 1000)
             dnds_ary = dnds(s_ary, theta_tmp)
+
             A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
+
             theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
 
-        theta = jnp.array(theta)
+            theta = jnp.array(theta)
                 
         # Pad the last exposure region so that all are the same size
         exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
@@ -278,7 +284,10 @@ class NPModelDebug:
         expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
         expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
 
-        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
+        if self.non_poissonian:
+            log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
+        else:
+            log_like_poisson_exp_vmapped = jax.vmap(log_like_poisson, in_axes=(0, 0))
                 
         # Get relevant arrays for different exposure regions
         mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
@@ -289,14 +298,18 @@ class NPModelDebug:
         exposure_multiplier = self.exposure_means_list / self.exposure_mean
         
         # Scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
-        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
-        theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
-        theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
-        theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
+        if self.non_poissonian:
+            theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
+            theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
+            theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
+            theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
         
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
             
-            log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
+            if self.non_poissonian:
+                log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
+            else:
+                log_like_exp = log_like_poisson_exp_vmapped(mu_batch, data_batch)
             
             # Concatenate exposure regions
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
@@ -344,7 +357,7 @@ class NPModelDebug:
     def fit_svi(
         self, rng_key=jax.random.PRNGKey(42),
         guide='iaf', num_flows=5, hidden_dims=[128, 128],
-        n_steps=7500, lr=5e-3, num_particles=8, vectorize_particles=True,
+        n_steps=7500, lr=1e-4, num_particles=8, vectorize_particles=True,
         **model_static_kwargs
     ):
 
@@ -355,6 +368,26 @@ class NPModelDebug:
             
         elif guide == "iaf":
             self.guide = autoguide.AutoIAFNormal(self.model, **iaf_kwargs)
+            
+        # elif guide == "iaf_mixture":
+        #     class AutoIAFMixture(autoguide.AutoIAFNormal):
+        #         def get_base_dist(self):
+        #             C = num_base_mixture
+        #             mixture = dist.MixtureSameFamily(
+        #                 dist.Categorical(probs=jnp.ones(C) / C),
+        #                 dist.Normal(jnp.arange(float(C)), 1.)
+        #             )
+        #             return mixture.expand([self.latent_dim]).to_event()
+        #     self.guide = AutoIAFMixture(self.model, **iaf_kwargs)
+            
+        elif guide == "iaf_gaussians":
+            class AutoIAFMultiGaussian(autoguide.AutoIAFNormal):
+                def get_base_dist(self):
+                    return dist.Normal(
+                        jnp.array([-5, -2, -1, 0, 1, 2, 5, 20], dtype=jnp.float32),
+                        1.,
+                    )
+            self.guide = AutoIAFMultiGaussian(self.model, **iaf_kwargs)
             
         else:
             raise NotImplementedError

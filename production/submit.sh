@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=svi_newf
+#SBATCH --job-name=svi_singledeltapsf
 #SBATCH --array=0-29
 #SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
