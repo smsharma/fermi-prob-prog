@@ -16,7 +16,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
 
     the_map = np.zeros(np.sum(~mask_sim))
     aux_vars = np.zeros(2)
-    s_ary = np.logspace(-1, 2, 100)
+    s_ary = np.logspace(-1, 2, 1000)
 
     good_map = False  # Check so map doesn't contain all zeros or nans or infs
 
