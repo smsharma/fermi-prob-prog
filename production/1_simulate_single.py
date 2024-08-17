@@ -68,7 +68,7 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
 if __name__ == '__main__':
 
     out_dir = f"{wdir}/../outputs/simulations"
-    n_sim = 100
+    n_sim = 30
 
     truth_dict = json.load(open('truth_dict.json', 'r'))
     m = NPModel()
