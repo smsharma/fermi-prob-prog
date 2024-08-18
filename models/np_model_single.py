@@ -253,7 +253,7 @@ class NPModelSingle:
         mu = jnp.zeros_like(data)
 
         temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=1.2)
-        temp_gce_nfw_ps /= jnp.mean(temp_gce_nfw_ps[~self.mask_roi])
+        temp_gce_nfw_ps /= jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
         temp_gce_ps = temp_gce_nfw_ps
 
         npt_compressed = jnp.array([temp_gce_ps[~self.mask_roi]])

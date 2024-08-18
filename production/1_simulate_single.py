@@ -14,7 +14,7 @@ from models.psf import KingPSF
 from utils import create_mask as cm
 
 
-def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask=False, psf_scheme='original'):
+def simulator_for_model(m, vd, delta_psf=False, psf_scheme='original'):
     """Wrapper for simulator function.
 
     Args:
@@ -22,18 +22,14 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
         vd (dict): Dictionary of truth parameters
     """
 
-    # mask
-    mask_outer = cm.make_mask_total(nside=m.nside, band_mask=False, mask_ring=True, inner=0, outer=25)
-
     # poiss: 0
-    nm = m.normalization_mask
+    nm = cm.make_mask_total(nside=m.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
     temps_poiss = [m.temp_iso / np.mean(m.temp_iso[~nm])]
     temps_poiss = [np.array(t) for t in temps_poiss]
-    theta = [0]
+    theta = [0.]
 
-    # ps: nfw+blg*5 dsk
-    # temp_ps
-    temp_ps_nfw = m.nfw_template.get_NFW2_template(gamma=1.2) # we are going to assume this is not normalized
+    # ps: nfw
+    temp_ps_nfw = m.nfw_template.get_NFW2_template(gamma=1.2) # we are not going to assume this is normalized
     temp_ps_nfw /= np.mean(temp_ps_nfw[~nm])
     temp_ps_gce = temp_ps_nfw
 
@@ -42,16 +38,12 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
         temps_ps.append(np.array(temp_ps_gce))
         # theta[0] should be expected photon count per pixel in normalization mask region
         theta += [vd['Sps_gce'], vd['n1_gce'], vd['n2_gce'], vd['n3_gce'], vd['sb1_gce'], vd['lambdas_gce'] * vd['sb1_gce']]
-        print(vd['Sps_gce'])
+        print('Sps_gce', vd['Sps_gce'])
 
     #mask_sim = np.zeros_like(m.data, dtype=bool) # simulate all
-    mask_sim = np.array(m.normalization_mask)
-    mask_normalize_counts = np.array(m.normalization_mask)
-    mask_roi = np.array(m.mask_roi)
-    if no_psc_mask:
-        mask_roi = np.array(m.normalization_mask)
-    if no_plane_mask:
-        mask_roi = np.array(mask_outer)
+    mask_sim = nm
+    mask_normalize_counts = nm
+    mask_roi = nm
 
     if delta_psf:
         sigma = np.deg2rad(0.001) / 3
@@ -61,14 +53,13 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
         psf_r_func = lambda r: kp.psf_fermi_r(r)
     exp_map = np.array(m.exposure_map)
 
-
     return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme)[0]
 
 
 if __name__ == '__main__':
 
     out_dir = f"{wdir}/../outputs/simulations"
-    n_sim = 3
+    n_sim = 100
 
     truth_dict = json.load(open('truth_dict.json', 'r'))
     m = NPModel()
@@ -76,5 +67,6 @@ if __name__ == '__main__':
     sims = []
     for _ in tqdm(range(n_sim)):
         sims.append(simulator_for_model(m, truth_dict, psf_scheme='true delta'))
+        print('mean', np.mean(sims[-1]))
     sims = np.array(sims)
     np.save(f"{out_dir}/sim_Spsgce_deltapsf_n{n_sim}.npy", sims)
