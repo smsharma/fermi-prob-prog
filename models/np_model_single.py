@@ -252,8 +252,8 @@ class NPModel:
         mu = jnp.zeros_like(data)
 
         temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=1.2)
-        A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
-        temp_gce_ps = A_gce_nfw * temp_gce_nfw_ps
+        temp_gce_nfw_ps /= jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
+        temp_gce_ps = temp_gce_nfw_ps
 
         npt_compressed = jnp.array([temp_gce_ps])
 
@@ -273,10 +273,9 @@ class NPModel:
 
             s_ary = jnp.logspace(-1., 2., 1000)
             dnds_ary = dnds(s_ary, theta_tmp)
+            num_photon_for_unit_theta0 = jnp.trapz(s_ary * dnds_ary, s_ary)
 
-            A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
-
-            theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
+            theta.append([Sps / num_photon_for_unit_theta0, n1, n2, n3, sb1, lambda_s * sb1])
 
             theta = jnp.array(theta)
                 
