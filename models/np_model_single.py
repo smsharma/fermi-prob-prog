@@ -36,7 +36,7 @@ wdir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(wdir, '../data')
 
 
-class NPModel:
+class NPModelSingle:
     """
     Parameters
     ----------
@@ -255,14 +255,13 @@ class NPModel:
         temp_gce_nfw_ps /= jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
         temp_gce_ps = temp_gce_nfw_ps
 
-        npt_compressed = jnp.array([temp_gce_ps])
+        npt_compressed = jnp.array([temp_gce_ps[~self.mask_roi]])
 
         theta = []
 
         for ips, ps in enumerate(["gce"]):
 
             Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
-
             n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
             n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
             n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
@@ -277,48 +276,22 @@ class NPModel:
 
             theta.append([Sps / num_photon_for_unit_theta0, n1, n2, n3, sb1, lambda_s * sb1])
 
-            theta = jnp.array(theta)
-                
-        # Pad the last exposure region so that all are the same size
-        exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
-        n_pad = exp_lens[0] - exp_lens[-1]
-        
-        expreg_indices = jnp.zeros_like(self.expreg_indices)
-        expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
-        expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
+        theta = jnp.array(theta)
 
-        if self.non_poissonian:
-            log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
-        else:
-            log_like_poisson_exp_vmapped = jax.vmap(log_like_poisson, in_axes=(0, 0))
+        npixROI = jnp.sum(~self.mask_roi)
                 
-        # Get relevant arrays for different exposure regions
-        mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
-        if self.non_poissonian:
-            npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
-        data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
-        
-        exposure_multiplier = self.exposure_means_list / self.exposure_mean
-        
-        # Scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
-        if self.non_poissonian:
-            theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
-            theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
-            theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
-            theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
-        
-        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
-            
-            if self.non_poissonian:
-                log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
-            else:
-                log_like_exp = log_like_poisson_exp_vmapped(mu_batch, data_batch)
-            
-            # Concatenate exposure regions
-            loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
-                                
-            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
-                return numpyro.factor('log-likelihood', loglike)
+        ll = log_like_np(
+            theta=theta,
+            pt_sum_compressed=mu[~self.mask_roi],
+            npt_compressed=npt_compressed,
+            data=data[~self.mask_roi],
+            f_ary=self.f_ary,
+            df_rho_div_f_ary=self.df_rho_div_f_ary,
+            k_max=self.k_max,
+            npixROI=npixROI,
+        )
+        with numpyro.plate('data', npixROI):
+            return numpyro.factor('ll', ll)
         
 
     def get_exp_regions(self, nexp):

@@ -10,7 +10,7 @@ import jax.numpy as jnp
 
 wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
 sys.path.append(f"{wdir}/..")
-from models.np_model_single import NPModel
+from models.np_model_single import NPModelSingle
 
 
 if __name__ == '__main__':
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     data_in = jnp.array(data_full, dtype=jnp.int32)
 
 
-    m = NPModel()
+    m = NPModelSingle()
 
     if args.fit_type == 'svi':
         m.fit_svi(n_steps=args.n_step, data=data_in)
