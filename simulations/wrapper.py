@@ -36,11 +36,9 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
         for temp_ps in temps_ps:
             dnds_ary_temp = dnds(s_ary, theta[idx_theta_ps : idx_theta_ps + 6])
             s_exp = np.trapz(s_ary * dnds_ary_temp, s_ary)
-            print(s_exp)
             temp_ratio = np.sum(temp_ps[~mask_normalize_counts]) / np.sum(temp_ps)
             exp_ratio = np.mean(exp_map[~mask_normalize_counts]) / np.mean(exp_map)
             dnds_ary_temp *= theta[idx_theta_ps] * np.sum(~mask_normalize_counts) / s_exp / temp_ratio / exp_ratio
-            print(np.trapz(s_ary * dnds_ary_temp, s_ary))
             dnds_ary.append(dnds_ary_temp)
             idx_theta_ps += 6
 
@@ -95,8 +93,6 @@ def toy_simulator(temps, vd, delta_psf=True):
     mask_roi = np.zeros_like(temps[0], dtype=bool)
 
     return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map)[0]
-
-
 
 
 def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask=False, psf_scheme='original'):
@@ -176,7 +172,7 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
     #mask_sim = np.zeros_like(m.data, dtype=bool) # simulate all
     mask_sim = np.array(m.normalization_mask)
     mask_normalize_counts = np.array(m.normalization_mask)
-    mask_roi = np.array(m.mask_roi)
+    mask_roi = np.array(m.normalization_mask)
     if no_psc_mask:
         mask_roi = np.array(m.normalization_mask)
     if no_plane_mask:
