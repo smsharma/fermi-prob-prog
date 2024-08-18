@@ -21,4 +21,4 @@ if __name__ == '__main__':
     for _ in tqdm(range(30)):
         sims.append(simulator_for_model(m, truth_dict, psf_scheme='true delta'))
     sims = np.array(sims)
-    np.save("sim_truth_deltapsf_n30.npy", sims)
+    np.save(f"{out_dir}/sim_truth_deltapsf_n30.npy", sims)
