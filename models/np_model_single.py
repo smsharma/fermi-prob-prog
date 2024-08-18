@@ -100,6 +100,7 @@ class NPModelSingle:
         self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=band_mask_range, mask_ring=True, inner=0, outer=r_outer, custom_mask=mask_ps)
         self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
         self.normalization_mask = self.mask_plane
+        self.npixROI = int(np.sum(~self.mask_roi))
 
         print(f'Number of pixels in ROI: {np.sum(~self.mask_roi)}')
 
@@ -277,9 +278,7 @@ class NPModelSingle:
             theta.append([Sps / num_photon_for_unit_theta0, n1, n2, n3, sb1, lambda_s * sb1])
 
         theta = jnp.array(theta)
-
-        npixROI = jnp.sum(~self.mask_roi)
-                
+        
         ll = log_like_np(
             theta=theta,
             pt_sum_compressed=mu[~self.mask_roi],
@@ -288,9 +287,9 @@ class NPModelSingle:
             f_ary=self.f_ary,
             df_rho_div_f_ary=self.df_rho_div_f_ary,
             k_max=self.k_max,
-            npixROI=npixROI,
+            npixROI=self.npixROI,
         )
-        with numpyro.plate('data', npixROI):
+        with numpyro.plate('data', self.npixROI):
             return numpyro.factor('ll', ll)
         
 
