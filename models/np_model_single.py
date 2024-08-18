@@ -293,6 +293,7 @@ class NPModelSingle:
         #     return numpyro.factor('ll', ll)
 
         S = numpyro.sample("S_gce", dist.Uniform(1e-3, 4.))
+        S2 = numpyro.sample("S2_gce", dist.Uniform(1e-3, 4.))
         mu += S * temp_gce_ps
 
         ll = log_like_poisson(mu[~self.mask_roi], data[~self.mask_roi])
