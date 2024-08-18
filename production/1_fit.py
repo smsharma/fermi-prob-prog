@@ -25,7 +25,7 @@ if __name__ == '__main__':
     wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
     #data_dir = f"{wdir}/../data/fermi_data_573w/fermi_data_128"
     data_dir = f"{wdir}/../outputs/simulations"
-    save_dir = f"{wdir}/../outputs/fit/svi_240817_singledeltapsf"
+    save_dir = f"{wdir}/../outputs/fit/svi_240818_singledeltapsf"
     os.makedirs(save_dir, exist_ok=True)
 
     mask_roi = jnp.load(f"{wdir}/mask_roi.npy")
