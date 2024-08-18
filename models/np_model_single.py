@@ -256,39 +256,46 @@ class NPModelSingle:
         temp_gce_nfw_ps /= jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
         temp_gce_ps = temp_gce_nfw_ps
 
-        npt_compressed = jnp.array([temp_gce_ps[~self.mask_roi]])
+        # npt_compressed = jnp.array([temp_gce_ps[~self.mask_roi]])
 
-        theta = []
+        # theta = []
 
-        for ips, ps in enumerate(["gce"]):
+        # for ips, ps in enumerate(["gce"]):
 
-            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
-            n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
-            n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
-            n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
-            sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
-            lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
+        #     Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
+        #     n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
+        #     n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
+        #     n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
+        #     sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
+        #     lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
 
-            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
+        #     theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
 
-            s_ary = jnp.logspace(-1., 2., 1000)
-            dnds_ary = dnds(s_ary, theta_tmp)
-            num_photon_for_unit_theta0 = jnp.trapz(s_ary * dnds_ary, s_ary)
+        #     s_ary = jnp.logspace(-1., 2., 1000)
+        #     dnds_ary = dnds(s_ary, theta_tmp)
+        #     num_photon_for_unit_theta0 = jnp.trapz(s_ary * dnds_ary, s_ary)
 
-            theta.append([Sps / num_photon_for_unit_theta0, n1, n2, n3, sb1, lambda_s * sb1])
+        #     theta.append([Sps / num_photon_for_unit_theta0, n1, n2, n3, sb1, lambda_s * sb1])
 
-        theta = jnp.array(theta)
+        # theta = jnp.array(theta)
         
-        ll = log_like_np(
-            theta=theta,
-            pt_sum_compressed=mu[~self.mask_roi],
-            npt_compressed=npt_compressed,
-            data=data[~self.mask_roi],
-            f_ary=self.f_ary,
-            df_rho_div_f_ary=self.df_rho_div_f_ary,
-            k_max=self.k_max,
-            npixROI=self.npixROI,
-        )
+        # ll = log_like_np(
+        #     theta=theta,
+        #     pt_sum_compressed=mu[~self.mask_roi],
+        #     npt_compressed=npt_compressed,
+        #     data=data[~self.mask_roi],
+        #     f_ary=self.f_ary,
+        #     df_rho_div_f_ary=self.df_rho_div_f_ary,
+        #     k_max=self.k_max,
+        #     npixROI=self.npixROI,
+        # )
+        # with numpyro.plate('data', self.npixROI):
+        #     return numpyro.factor('ll', ll)
+
+        S = numpyro.sample("S_gce", dist.Uniform(1e-3, 4.))
+        mu += S * temp_gce_ps
+
+        ll = log_like_poisson(mu[~self.mask_roi], data[~self.mask_roi])
         with numpyro.plate('data', self.npixROI):
             return numpyro.factor('ll', ll)
         
