@@ -12,21 +12,22 @@ from utils.validation import find_hdi_prob
 
 if __name__ == '__main__':
 
-    samples_dir = f"{wdir}/../outputs/fit/svi_240812_fcmp"
+    samples_dir = f"{wdir}/../outputs/fit/svi_240818_singledeltapsf"
     theta_true = json.load(open(f"{wdir}/truth_dict_flat.json"))
 
-    ks = [
-        "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
-        "Sps_dsk", "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
-        "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
-        "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
-        "C", "zs"
-    ]
+    #ks = [
+    #    "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
+    #    "Sps_dsk", "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
+    #    "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
+    #    "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
+    #    "C", "zs"
+    #]
+    ks = ['Sps_gce', 'lambdas_gce', 'n1_gce', 'n2_gce', 'n3_gce', 'sb1_gce']
     n_sim = 30
 
     samples_list = []
     for i in tqdm(range(n_sim)):
-        samples_list.append(pickle.load(open(f"{samples_dir}/svi_samples_i{i}_n50000_ns10000_newf.p", 'rb')))
+        samples_list.append(pickle.load(open(f"{samples_dir}/svi_samples_i{i}_n50000_ns10000.p", 'rb')))
     
     prob_samples = {}
     for k in tqdm(ks):
@@ -42,4 +43,4 @@ if __name__ == '__main__':
         p_nominal, p_actual = np.sort(prob_samples[k]), np.linspace(0, 1, len(prob_samples[k]))
         p_nominal_actual_dict[k] = (p_nominal, p_actual)
 
-    pickle.dump(p_nominal_actual_dict, open(f"{samples_dir}/p_nominal_actual_dict_newf.p", 'wb'))
+    pickle.dump(p_nominal_actual_dict, open(f"{samples_dir}/p_nominal_actual_dict.p", 'wb'))
