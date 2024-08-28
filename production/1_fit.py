@@ -25,13 +25,13 @@ if __name__ == '__main__':
     wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
     #data_dir = f"{wdir}/../data/fermi_data_573w/fermi_data_128"
     data_dir = f"{wdir}/../outputs/simulations"
-    save_dir = f"{wdir}/../outputs/fit/svi_240818_singledeltapsf"
+    save_dir = f"{wdir}/../outputs/fit/svi_240818.2_kingpsf"
     os.makedirs(save_dir, exist_ok=True)
 
     mask_roi = jnp.load(f"{wdir}/mask_roi.npy")
     mask_norm = jnp.load(f"{wdir}/mask_norm.npy")
 
-    data = np.load(f"{data_dir}/sim_Spsgce_deltapsf_n100.npy")[args.i]
+    data = np.load(f"{data_dir}/sim_Spsgce_n100.npy")[args.i]
     data_full = np.zeros(hp.nside2npix(128))
     data_full[~mask_norm] = data
     data_in = jnp.array(data_full, dtype=jnp.int32)

@@ -12,17 +12,23 @@ from utils.validation import find_hdi_prob
 
 if __name__ == '__main__':
 
-    samples_dir = f"{wdir}/../outputs/fit/svi_240818_singledeltapsf"
+    samples_dir = f"{wdir}/../outputs/fit/svi_240818.2_kingpsf"
     theta_true = json.load(open(f"{wdir}/truth_dict_flat.json"))
 
-    #ks = [
-    #    "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
-    #    "Sps_dsk", "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
-    #    "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
-    #    "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
-    #    "C", "zs"
-    #]
-    ks = ['Sps_gce', 'lambdas_gce', 'n1_gce', 'n2_gce', 'n3_gce', 'sb1_gce']
+    ktype = 'single'
+    if ktype == 'full':
+        ks = [
+            "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
+            "Sps_dsk", "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
+            "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
+            "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
+            "C", "zs"
+        ]
+    elif ktype == 'single':
+        ks = ['Sps_gce', 'lambdas_gce', 'n1_gce', 'n2_gce', 'n3_gce', 'sb1_gce']
+    else:
+        raise ValueError(ktype)
+    
     n_sim = 30
 
     samples_list = []

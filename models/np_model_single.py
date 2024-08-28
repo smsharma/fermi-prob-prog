@@ -152,8 +152,8 @@ class NPModelSingle:
         
     def get_psf_correction(self):
 
-        #psf_tags = ['king', 'old']
-        psf_tags = ['delta']
+        psf_tags = ['king', 'new']
+        #psf_tags = ['delta']
         print(f'Using PSF tags: {psf_tags}')
 
         if 'king' in psf_tags:

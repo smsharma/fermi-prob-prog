@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
     sims = []
     for _ in tqdm(range(n_sim)):
-        sims.append(simulator_for_model(m, truth_dict, psf_scheme='true delta'))
+        sims.append(simulator_for_model(m, truth_dict, psf_scheme='original'))
         print('mean', np.mean(sims[-1]))
     sims = np.array(sims)
-    np.save(f"{out_dir}/sim_Spsgce_deltapsf_n{n_sim}.npy", sims)
+    np.save(f"{out_dir}/sim_Spsgce_n{n_sim}.npy", sims)
