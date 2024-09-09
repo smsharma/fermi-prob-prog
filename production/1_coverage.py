@@ -12,10 +12,10 @@ from utils.validation import find_hdi_prob
 
 if __name__ == '__main__':
 
-    samples_dir = f"{wdir}/../outputs/fit/svi_240818.2_kingpsf"
-    theta_true = json.load(open(f"{wdir}/truth_dict_flat.json"))
+    samples_dir = f"{wdir}/../outputs/fit/svi_gc11_kingpsf_20240908"
+    theta_true = json.load(open(f"{wdir}/truth_dict_gc11.json"))
 
-    ktype = 'single'
+    ktype = 'gc11'
     if ktype == 'full':
         ks = [
             "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
@@ -26,6 +26,9 @@ if __name__ == '__main__':
         ]
     elif ktype == 'single':
         ks = ['Sps_gce', 'lambdas_gce', 'n1_gce', 'n2_gce', 'n3_gce', 'sb1_gce']
+    elif ktype == 'gc11':
+        ks = ['Sps_nfw', 'lambdas_nfw', 'n1_nfw', 'n2_nfw', 'n3_nfw', 'sb1_nfw',
+              'S_pib', 'S_ics', 'S_dsk', 'S_nfw', 'S_bub']
     else:
         raise ValueError(ktype)
     
