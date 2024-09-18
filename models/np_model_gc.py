@@ -479,3 +479,58 @@ class NPModelGC11:
         self.MAP_estimates = guide.median(svi_results.params)
         
         return svi_results
+
+
+class NPModelGC17 (NPModelGC11):
+
+    def model(self, data=...):
+        
+        mu = jnp.zeros_like(data)
+
+        # poissonian
+        S_pib = numpyro.sample("S_pib", dist.Uniform(1e-3, 14.))
+        S_ics = numpyro.sample("S_ics", dist.Uniform(1e-3, 14.))
+        S_bub = numpyro.sample("S_bub", dist.Uniform(1e-3, 5.))
+        S_nfw = numpyro.sample("S_nfw", dist.Uniform(1e-3, 5.))
+        S_dsk = numpyro.sample("S_dsk", dist.Uniform(1e-3, 5.))
+
+        nm = self.normalization_mask
+        mu += S_pib * self.pib[0] / jnp.mean(self.pib[0][~nm])
+        mu += S_ics * self.ics[0] / jnp.mean(self.ics[0][~nm])
+        mu += S_bub * self.temp_bub / jnp.mean(self.temp_bub[~nm])
+        mu += S_dsk * self.temp_p_dsk_fixed / jnp.mean(self.temp_p_dsk_fixed[~nm])
+        mu += S_nfw * self.temp_p_nfw_fixed / jnp.mean(self.temp_p_nfw_fixed[~nm])
+
+        # non-poissonian
+        temp_ps_nfw = self.temp_ps_nfw_fixed[~self.mask_roi] / jnp.mean(self.temp_ps_nfw_fixed[~nm])
+        temp_ps_dsk = self.temp_p_dsk_fixed[~self.mask_roi] / jnp.mean(self.temp_p_dsk_fixed[~nm]) # same template as poissonian
+        npt_compressed = jnp.array([temp_ps_nfw, temp_ps_dsk])
+
+        theta = []
+        for ps in ["nfw", "dsk"]:
+            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
+            n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
+            n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
+            n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
+            sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
+            lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
+
+            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
+            s_ary = jnp.logspace(-1., 2., 1000)
+            dnds_ary = dnds(s_ary, theta_tmp)
+            num_photon_for_unit_theta0 = jnp.trapz(s_ary * dnds_ary, s_ary)
+            theta.append([Sps / num_photon_for_unit_theta0, n1, n2, n3, sb1, lambda_s * sb1])
+        theta = jnp.array(theta)
+        
+        ll = log_like_np(
+            theta=theta,
+            pt_sum_compressed=mu[~self.mask_roi],
+            npt_compressed=npt_compressed,
+            data=data[~self.mask_roi],
+            f_ary=self.f_ary,
+            df_rho_div_f_ary=self.df_rho_div_f_ary,
+            k_max=self.k_max,
+            npixROI=self.npixROI,
+        )
+        with numpyro.plate('data', self.npixROI):
+            return numpyro.factor('ll', ll)

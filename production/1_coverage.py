@@ -12,7 +12,7 @@ from utils.validation import find_hdi_prob
 
 if __name__ == '__main__':
 
-    samples_dir = f"{wdir}/../outputs/fit/svi_gc11_kingpsf_20240908"
+    samples_dir = f"{wdir}/../outputs/fit/hmc_gc11_deltapsf_20240908"
     theta_true = json.load(open(f"{wdir}/truth_dict_gc11.json"))
 
     ktype = 'gc11'
@@ -36,7 +36,8 @@ if __name__ == '__main__':
 
     samples_list = []
     for i in tqdm(range(n_sim)):
-        samples_list.append(pickle.load(open(f"{samples_dir}/svi_samples_i{i}_n50000_ns10000.p", 'rb')))
+        # samples_list.append(pickle.load(open(f"{samples_dir}/svi_samples_i{i}_n50000_ns10000.p", 'rb')))
+        samples_list.append(pickle.load(open(f"{samples_dir}/hmc_samples_i{i}_n10000_ns2000.p", 'rb')))
     
     prob_samples = {}
     for k in tqdm(ks):
