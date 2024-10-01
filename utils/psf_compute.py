@@ -92,10 +92,14 @@ def psf_corr(nside, num_f_bins, n_psf, n_pts_per_psf, f_trunc, psf_r_func, sampl
         n_f_log = int(0.2 * n_f_bins)
         n_f_lin = n_f_bins - n_f_log - 1
         f_log_edges = np.geomspace(1e-5, 0.1, n_f_log+1)[:-1]
-        f_lin_edges = np.linspace(0.1, 1, n_f_lin+1)
-        f_bin_edges = np.concatenate([np.array([0.]), f_log_edges, f_lin_edges])
-        num_f_bins = f_bin_edges
-        rho_ary, f_bin_edges = np.histogram(f_values_trunc, bins=num_f_bins)
+        f_lin_edges = np.linspace(0.1, 1-1e-9, n_f_lin+1)
+        f_bin_edges = np.concatenate([
+            np.array([-f_log_edges[0]]),
+            f_log_edges,
+            f_lin_edges,
+            np.array([1.]),
+        ])
+        rho_ary, f_bin_edges = np.histogram(f_values_trunc, bins=f_bin_edges)
     else:
         raise ValueError('undefined num_f_bins')
 
@@ -104,6 +108,6 @@ def psf_corr(nside, num_f_bins, n_psf, n_pts_per_psf, f_trunc, psf_r_func, sampl
     f_ary = (f_bin_edges[:-1] + f_bin_edges[1:]) / 2.0
     rho_ary = rho_ary / (df * n_psf)
     rho_ary /= np.sum(df * f_ary * rho_ary)
-    df_rho_div_f_ary = df * rho_ary / f_ary
+    df_rho_ary = df * rho_ary
 
-    return f_ary, rho_ary, df_rho_div_f_ary, f_bin_edges
+    return f_ary, rho_ary, df_rho_ary, f_bin_edges

@@ -195,8 +195,8 @@ class NPModel:
         else:
             raise ValueError(psf_tags)
 
-        self.f_ary = pc_inst.f_ary
-        self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
+        # self.f_ary = pc_inst.f_ary
+        # self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
 
     def get_sphharms(self):
         

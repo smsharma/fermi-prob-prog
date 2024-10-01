@@ -22,7 +22,7 @@ from einops import repeat
 from models.scd import dnds
 from models.templates import NFWTemplate, LorimerDiskTemplate
 from models.bulge_models import BulgeTemplates
-from likelihoods.npll_jax import log_like_np
+from likelihoods.npll_jax_new import log_like_np
 from likelihoods.pll_jax import log_like_poisson
 from utils.sph_harm import Ylm
 from utils import create_mask as cm
@@ -60,18 +60,16 @@ class NPModelGC11:
     def __init__(
         self, non_poissonian=True, l_max=2,
         dif_names=["ModelO", "ModelA", "ModelF"],
-        bulge_hybrid=True,
+        # bulge_hybrid=True,
         bulge_template_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"],
-        vary_gamma=True,
-        vary_disk=True,
+        # vary_gamma=True,
+        # vary_disk=True,
         ps_cat="3fgl", r_outer=25, band_mask_range=2.,
         nside=128, n_exp=1,
-        use_flat_exposure=False, # TMP
-        debug_model=False,
+        use_flat_exposure=False,
         data=None,
         psf_tags=None,
     ):
-        self.psf_tags = psf_tags
         
         #========== General ==========
         self.nside = nside
@@ -79,10 +77,7 @@ class NPModelGC11:
         self.non_poissonian = non_poissonian
         
         self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
-        if data is None:
-            self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
-        else:
-            self.data = data
+        self.data = data
         self.exposure_map = np.load("{}/fermidata_exposure.npy".format(self.data_dir))
         self.use_flat_exposure = use_flat_exposure
         if self.use_flat_exposure:
@@ -102,32 +97,23 @@ class NPModelGC11:
         self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=band_mask_range, mask_ring=True, inner=0, outer=r_outer, custom_mask=mask_ps)
         self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
         self.normalization_mask = self.mask_plane
+        self.nm = self.normalization_mask
         self.npixROI = int(np.sum(~self.mask_roi))
         print(f'Number of pixels in ROI: {np.sum(~self.mask_roi)}')
 
         #========== Templates ==========
-        self.vary_gamma = vary_gamma
         self.nfw_template = NFWTemplate(nside=self.nside)
-        self.temp_p_nfw_fixed = self.nfw_template.get_NFW2_template(gamma=1.0)
-        self.temp_ps_nfw_fixed = self.nfw_template.get_NFW2_template(gamma=1.2)
-        if self.non_poissonian:
-            self.vary_disk = vary_disk
-            self.disk_template = LorimerDiskTemplate(nside=self.nside)
-            self.temp_p_dsk_fixed = self.disk_template.get_template(zs=0.6, C=6.)
+        # self.temp_p_nfw_fixed = self.nfw_template.get_NFW2_template(gamma=1.0)
+        # self.temp_ps_nfw_fixed = self.nfw_template.get_NFW2_template(gamma=1.2)
+        self.disk_template = LorimerDiskTemplate(nside=self.nside)
+        # self.temp_p_dsk_fixed = self.disk_template.get_template(zs=0.6, C=6.)
+        
+        self.blg_names = bulge_template_names
+        self.blg = jnp.array([BulgeTemplates(template_name=template_name, nside_out=nside)() for template_name in bulge_template_names])
+        self.n_blg = len(self.blg)
+        self.blg = self.blg / jnp.mean(self.blg[:, ~self.nm], axis=-1)[:, None]
         
         self.dif_names = dif_names
-        
-        # Load all bulge templates
-        self.blg_names = bulge_template_names
-        self.bulge_hybrid = bulge_hybrid
-        self.bulge_templates = jnp.array([BulgeTemplates(template_name=template_name, nside_out=nside)() for template_name in bulge_template_names])
-        if self.bulge_hybrid:
-            self.n_bulge_templates = len(self.bulge_templates)
-        else:
-            self.n_bulge_templates = 1
-        # Individually normalize the bulge templates
-        self.bulge_templates = self.bulge_templates / jnp.mean(self.bulge_templates[:, ~self.normalization_mask], axis=-1)[:, None]
-        
         self.load_templates()
 
         #========== Spherical harmonics ==========
@@ -135,23 +121,21 @@ class NPModelGC11:
         self.get_sphharms()
         
         #========== NPTF ==========
-        if self.non_poissonian:
-            self.get_psf_correction()
-            self.k_max = np.max(np.array(self.data)[~self.mask_roi])
-            print("Max photon count is {}".format(self.k_max))
-        
-        self.get_exp_regions(n_exp)
+        self.psf_tags = psf_tags
+        self.get_psf_correction()
+        self.k_max = np.max(np.array(self.data)[~self.mask_roi])
+        print("Max photon count is {}".format(self.k_max))
+        # self.get_exp_regions(n_exp)
         
         #========== sample expand keys ==========
         self.samples_expand_keys = {
             'theta_pib' : [f'theta_pib_{n}' for n in self.dif_names],
             'theta_ics' : [f'theta_ics_{n}' for n in self.dif_names],
-            'theta_bulge_poiss' : [f'theta_poiss_{n}' for n in self.blg_names],
-            'theta_bulge_ps' : [f'theta_ps_{n}' for n in self.blg_names],
+            'theta_blg' : [f'theta_blg_{n}' for n in self.blg_names],
+            'theta_blg_ps' : [f'theta_blg_ps_{n}' for n in self.blg_names],
         }
-        
-        #========== Other ==========
-        self.debug_model = debug_model
+        self.svi = None
+        self.svi_init_state = None
         
         
     def get_psf_correction(self):
@@ -159,6 +143,8 @@ class NPModelGC11:
         ['king', 'old']
         ['king', 'new']
         ['delta']
+        ['delta', 'analytic']
+        ['deltasimple']
         """
 
         psf_tags = self.psf_tags
@@ -195,17 +181,22 @@ class NPModelGC11:
             pc_inst.psf_tag = f"Delta_PSF_2GeV2_nside{self.nside}"
             pc_inst.make_or_load_psf_corr(force_recompute=True)
 
-            if 'mod0count' in psf_tags:
-                npix_before = np.sum(pc_inst.df_rho_div_f_ary[1:] * pc_inst.f_ary[1:])
-                npix0 = 6839 - npix_before
-                pc_inst.df_rho_div_f_ary[0] = npix0 / pc_inst.f_ary[0]
-                pc_inst.df_rho_div_f_ary /= np.sum(pc_inst.df_rho_div_f_ary * pc_inst.f_ary**2)
+            # if 'analytic' in psf_tags:
+            #     pc_inst.f_ary[-1] = 1.
+            #     pc_inst.df_rho_ary *= 0.
+            #     pc_inst.df_rho_ary[-1] = 1./pc_inst.f_ary[-1]
+            #     pc_inst.df_rho_ary[0] = 0. # does not matter
+
+        elif 'deltasimple' in psf_tags:
+            self.f_ary = jnp.array([0., 1.])
+            self.df_rho_ary = jnp.array([0., 1.])
+            return
 
         else:
             raise ValueError(psf_tags)
 
         self.f_ary = pc_inst.f_ary
-        self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
+        self.df_rho_ary = pc_inst.df_rho_ary
 
     def get_sphharms(self):
         
@@ -220,17 +211,15 @@ class NPModelGC11:
         self.temp_psc = np.load("{}/template_psc_{}.npy".format(self.data_dir, self.ps_cat))
         self.temp_iso = np.load("{}/template_iso.npy".format(self.data_dir))
         self.temp_bub = np.load("{}/template_bub.npy".format(self.data_dir))
-        self.temp_dsk = np.load("{}/template_dsk_z0p3.npy".format(self.data_dir))
+        self.temp_pcs = self.temp_psc / np.mean(self.temp_psc[~self.nm])
+        self.temp_iso = self.temp_iso / np.mean(self.temp_iso[~self.nm])
+        self.temp_bub = self.temp_bub / np.mean(self.temp_bub[~self.nm])
+        # self.temp_dsk = np.load("{}/template_dsk_z0p3.npy".format(self.data_dir))
 
-        # Load Model O templates
         self.temp_mO_pib = np.load("{}/template_Opi.npy".format(self.data_dir))
         self.temp_mO_ics = np.load("{}/template_Oic.npy".format(self.data_dir))
-
-        # Load Model A templates
         self.temp_mA_pib = np.load("{}/template_Api.npy".format(self.data_dir))
         self.temp_mA_ics = np.load("{}/template_Aic.npy".format(self.data_dir))
-
-        # Load Model F templates
         self.temp_mF_pib = np.load("{}/template_Fpi.npy".format(self.data_dir))
         self.temp_mF_ics = np.load("{}/template_Fic.npy".format(self.data_dir))
                 
@@ -238,22 +227,19 @@ class NPModelGC11:
         self.ics = []
         
         if "ModelO" in self.dif_names:
-            self.pib.append(self.temp_mO_pib)
-            self.ics.append(self.temp_mO_ics)
+            self.pib.append(self.temp_mO_pib / np.mean(self.temp_mO_pib[~self.nm]))
+            self.ics.append(self.temp_mO_ics / np.mean(self.temp_mO_ics[~self.nm]))
         if "ModelA" in self.dif_names:
-            self.pib.append(self.temp_mA_pib)
-            self.ics.append(self.temp_mA_ics)
+            self.pib.append(self.temp_mA_pib / np.mean(self.temp_mA_pib[~self.nm]))
+            self.ics.append(self.temp_mA_ics / np.mean(self.temp_mA_ics[~self.nm]))
         if "ModelF" in self.dif_names:
-            self.pib.append(self.temp_mF_pib)
-            self.ics.append(self.temp_mF_ics)
+            self.pib.append(self.temp_mF_pib / np.mean(self.temp_mF_pib[~self.nm]))
+            self.ics.append(self.temp_mF_ics / np.mean(self.temp_mF_ics[~self.nm]))
             
         self.pib = jnp.array(self.pib)
         self.ics = jnp.array(self.ics)
         
-        self.n_dif_templates = len(self.dif_names)
-        
-        self.svi = None
-        self.svi_init_state = None
+        self.n_dif = len(self.dif_names)
 
     def model(self, data=...):
         
@@ -528,9 +514,281 @@ class NPModelGC17 (NPModelGC11):
             npt_compressed=npt_compressed,
             data=data[~self.mask_roi],
             f_ary=self.f_ary,
-            df_rho_div_f_ary=self.df_rho_div_f_ary,
+            df_rho_ary=self.df_rho_ary,
             k_max=self.k_max,
             npixROI=self.npixROI,
         )
         with numpyro.plate('data', self.npixROI):
+            return numpyro.factor('ll', ll)
+
+
+class NPModelGC2 (NPModelGC11):
+
+    def set_truth(self, truth_dict):
+        self.truth_dict = truth_dict
+
+    def model(self, data=...):
+        
+        mu = jnp.zeros_like(data)
+
+        # poissonian
+        S_pib = self.truth_dict['S_pib']
+        S_ics = self.truth_dict['S_ics']
+        S_bub = self.truth_dict['S_bub']
+        S_nfw = self.truth_dict['S_nfw']
+        S_dsk = self.truth_dict['S_dsk']
+
+        nm = self.normalization_mask
+        mu += S_pib * self.pib[0] / jnp.mean(self.pib[0][~nm])
+        mu += S_ics * self.ics[0] / jnp.mean(self.ics[0][~nm])
+        mu += S_bub * self.temp_bub / jnp.mean(self.temp_bub[~nm])
+        mu += S_dsk * self.temp_p_dsk_fixed / jnp.mean(self.temp_p_dsk_fixed[~nm])
+        mu += S_nfw * self.temp_p_nfw_fixed / jnp.mean(self.temp_p_nfw_fixed[~nm])
+
+        # non-poissonian
+        temp_ps_nfw = self.temp_ps_nfw_fixed[~self.mask_roi] / jnp.mean(self.temp_ps_nfw_fixed[~nm])
+        temp_ps_dsk = self.temp_p_dsk_fixed[~self.mask_roi] / jnp.mean(self.temp_p_dsk_fixed[~nm]) # same template as poissonian
+        npt_compressed = jnp.array([temp_ps_nfw, temp_ps_dsk])
+
+        theta = []
+        for ps in ["nfw", "dsk"]:
+            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
+            n1 = self.truth_dict[f'n1_{ps}']
+            n2 = self.truth_dict[f'n2_{ps}']
+            n3 = self.truth_dict[f'n3_{ps}']
+            sb1 = self.truth_dict[f'sb1_{ps}']
+            lambda_s = self.truth_dict[f'lambdas_{ps}']
+
+            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
+            s_ary = jnp.logspace(-1., 2., 1000)
+            dnds_ary = dnds(s_ary, theta_tmp)
+            num_photon_for_unit_theta0 = jnp.trapz(s_ary * dnds_ary, s_ary)
+            theta.append([Sps / num_photon_for_unit_theta0, n1, n2, n3, sb1, lambda_s * sb1])
+        theta = jnp.array(theta)
+        
+        ll = log_like_np(
+            theta=theta,
+            pt_sum_compressed=mu[~self.mask_roi],
+            npt_compressed=npt_compressed,
+            data=data[~self.mask_roi],
+            f_ary=self.f_ary,
+            df_rho_ary=self.df_rho_ary,
+            k_max=self.k_max,
+            npixROI=self.npixROI,
+        )
+        with numpyro.plate('data', self.npixROI):
+            return numpyro.factor('ll', ll)
+
+
+class NPModelGC2SCF (NPModelGC11):
+
+    def set_truth(self, truth_dict):
+        self.truth_dict = truth_dict
+
+    def model(self, data=...):
+        
+        mu = jnp.zeros_like(data)
+
+        # poissonian
+        S_pib = self.truth_dict['S_pib']
+        S_ics = self.truth_dict['S_ics']
+        S_bub = self.truth_dict['S_bub']
+        S_nfw = self.truth_dict['S_nfw']
+        S_dsk = self.truth_dict['S_dsk']
+
+        nm = self.normalization_mask
+        mu += S_pib * self.pib[0] / jnp.mean(self.pib[0][~nm])
+        mu += S_ics * self.ics[0] / jnp.mean(self.ics[0][~nm])
+        mu += S_bub * self.temp_bub / jnp.mean(self.temp_bub[~nm])
+        mu += S_dsk * self.temp_p_dsk_fixed / jnp.mean(self.temp_p_dsk_fixed[~nm])
+        mu += S_nfw * self.temp_p_nfw_fixed / jnp.mean(self.temp_p_nfw_fixed[~nm])
+
+        # non-poissonian
+        temp_ps_nfw = self.temp_ps_nfw_fixed[~self.mask_roi] / jnp.mean(self.temp_ps_nfw_fixed[~nm])
+        temp_ps_dsk = self.temp_p_dsk_fixed[~self.mask_roi] / jnp.mean(self.temp_p_dsk_fixed[~nm]) # same template as poissonian
+        npt_compressed = jnp.array([temp_ps_nfw, temp_ps_dsk])
+
+        theta = []
+        for ps in ["nfw", "dsk"]:
+            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
+            n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
+            n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
+            n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
+            sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
+            lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
+
+            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
+            s_ary = jnp.logspace(-1., 2., 1000)
+            dnds_ary = dnds(s_ary, theta_tmp)
+            num_photon_for_unit_theta0 = jnp.trapz(s_ary * dnds_ary, s_ary)
+            theta.append([Sps / num_photon_for_unit_theta0, n1, n2, n3, sb1, lambda_s * sb1])
+        theta = jnp.array(theta)
+        
+        ll = log_like_np(
+            theta=theta,
+            pt_sum_compressed=mu[~self.mask_roi],
+            npt_compressed=npt_compressed,
+            data=data[~self.mask_roi],
+            f_ary=self.f_ary,
+            df_rho_ary=self.df_rho_ary,
+            k_max=self.k_max,
+            npixROI=self.npixROI,
+        )
+        with numpyro.plate('data', self.npixROI):
+            return numpyro.factor('ll', ll)
+
+
+class NPModelGC7 (NPModelGC11):
+
+    def set_truth(self, truth_dict):
+        self.truth_dict = truth_dict
+
+    def model(self, data=...):
+        
+        mu = jnp.zeros_like(data)
+
+        # poissonian
+        S_pib = numpyro.sample("S_pib", dist.Uniform(1e-3, 14.))
+        S_ics = numpyro.sample("S_ics", dist.Uniform(1e-3, 14.))
+        S_bub = numpyro.sample("S_bub", dist.Uniform(1e-3, 5.))
+        S_nfw = numpyro.sample("S_nfw", dist.Uniform(1e-3, 5.))
+        S_dsk = numpyro.sample("S_dsk", dist.Uniform(1e-3, 5.))
+
+        nm = self.normalization_mask
+        mu += S_pib * self.pib[0] / jnp.mean(self.pib[0][~nm])
+        mu += S_ics * self.ics[0] / jnp.mean(self.ics[0][~nm])
+        mu += S_bub * self.temp_bub / jnp.mean(self.temp_bub[~nm])
+        mu += S_dsk * self.temp_p_dsk_fixed / jnp.mean(self.temp_p_dsk_fixed[~nm])
+        mu += S_nfw * self.temp_p_nfw_fixed / jnp.mean(self.temp_p_nfw_fixed[~nm])
+
+        # non-poissonian
+        temp_ps_nfw = self.temp_ps_nfw_fixed[~self.mask_roi] / jnp.mean(self.temp_ps_nfw_fixed[~nm])
+        temp_ps_dsk = self.temp_p_dsk_fixed[~self.mask_roi] / jnp.mean(self.temp_p_dsk_fixed[~nm]) # same template as poissonian
+        npt_compressed = jnp.array([temp_ps_nfw, temp_ps_dsk])
+
+        theta = []
+        for ps in ["nfw", "dsk"]:
+            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
+            n1 = self.truth_dict[f'n1_{ps}']
+            n2 = self.truth_dict[f'n2_{ps}']
+            n3 = self.truth_dict[f'n3_{ps}']
+            sb1 = self.truth_dict[f'sb1_{ps}']
+            lambda_s = self.truth_dict[f'lambdas_{ps}']
+
+            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
+            s_ary = jnp.logspace(-1., 2., 1000)
+            dnds_ary = dnds(s_ary, theta_tmp)
+            num_photon_for_unit_theta0 = jnp.trapz(s_ary * dnds_ary, s_ary)
+            theta.append([Sps / num_photon_for_unit_theta0, n1, n2, n3, sb1, lambda_s * sb1])
+        theta = jnp.array(theta)
+        
+        ll = log_like_np(
+            theta=theta,
+            pt_sum_compressed=mu[~self.mask_roi],
+            npt_compressed=npt_compressed,
+            data=data[~self.mask_roi],
+            f_ary=self.f_ary,
+            df_rho_ary=self.df_rho_ary,
+            k_max=self.k_max,
+            npixROI=self.npixROI,
+        )
+        with numpyro.plate('data', self.npixROI):
+            return numpyro.factor('ll', ll)
+
+
+class NPModelGCFull (NPModelGC11):
+
+    def set_truth(self, truth_dict):
+        self.truth_dict = truth_dict
+
+    def model(self, data=...):
+        
+        # self.k_max = jnp.max(self.data[~self.mask_roi])
+        mu = jnp.zeros_like(data)
+        nm = self.nm
+
+        # poissonian fixed (20): pib*3 ics*3 iso bub psc blg*5 Alm*6
+        S_pib = numpyro.sample("S_pib", dist.Uniform(1e-4, 14.))
+        theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif,)) / self.n_dif))
+        temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)
+        multiplier_pib = jnp.zeros_like(data)
+        for ii in range(len(self.Ylm_temps)):
+            Alm = numpyro.sample("Alm_{}".format(ii), dist.Uniform(-0.05, 0.05))
+            multiplier_pib += Alm * self.Ylm_temps[ii]
+        temp_pib = (1. + multiplier_pib) * temp_pib
+        temp_pib = temp_pib / jnp.mean(temp_pib[~nm])
+        mu += S_pib * temp_pib
+        
+        S_ics = numpyro.sample("S_ics", dist.Uniform(1e-4, 10.))
+        theta_ics = numpyro.sample("theta_ics", dist.Dirichlet(jnp.ones((self.n_dif,)) / self.n_dif))
+        mu += S_ics * jnp.sum(theta_ics[:, None] * self.ics, 0)
+        
+        S_iso = numpyro.sample("S_iso", dist.Uniform(1e-4, 4.))
+        S_bub = numpyro.sample("S_bub", dist.Uniform(1e-4, 4.))
+        S_psc = numpyro.sample("S_psc", dist.Uniform(1e-4, 4.))
+        mu += S_iso * self.temp_iso / jnp.mean(self.temp_iso[~nm])
+        mu += S_bub * self.temp_bub / jnp.mean(self.temp_bub[~nm])
+        mu += S_psc * self.temp_psc / jnp.mean(self.temp_psc[~nm])
+
+        S_blg = numpyro.sample("S_blg", dist.Uniform(1e-4, 4.))
+        theta_blg = numpyro.sample("theta_blg", dist.Dirichlet(jnp.ones((self.n_blg,)) / self.n_blg))
+        mu += S_blg * jnp.sum(theta_blg[:, None] * self.blg, 0)
+
+        # poissonian variable (2): nfw
+        S_nfw = numpyro.sample("S_nfw", dist.Uniform(1e-4, 5.))
+        gamma_poiss = numpyro.sample("gamma_poiss", dist.Uniform(0.2, 2.))
+        temp_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
+        mu += S_nfw * temp_nfw_poiss / jnp.mean(temp_nfw_poiss[~nm])
+
+        # non-poissonian (20): gce 7+5 dsk 3+5
+        Sps_nfw = numpyro.sample("Sps_nfw", dist.Uniform(1e-4, 4.))
+        gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.))
+        temp_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps)
+        temp_gce_ps = Sps_nfw * temp_nfw_ps / jnp.mean(temp_nfw_ps[~nm])
+
+        Sps_blg = numpyro.sample("Sps_blg", dist.Uniform(1e-4, 4.))
+        theta_blg_ps = numpyro.sample("theta_blg_ps", dist.Dirichlet(jnp.ones((self.n_blg,)) / self.n_blg))
+        temp_gce_ps += Sps_blg * jnp.sum(theta_blg_ps[:, None] * self.blg, 0)
+        Sps_gce = jnp.mean(temp_gce_ps[~nm]) # definition of Sps_gce
+        temp_gce_ps = temp_gce_ps / Sps_gce
+
+        Sps_dsk = numpyro.sample("Sps_dsk", dist.Uniform(1e-4, 4.))
+        zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
+        C = numpyro.sample("C", dist.Uniform(0.05, 8.))
+        temp_dsk_ps = self.disk_template.get_template(zs=zs, C=C)
+        temp_dsk_ps = temp_dsk_ps / jnp.mean(temp_dsk_ps[~nm])
+
+        npt_compressed = jnp.array([temp_gce_ps[~self.mask_roi], temp_dsk_ps[~self.mask_roi]])
+
+        theta = []
+        for ps in ["gce", "dsk"]:
+            Sps = Sps_gce if ps == "gce" else Sps_dsk
+            n1 = numpyro.sample(f"n1_{ps}", dist.Uniform(4.0, 6.0))
+            n2 = numpyro.sample(f"n2_{ps}", dist.Uniform(0.5, 1.99))
+            n3 = numpyro.sample(f"n3_{ps}", dist.Uniform(-6., -5.))
+            sb1 = numpyro.sample(f"sb1_{ps}", dist.Uniform(5., 40.0))
+            lambda_s = numpyro.sample(f"lambdas_{ps}", dist.Uniform(0.1, 0.95))
+
+            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
+            s_ary = jnp.logspace(-1., 2., 1000)
+            dnds_ary = dnds(s_ary, theta_tmp)
+            num_photon_for_unit_theta0 = jnp.trapz(s_ary * dnds_ary, s_ary)
+            theta.append([Sps / num_photon_for_unit_theta0, n1, n2, n3, sb1, lambda_s * sb1])
+        theta = jnp.array(theta)
+        
+        ll = log_like_np(
+            theta=theta,
+            pt_sum_compressed=mu[~self.mask_roi],
+            npt_compressed=npt_compressed,
+            data=data[~self.mask_roi],
+            f_ary=self.f_ary,
+            df_rho_ary=self.df_rho_ary,
+            k_max=self.k_max,
+            npixROI=self.npixROI,
+        )
+        ll = jnp.where(jnp.isnan(ll), -jnp.inf, ll)
+        ll = jnp.where(jnp.isinf(ll), -100., ll)
+        # ll = jnp.nan_to_num(ll)
+        with numpyro.plate('data', self.npixROI):
+            # with handlers.mask(mask=~jnp.logical_or(jnp.isinf(ll), jnp.isnan(ll))):
             return numpyro.factor('ll', ll)
