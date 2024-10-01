@@ -6,6 +6,7 @@ import numpy as np
 
 wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
 sys.path.append(f"{wdir}/..")
+from models.np_model_gc import NPModelGC17
 from models.np_model import NPModel
 from simulations.wrapper import simulator
 
@@ -80,11 +81,13 @@ if __name__ == '__main__':
     delta_psf = True
 
     truth_dict = json.load(open('truth_dict_gc17.json', 'r'))
+    # m = NPModelGC17(psf_tags=['deltasimple'])
     m = NPModel()
+    print('psf not used as model is just for template loading!')
 
     sims = []
     for _ in tqdm(range(n_sim)):
         sims.append(simulator_for_model_gc17(m, truth_dict, delta_psf=delta_psf))
     sims = np.array(sims)
     psf_name = "delta" if delta_psf else "king"
-    np.save(f"{out_dir}/sim_gc17_{psf_name}psf_n{n_sim}.npy", sims)
+    np.save(f"{out_dir}/sim_gc17_{psf_name}psf_n{n_sim}_debug_npmodelsim.npy", sims)

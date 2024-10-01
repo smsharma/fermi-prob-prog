@@ -1,0 +1,23 @@
+{
+    "S_pib": 11.2,
+    "S_ics": 6.5,
+    "S_bub": 1.4,
+    "S_nfw": 0.6,
+    "S_dsk": 0.3,
+    "Sps_nfw": 1.0,
+    "n1_nfw": 5.0,
+    "n2_nfw": 1.0,
+    "n3_nfw": -5.5,
+    "sb1_nfw": 10.0,
+    "lambdas_nfw": 0.4,
+    "Sps_dsk": 0.3,
+    "n1_dsk": 5.0,
+    "n2_dsk": 1.0,
+    "n3_dsk": -5.5,
+    "sb1_dsk": 15.0,
+    "lambdas_dsk": 0.7,
+    "zs": 0.6,
+    "C": 6.0,
+    "gamma_poiss": 1.0,
+    "gamma_ps": 1.2
+}
