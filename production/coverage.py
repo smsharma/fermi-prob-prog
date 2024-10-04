@@ -16,7 +16,7 @@ if __name__ == '__main__':
     #===== CONTROLS =====#
     model_name = 'gcfull'
     data_name = 'gcfull'
-    samples_dir = f"{wdir}/../outputs/fit/svi_{model_name}_{data_name}_deltapsf_0930"
+    samples_dir = f"{wdir}/../outputs/fit/hmc_{model_name}_{data_name}_deltapsf_1002"
     n_sim = 30
 
     #===== SETTINGS =====#
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     elif model_name == 'gc2scf':
         ks = ['Sps_nfw', 'lambdas_nfw', 'n1_nfw', 'n2_nfw', 'n3_nfw', 'sb1_nfw',
               'Sps_dsk', 'lambdas_dsk', 'n1_dsk', 'n2_dsk', 'n3_dsk', 'sb1_dsk']
-    elif model_name == 'gcfull':
+    elif model_name in ['gcfull', 'gcfullAlm']:
         ks = ["S_pib", "S_ics", "S_iso", "S_bub", "S_psc", "S_blg", "S_nfw", "gamma_poiss",
               "Sps_nfw", "gamma_ps", "Sps_blg", "Sps_dsk", "zs", "C",
               "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
@@ -57,7 +57,8 @@ if __name__ == '__main__':
     samples_list = []
     i_list = []
     for i in tqdm(range(n_sim)):
-        fn = f"{samples_dir}/svi_samples_i{i}_n50000_ns10000.p"
+        # fn = f"{samples_dir}/svi_samples_i{i}_n50000_ns10000.p"
+        fn = f"{samples_dir}/hmc_samples_i{i}_n10000_ns0.p"
         if not os.path.exists(fn):
             continue
         sample = pickle.load(open(fn, 'rb'))
@@ -66,6 +67,7 @@ if __name__ == '__main__':
         samples_list.append(sample)
         i_list.append(i)
     print('existing files', i_list)
+    print('total', len(i_list))
     
     prob_samples = {}
     for k in tqdm(ks):

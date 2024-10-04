@@ -88,7 +88,7 @@ def psf_corr(nside, num_f_bins, n_psf, n_pts_per_psf, f_trunc, psf_r_func, sampl
     if isinstance(num_f_bins, int):
         rho_ary, f_bin_edges = np.histogram(f_values_trunc, bins=num_f_bins, range=(0.0, 1.0))
     elif num_f_bins == 'nonuni':
-        n_f_bins = 30
+        n_f_bins = 15
         n_f_log = int(0.2 * n_f_bins)
         n_f_lin = n_f_bins - n_f_log - 1
         f_log_edges = np.geomspace(1e-5, 0.1, n_f_log+1)[:-1]

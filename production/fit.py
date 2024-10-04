@@ -59,9 +59,16 @@ if __name__ == '__main__':
         'gc2scf' : NPModelGC2SCF,
         'gc7' : NPModelGC7,
         'gcfull': NPModelGCFull,
+        'gcfullAlm': NPModelGCFull,
     }
-    m = ModelDict[args.model](psf_tags=psf_tags, data=data_in)
-    if args.model in ['gc2', 'gc2scf', 'gc7', 'gcfull']: # the models that requires truth_dict
+    kwargs = dict(
+        psf_tags=psf_tags,
+        data=data_in,
+    )
+    if args.model == 'gcfullAlm':
+        kwargs.update(dict(Alm=True))
+    m = ModelDict[args.model](**kwargs)
+    if args.model in ['gc2', 'gc2scf', 'gc7', 'gcfull', 'gcfullAlm']: # the models that requires truth_dict
         truth_dict = json.load(open(f"{wdir}/truth_dict_{args.data}.json"))
         m.set_truth(truth_dict)
 

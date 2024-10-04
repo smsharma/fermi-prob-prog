@@ -143,7 +143,6 @@ class NPModelGC11:
         ['king', 'old']
         ['king', 'new']
         ['delta']
-        ['delta', 'analytic']
         ['deltasimple']
         """
 
@@ -698,6 +697,10 @@ class NPModelGC7 (NPModelGC11):
 
 class NPModelGCFull (NPModelGC11):
 
+    def __init__(self, Alm=False, **kwargs):
+        super().__init__(**kwargs)
+        self.Alm = Alm
+
     def set_truth(self, truth_dict):
         self.truth_dict = truth_dict
 
@@ -707,15 +710,16 @@ class NPModelGCFull (NPModelGC11):
         mu = jnp.zeros_like(data)
         nm = self.nm
 
-        # poissonian fixed (20): pib*3 ics*3 iso bub psc blg*5 Alm*6
+        # poissonian fixed (14): pib*3 ics*3 iso bub psc blg*5
         S_pib = numpyro.sample("S_pib", dist.Uniform(1e-4, 14.))
         theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif,)) / self.n_dif))
         temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)
-        multiplier_pib = jnp.zeros_like(data)
-        for ii in range(len(self.Ylm_temps)):
-            Alm = numpyro.sample("Alm_{}".format(ii), dist.Uniform(-0.05, 0.05))
-            multiplier_pib += Alm * self.Ylm_temps[ii]
-        temp_pib = (1. + multiplier_pib) * temp_pib
+        if self.Alm: # Alm (6)
+            multiplier_pib = jnp.zeros_like(data)
+            for ii in range(len(self.Ylm_temps)):
+                Alm = numpyro.sample("Alm_{}".format(ii), dist.Uniform(-0.05, 0.05))
+                multiplier_pib += Alm * self.Ylm_temps[ii]
+            temp_pib = (1. + multiplier_pib) * temp_pib
         temp_pib = temp_pib / jnp.mean(temp_pib[~nm])
         mu += S_pib * temp_pib
         

@@ -110,8 +110,8 @@ if __name__ == '__main__':
 
     out_dir = f"{wdir}/../outputs/simulations"
     n_sim = 100
-    delta_psf = True
-    data_name = 'gcfull_largeSpsnfw'
+    delta_psf = False
+    data_name = 'gcfull'
 
     truth_dict = json.load(open(f"truth_dict_{data_name}.json", 'r'))
     m = NPModelGCFull(psf_tags=['deltasimple'], data=np.zeros((hp.nside2npix(128),))) # dummy data
