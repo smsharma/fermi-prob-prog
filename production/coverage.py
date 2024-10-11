@@ -14,9 +14,9 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     #===== CONTROLS =====#
-    model_name = 'gcfull'
+    model_name = 'gcfullAlm'
     data_name = 'gcfull'
-    samples_dir = f"{wdir}/../outputs/fit/hmc_{model_name}_{data_name}_deltapsf_1002"
+    samples_dir = f"{wdir}/../outputs/fit/hmc_{model_name}_{data_name}_kingpsf_1004"
     n_sim = 30
 
     #===== SETTINGS =====#
