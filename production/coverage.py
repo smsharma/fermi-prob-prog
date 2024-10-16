@@ -16,7 +16,7 @@ if __name__ == '__main__':
     #===== CONTROLS =====#
     model_name = 'gcfullAlm'
     data_name = 'gcfull'
-    samples_dir = f"{wdir}/../outputs/fit/hmc_{model_name}_{data_name}_kingpsf_1004"
+    samples_dir = f"/n/holylabs/LABS/iaifi_lab/Users/yitians/fermi/fermi-prob-prog/outputs/fit/hmc_{model_name}_{data_name}_kingpsf_kmax103"
     n_sim = 30
 
     #===== SETTINGS =====#

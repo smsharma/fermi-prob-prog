@@ -69,6 +69,8 @@ class NPModel:
         use_flat_exposure=False, # TMP
         debug_model=False,
         data=None,
+        psf_tags=None,
+        **kwargs,
     ):
         
         #========== General ==========
@@ -78,7 +80,8 @@ class NPModel:
         
         self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
         if data is None:
-            self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
+            raise NotImplementedError("data is None")
+            # self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
         else:
             self.data = data
         self.exposure_map = np.load("{}/fermidata_exposure.npy".format(self.data_dir))
@@ -131,7 +134,7 @@ class NPModel:
         
         #========== NPTF ==========
         if self.non_poissonian:
-            self.get_psf_correction()
+            self.get_psf_correction(psf_tags)
             self.k_max = np.max(np.array(self.data)[~self.mask_roi])
             print("Max photon count is {}".format(self.k_max))
         
@@ -149,10 +152,10 @@ class NPModel:
         self.debug_model = debug_model
         
         
-    def get_psf_correction(self):
+    def get_psf_correction(self, psf_tags):
 
-        #psf_tags = ['king', 'old']
-        psf_tags = ['delta']
+        # psf_tags = ['king', 'old']
+        # psf_tags = ['delta']
         print(f'Using PSF tags: {psf_tags}')
 
         if 'king' in psf_tags:
@@ -161,6 +164,7 @@ class NPModel:
                 pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside, f_trunc=0.01)
                 print('!!! USING OLD F BIN !!!')
             elif 'new' in psf_tags:
+                raise NotImplementedError('Fix first f bin is zero problem.')
                 # new nonuniform f binning
                 pc_inst = PSFCorrection(
                     delay_compute=True, num_f_bins='nonuni', nside=self.nside, f_trunc=0.00,
@@ -186,17 +190,18 @@ class NPModel:
             pc_inst.psf_tag = f"Delta_PSF_2GeV2_nside{self.nside}"
             pc_inst.make_or_load_psf_corr(force_recompute=True)
 
-            if 'mod0count' in psf_tags:
-                npix_before = np.sum(pc_inst.df_rho_div_f_ary[1:] * pc_inst.f_ary[1:])
-                npix0 = 6839 - npix_before
-                pc_inst.df_rho_div_f_ary[0] = npix0 / pc_inst.f_ary[0]
-                pc_inst.df_rho_div_f_ary /= np.sum(pc_inst.df_rho_div_f_ary * pc_inst.f_ary**2)
+            # if 'mod0count' in psf_tags:
+            #     npix_before = np.sum(pc_inst.df_rho_div_f_ary[1:] * pc_inst.f_ary[1:])
+            #     npix0 = 6839 - npix_before
+            #     pc_inst.df_rho_div_f_ary[0] = npix0 / pc_inst.f_ary[0]
+            #     pc_inst.df_rho_div_f_ary /= np.sum(pc_inst.df_rho_div_f_ary * pc_inst.f_ary**2)
 
         else:
             raise ValueError(psf_tags)
 
-        # self.f_ary = pc_inst.f_ary
-        # self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
+        self.f_ary = pc_inst.f_ary
+        # self.df_rho_ary = pc_inst.df_rho_ary
+        self.df_rho_div_f_ary = pc_inst.df_rho_ary / pc_inst.f_ary
 
     def get_sphharms(self):
         

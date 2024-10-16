@@ -124,6 +124,10 @@ class NPModelGC11:
         self.psf_tags = psf_tags
         self.get_psf_correction()
         self.k_max = np.max(np.array(self.data)[~self.mask_roi])
+        # self.k_max = 103
+        # print("WARNING: forcing k_max to be 103!!!")
+        # print("WARNING: forcing k_max to be 103!!!")
+        # print("WARNING: forcing k_max to be 103!!!")
         print("Max photon count is {}".format(self.k_max))
         # self.get_exp_regions(n_exp)
         

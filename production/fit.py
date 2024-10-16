@@ -12,6 +12,7 @@ import jax.numpy as jnp
 wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
 sys.path.append(f"{wdir}/..")
 from models.np_model_gc import NPModelGC11, NPModelGC17, NPModelGC2, NPModelGC2SCF, NPModelGC7, NPModelGCFull
+from models.np_model import NPModel
 
 
 if __name__ == '__main__':
@@ -30,7 +31,7 @@ if __name__ == '__main__':
     #===== DIRS =====#
     wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
     data_dir = f"{wdir}/../outputs/simulations"
-    save_dir = f"{wdir}/../outputs/fit/{args.fit_type}_{args.model}_{args.data}_{args.psf}psf_{args.label}"
+    save_dir = f"/n/holylabs/LABS/iaifi_lab/Users/yitians/fermi/fermi-prob-prog/outputs/fit/{args.fit_type}_{args.model}_{args.data}_{args.psf}psf_{args.label}"
     os.makedirs(save_dir, exist_ok=True)
 
     #===== MASK & DATA =====#
@@ -44,7 +45,9 @@ if __name__ == '__main__':
 
     #===== PSF & MODEL =====#
     if args.psf == 'king':
-        psf_tags = ['king', 'new']
+        psf_tags = ['king', 'old']
+    # elif args.psf == 'kingold':
+    #     psf_tags = ['king', 'old']
     elif args.psf == 'delta':
         psf_tags = ['deltasimple']
         # print('USING OLD DELTA PSF FOR DEBUGING')
@@ -60,6 +63,7 @@ if __name__ == '__main__':
         'gc7' : NPModelGC7,
         'gcfull': NPModelGCFull,
         'gcfullAlm': NPModelGCFull,
+        'old': NPModel,
     }
     kwargs = dict(
         psf_tags=psf_tags,
