@@ -16,7 +16,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
 
     the_map = np.zeros(np.sum(~mask_sim))
     aux_vars = np.zeros(2)
-    s_ary = np.logspace(-1, 2, 1000)
+    s_ary = np.logspace(-1, 2, 100)
 
     good_map = False  # Check so map doesn't contain all zeros or nans or infs
 
@@ -184,6 +184,7 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
     else:
         kp = KingPSF()
         psf_r_func = lambda r: kp.psf_fermi_r(r)
+        print('Using King PSF')
     exp_map = np.array(m.exposure_map)
 
     return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme)[0]

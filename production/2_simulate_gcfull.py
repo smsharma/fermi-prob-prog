@@ -16,7 +16,7 @@ from models.psf import KingPSF
 from utils import create_mask as cm
 
 
-def simulator_for_model_gcfull(m, vd, delta_psf=False):
+def simulator_for_model_gcfull(m, vd, delta_psf=False, flat_exposure=False):
     """Wrapper for simulator function.
 
     Sps: nfw
@@ -99,9 +99,11 @@ def simulator_for_model_gcfull(m, vd, delta_psf=False):
     kp = KingPSF()
     psf_r_func = lambda r: kp.psf_fermi_r(r)
     psf_scheme = 'true delta' if delta_psf else 'original'
-        
-    # exp_map = np.array(m.exposure_map)
-    exp_map = np.ones_like(m.exposure_map)
+    
+    if not flat_exposure:
+        exp_map = np.array(m.exposure_map)
+    else:
+        exp_map = np.ones_like(m.exposure_map)
 
     return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme)[0]
 
@@ -111,7 +113,8 @@ if __name__ == '__main__':
     out_dir = f"{wdir}/../outputs/simulations"
     n_sim = 100
     delta_psf = False
-    data_name = 'gcfull'
+    flat_exposure = False
+    data_name = 'oldnfexp'
 
     truth_dict = json.load(open(f"truth_dict_{data_name}.json", 'r'))
     m = NPModelGCFull(psf_tags=['deltasimple'], data=np.zeros((hp.nside2npix(128),))) # dummy data
@@ -120,7 +123,7 @@ if __name__ == '__main__':
 
     sims = []
     for _ in tqdm(range(n_sim)):
-        sims.append(simulator_for_model_gcfull(m, truth_dict, delta_psf=delta_psf))
+        sims.append(simulator_for_model_gcfull(m, truth_dict, delta_psf=delta_psf, flat_exposure=flat_exposure))
     sims = np.array(sims)
     psf_name = "delta" if delta_psf else "king"
     np.save(f"{out_dir}/sim_{data_name}_{psf_name}psf_n{n_sim}.npy", sims)

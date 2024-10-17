@@ -1,0 +1,17 @@
+{
+    "S_gce": 0.6,
+    "f_bulge_poiss": 0.2,
+    "Sps_gce": 1.0,
+    "f_bulge_ps": 0.8,
+
+}
+
+{
+    "S_blg": 0.2,
+    "S_nfw": 0.5,
+    "Sps_nfw": 0.2,
+    "Sps_blg": 0.8,
+
+    // "Sps_gce": 1.0,
+    // "f_bulge_ps": 0.8
+}

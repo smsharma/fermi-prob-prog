@@ -14,10 +14,12 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     #===== CONTROLS =====#
-    model_name = 'gcfullAlm'
-    data_name = 'gcfull'
-    samples_dir = f"/n/holylabs/LABS/iaifi_lab/Users/yitians/fermi/fermi-prob-prog/outputs/fit/hmc_{model_name}_{data_name}_kingpsf_kmax103"
+    model_name = 'old'
+    data_name = 'oldnfexp'
+    fit_method = 'svi'
+    samples_dir = f"/n/holylabs/LABS/iaifi_lab/Users/yitians/fermi/fermi-prob-prog/outputs/fit/{fit_method}_{model_name}_{data_name}_kingpsf_1017"
     n_sim = 30
+    old_model = False
 
     #===== SETTINGS =====#
     theta_true = json.load(open(f"{wdir}/truth_dict_{data_name}.json"))
@@ -44,12 +46,13 @@ if __name__ == '__main__':
     elif model_name == 'gc2scf':
         ks = ['Sps_nfw', 'lambdas_nfw', 'n1_nfw', 'n2_nfw', 'n3_nfw', 'sb1_nfw',
               'Sps_dsk', 'lambdas_dsk', 'n1_dsk', 'n2_dsk', 'n3_dsk', 'sb1_dsk']
-    elif model_name in ['gcfull', 'gcfullAlm']:
+    elif model_name in ['gcfull', 'gcfullAlm', 'old']:
         ks = ["S_pib", "S_ics", "S_iso", "S_bub", "S_psc", "S_blg", "S_nfw", "gamma_poiss",
               "Sps_nfw", "gamma_ps", "Sps_blg", "Sps_dsk", "zs", "C",
               "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
               "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
-              "Sps_gce", "f_bulge_ps"]
+            #   "Sps_gce", "f_bulge_ps",
+              ]
     else:
         raise ValueError(model_name)
     
@@ -57,13 +60,28 @@ if __name__ == '__main__':
     samples_list = []
     i_list = []
     for i in tqdm(range(n_sim)):
-        # fn = f"{samples_dir}/svi_samples_i{i}_n50000_ns10000.p"
-        fn = f"{samples_dir}/hmc_samples_i{i}_n10000_ns0.p"
+        if fit_method == 'svi':
+            fn = f"{samples_dir}/svi_samples_i{i}_n50000_ns10000.p"
+        elif fit_method == 'hmc':
+            fn = f"{samples_dir}/hmc_samples_i{i}_n10000_ns0.p"
+        else:
+            raise ValueError(fit_method)
+        
         if not os.path.exists(fn):
             continue
         sample = pickle.load(open(fn, 'rb'))
-        sample['Sps_gce'] = sample['Sps_nfw'] + sample['Sps_blg']
-        sample['f_bulge_ps'] = sample['Sps_blg'] / sample['Sps_gce']
+
+        # post-processing
+        if model_name == 'old':
+            sample['S_blg'] = sample['S_gce'] * sample['f_bulge_poiss']
+            sample['S_nfw'] = sample['S_gce'] * (1 - sample['f_bulge_poiss'])
+            sample['Sps_blg'] = sample['Sps_gce'] * sample['f_bulge_ps']
+            sample['Sps_nfw'] = sample['Sps_gce'] * (1 - sample['f_bulge_ps'])
+        else:
+            pass
+            # sample['Sps_gce'] = sample['Sps_nfw'] + sample['Sps_blg']
+            # sample['f_bulge_ps'] = sample['Sps_blg'] / sample['Sps_gce']
+
         samples_list.append(sample)
         i_list.append(i)
     print('existing files', i_list)
