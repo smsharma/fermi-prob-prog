@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     #===== CONTROLS =====#
     model_name = 'old'
-    data_name = 'oldnfexp'
+    data_name = 'oldsim'
     fit_method = 'svi'
     samples_dir = f"/n/holylabs/LABS/iaifi_lab/Users/yitians/fermi/fermi-prob-prog/outputs/fit/{fit_method}_{model_name}_{data_name}_kingpsf_1017"
     n_sim = 30
@@ -51,7 +51,7 @@ if __name__ == '__main__':
               "Sps_nfw", "gamma_ps", "Sps_blg", "Sps_dsk", "zs", "C",
               "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
               "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
-            #   "Sps_gce", "f_bulge_ps",
+              "Sps_gce", "f_bulge_ps",
               ]
     else:
         raise ValueError(model_name)
