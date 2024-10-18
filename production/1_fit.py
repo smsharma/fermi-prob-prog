@@ -1,3 +1,4 @@
+import os
 import sys
 import dill as pickle
 import argparse
@@ -24,6 +25,7 @@ if __name__ == '__main__':
 
     wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
     save_dir = f"{wdir}/../outputs/fit/{args.fit_type}_{args.data}_ns{args.n_step}"
+    os.makedirs(save_dir, exist_ok=True)
 
     mask_roi = jnp.load(f"{wdir}/mask_roi.npy")
     mask_norm = jnp.load(f"{wdir}/mask_norm.npy")

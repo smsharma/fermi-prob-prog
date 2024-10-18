@@ -1,3 +1,4 @@
+import os
 import sys
 import json
 from tqdm import tqdm
@@ -12,8 +13,10 @@ from utils.validation import find_hdi_prob
 
 if __name__ == '__main__':
 
-    samples_dir = f"{wdir}/../outputs/fit/svi_240803"
-    theta_true = json.load(open(f"{wdir}/truth_dict_flat.json"))
+    n_sim = 30
+
+    samples_dir = f"{wdir}/../outputs/fit/svi_base0803_ns2000"
+    theta_true = json.load(open(f"{wdir}/truth_dict.json"))
 
     ks = [
         "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
@@ -22,11 +25,16 @@ if __name__ == '__main__':
         "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
         "C", "zs"
     ]
-    n_sim = 30
 
     samples_list = []
+    missing_list = []
     for i in tqdm(range(n_sim)):
-        samples_list.append(pickle.load(open(f"{samples_dir}/svi_samples_i{i}_n50000.p", 'rb')))
+        fn = f"{samples_dir}/i{i}_n50000.p"
+        if not os.path.exists(fn):
+            missing_list.append(i)
+        else:
+            samples_list.append(pickle.load(open(f"{samples_dir}/i{i}_n50000.p", 'rb')))
+    print(f"Missing {len(missing_list)} run(s): {missing_list}")
     
     prob_samples = {}
     for k in tqdm(ks):
