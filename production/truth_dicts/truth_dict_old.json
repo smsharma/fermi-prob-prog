@@ -17,7 +17,6 @@
     "n3_gce": -5.5,
     "sb1_gce": 10.0,
     "lambdas_gce": 0.4,
-    "f_bulge_ps": 0.8,
     "theta_blg_ps": [0, 0, 0, 0, 1],
     "gamma_ps": 1.2,
     "Sps_dsk": 0.3,
@@ -27,5 +26,9 @@
     "n2_dsk": 1.0,
     "n3_dsk": -5.5,
     "sb1_dsk": 15.0,
-    "lambdas_dsk": 0.7
+    "lambdas_dsk": 0.7,
+    "Sps_gce": 1.0,
+    "f_bulge_ps": 0.8,
+    "S_gce": 0.6,
+    "f_bulge_poiss": 0.2
 }

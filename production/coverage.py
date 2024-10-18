@@ -14,10 +14,10 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     #===== CONTROLS =====#
-    model_name = 'old'
-    data_name = 'oldsim'
+    model_name = 'np'
+    data_name = 'old'
     fit_method = 'svi'
-    samples_dir = f"/n/holylabs/LABS/iaifi_lab/Users/yitians/fermi/fermi-prob-prog/outputs/fit/{fit_method}_{model_name}_{data_name}_kingpsf_1017"
+    samples_dir = f"/n/holylabs/LABS/iaifi_lab/Users/yitians/fermi/fermi-prob-prog/outputs/fit/{fit_method}_{model_name}_{data_name}_kingpsf_1018"
     n_sim = 30
     old_model = False
 
@@ -46,12 +46,13 @@ if __name__ == '__main__':
     elif model_name == 'gc2scf':
         ks = ['Sps_nfw', 'lambdas_nfw', 'n1_nfw', 'n2_nfw', 'n3_nfw', 'sb1_nfw',
               'Sps_dsk', 'lambdas_dsk', 'n1_dsk', 'n2_dsk', 'n3_dsk', 'sb1_dsk']
-    elif model_name in ['gcfull', 'gcfullAlm', 'old']:
+    elif model_name in ['gcfull', 'gcfullAlm', 'np']:
         ks = ["S_pib", "S_ics", "S_iso", "S_bub", "S_psc", "S_blg", "S_nfw", "gamma_poiss",
               "Sps_nfw", "gamma_ps", "Sps_blg", "Sps_dsk", "zs", "C",
               "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
               "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
               "Sps_gce", "f_bulge_ps",
+              "S_gce", "f_bulge_poiss",
               ]
     else:
         raise ValueError(model_name)
@@ -61,7 +62,7 @@ if __name__ == '__main__':
     i_list = []
     for i in tqdm(range(n_sim)):
         if fit_method == 'svi':
-            fn = f"{samples_dir}/svi_samples_i{i}_n50000_ns10000.p"
+            fn = f"{samples_dir}/svi_samples_i{i}_n50000_ns5000.p"
         elif fit_method == 'hmc':
             fn = f"{samples_dir}/hmc_samples_i{i}_n10000_ns0.p"
         else:
