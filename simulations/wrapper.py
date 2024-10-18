@@ -15,8 +15,8 @@ from utils import create_mask as cm
 def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme='original'):
 
     the_map = np.zeros(np.sum(~mask_sim))
-    aux_vars = np.zeros(2)
-    s_ary = np.logspace(-1, 2, 100)
+    # aux_vars = np.zeros(2)
+    s_ary = np.logspace(-1, 2, 1000)
 
     good_map = False  # Check so map doesn't contain all zeros or nans or infs
 
@@ -97,7 +97,7 @@ def toy_simulator(temps, vd, delta_psf=True):
 
 
 
-def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask=False):
+def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask=False, psf_scheme='original'):
     """Wrapper for simulator function.
 
     Args:
@@ -188,5 +188,5 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
         psf_r_func = lambda r: kp.psf_fermi_r(r)
     exp_map = np.array(m.exposure_map)
 
-    return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map)[0]
+    return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme)[0]
 

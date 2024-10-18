@@ -320,7 +320,7 @@ class NPModel:
 
                 theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
 
-                s_ary = jnp.logspace(-1., 2., 100)
+                s_ary = jnp.logspace(-1., 2., 1000)
                 dnds_ary = dnds(s_ary, theta_tmp)
 
                 A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
