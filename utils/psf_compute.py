@@ -92,6 +92,7 @@ def psf_corr(nside, num_f_bins, n_psf, n_pts_per_psf, f_trunc, psf_r_func, sampl
     f_ary = (f_bin_edges[:-1] + f_bin_edges[1:]) / 2.0
     rho_ary = rho_ary / (df * n_psf)
     rho_ary /= np.sum(df * f_ary * rho_ary)
-    df_rho_div_f_ary = df * rho_ary / f_ary
+    # df_rho_div_f_ary = df * rho_ary / f_ary
+    df_rho_ary = df * rho_ary
 
-    return f_ary, df_rho_div_f_ary
+    return f_ary, df_rho_ary

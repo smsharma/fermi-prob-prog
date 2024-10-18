@@ -111,7 +111,7 @@ class PSFCorrection:
         if not os.path.exists(self.psf_corr_file) or force_compute:
             print("Calculating the psf correction...")
             if self.healpix_map:
-                self.f_ary, self.df_rho_div_f_ary = psf_compute.psf_corr(self.nside, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
+                self.f_ary, self.df_rho_ary = psf_compute.psf_corr(self.nside, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
             else:
                 raise NotImplementedError("PSF correction not implemented for non-healpix maps")
                 self.f_ary, self.df_rho_div_f_ary = psf_compute_cart.psf_corr(self.gridsize, self.pixarea, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
@@ -124,7 +124,7 @@ class PSFCorrection:
             print("Loading the psf correction from:", self.psf_corr_file)
             loadpsf = np.load(self.psf_corr_file)
             self.f_ary = loadpsf[0]
-            self.df_rho_div_f_ary = loadpsf[1]
+            self.df_rho_ary = loadpsf[1]
 
     @staticmethod
     def make_dirs(dirs):

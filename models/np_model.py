@@ -161,7 +161,7 @@ class NPModel:
         pc_inst.make_or_load_psf_corr()
 
         self.f_ary = pc_inst.f_ary
-        self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
+        self.df_rho_ary = pc_inst.df_rho_ary
 
     def get_sphharms(self):
         
@@ -360,7 +360,7 @@ class NPModel:
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
             
             if self.non_poissonian:
-                log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
+                log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_ary, self.k_max, len(expreg_indices[0]))
             else:
                 log_like_exp = log_like_poisson_exp_vmapped(mu_batch, data_batch)
             
