@@ -1,10 +1,11 @@
 import os
 import re
 import shutil
+from datetime import datetime
 
 def group_slurm_files(slurm_folder):
     # Regular expression pattern to match the filenames
-    pattern = re.compile(r'^(.+)_i\d{1,2}\.(out|err)$')
+    pattern = re.compile(r'^(.+)_\d{1,2}\.(out|err)$')
 
     # Dictionary to hold run_name as keys and their corresponding files as values
     run_name_dict = {}
@@ -30,6 +31,9 @@ def group_slurm_files(slurm_folder):
     for run_name, files in run_name_dict.items():
         # Create a new directory for the run_name if it doesn't exist
         run_dir = os.path.join(slurm_folder, run_name)
+        # Append today's date MMDD if directory already exists
+        while os.path.exists(run_dir):
+            run_dir += datetime.now().strftime("%m%d")
         os.makedirs(run_dir, exist_ok=True)
 
         # Move each file into the corresponding run_name directory
