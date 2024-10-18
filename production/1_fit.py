@@ -21,10 +21,12 @@ if __name__ == '__main__':
     parser.add_argument('--data', type=str)
     parser.add_argument('--n_step', type=int)
     parser.add_argument('--fit_type', type=str)
+    parser.add_argument('--comment', type=str, default='')
     args = parser.parse_args()
 
     wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
-    save_dir = f"{wdir}/../outputs/fit/{args.fit_type}_{args.data}_ns{args.n_step}"
+    comment_str = '' if args.comment == '' else f"_{args.comment}"
+    save_dir = f"{wdir}/../outputs/fit/{args.fit_type}_{args.data}_ns{args.n_step}" + comment_str
     os.makedirs(save_dir, exist_ok=True)
 
     mask_roi = jnp.load(f"{wdir}/mask_roi.npy")

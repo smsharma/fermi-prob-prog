@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=svi
+#SBATCH --job-name=svi_10k
 #SBATCH --array=0-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -18,6 +18,6 @@ source /n/home07/yitians/setup/torch.sh
 
 cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
-python 1_fit.py -i $SLURM_ARRAY_TASK_ID -n 50000 --data base0803regen --fit_type svi --n_step 2000
+python 1_fit.py -i $SLURM_ARRAY_TASK_ID -n 50000 --data base0803regen --fit_type svi --n_step 10000
 
 # python 1_fit.py -i 0 -n 50000 --data base0803 --fit_type svi --n_step 100
