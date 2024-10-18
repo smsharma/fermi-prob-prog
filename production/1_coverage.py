@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     n_sim = 30
 
-    samples_dir = f"{wdir}/../outputs/fit/svi_base0803_ns2000"
+    samples_dir = f"{wdir}/../outputs/fit/svi_base0803regen_ns2000"
     theta_true = json.load(open(f"{wdir}/truth_dict.json"))
 
     ks = [

@@ -12,7 +12,7 @@ from simulations.wrapper import simulator_for_model
 
 if __name__ == '__main__':
 
-    data_name = 'base0803'
+    data_name = 'base0803regen'
     n_sim = 100
 
     truth_dict = json.load(open("truth_dict.json", "r"))

@@ -30,7 +30,7 @@ if __name__ == '__main__':
     mask_roi = jnp.load(f"{wdir}/mask_roi.npy")
     mask_norm = jnp.load(f"{wdir}/mask_norm.npy")
 
-    data = np.load(f"../outputs/sims/sim_{args.data}_n30.npy")[args.i]
+    data = np.load(f"../outputs/sims/sim_{args.data}_n100.npy")[args.i]
     data_full = np.zeros(hp.nside2npix(128))
     data_full[~mask_norm] = data
     data_in = jnp.array(data_full, dtype=jnp.int32)
