@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=s1k
+#SBATCH --job-name=kmaxfix
 #SBATCH --array=0-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
