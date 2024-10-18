@@ -107,24 +107,29 @@ class PSFCorrection:
             append them to self
         """
 
-        self.psf_corr_file = self.psf_dir + self.psf_tag + ".npy"
-        if not os.path.exists(self.psf_corr_file) or force_compute:
-            print("Calculating the psf correction...")
-            if self.healpix_map:
-                self.f_ary, self.df_rho_ary = psf_compute.psf_corr(self.nside, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
-            else:
-                raise NotImplementedError("PSF correction not implemented for non-healpix maps")
-                self.f_ary, self.df_rho_div_f_ary = psf_compute_cart.psf_corr(self.gridsize, self.pixarea, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
-            # tosave = np.array([self.f_ary, self.df_rho_div_f_ary])
-            # # Check again if exists, for multicore runs
-            # if not os.path.exists(self.psf_corr_file):
-            #     np.save(self.psf_corr_file, tosave)
-            #     print("File saved as:", self.psf_corr_file)
+        if force_compute:
+            self.f_ary, self.df_rho_ary = psf_compute.psf_corr(self.nside, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
         else:
-            print("Loading the psf correction from:", self.psf_corr_file)
-            loadpsf = np.load(self.psf_corr_file)
-            self.f_ary = loadpsf[0]
-            self.df_rho_ary = loadpsf[1]
+            raise NotImplementedError # saving and loading disabled
+        
+        # self.psf_corr_file = self.psf_dir + self.psf_tag + ".npy"
+        # if not os.path.exists(self.psf_corr_file) or force_compute:
+        #     print("Calculating the psf correction...")
+        #     if self.healpix_map:
+        #         self.f_ary, self.df_rho_ary = psf_compute.psf_corr(self.nside, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
+        #     else:
+        #         raise NotImplementedError("PSF correction not implemented for non-healpix maps")
+        #         self.f_ary, self.df_rho_div_f_ary = psf_compute_cart.psf_corr(self.gridsize, self.pixarea, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
+        #     tosave = np.array([self.f_ary, self.df_rho_div_f_ary])
+        #     # Check again if exists, for multicore runs
+        #     if not os.path.exists(self.psf_corr_file):
+        #         np.save(self.psf_corr_file, tosave)
+        #         print("File saved as:", self.psf_corr_file)
+        # else:
+        #     print("Loading the psf correction from:", self.psf_corr_file)
+        #     loadpsf = np.load(self.psf_corr_file)
+        #     self.f_ary = loadpsf[0]
+        #     self.df_rho_ary = loadpsf[1]
 
     @staticmethod
     def make_dirs(dirs):
