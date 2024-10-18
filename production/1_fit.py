@@ -16,19 +16,19 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', type=int, default=0)
-    parser.add_argument('-n', type=int, default=10000)
-    parser.add_argument('--n_step', type=int, default=2000)
-    parser.add_argument('--fit_type', type=str, default='test')
+    parser.add_argument('-n', type=int)
+    parser.add_argument('--data', type=str)
+    parser.add_argument('--n_step', type=int)
+    parser.add_argument('--fit_type', type=str)
     args = parser.parse_args()
 
     wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
-    data_dir = f"{wdir}/../data/fermi_data_573w/fermi_data_128"
-    save_dir = f"{wdir}/../outputs/fit/svi_240803"
+    save_dir = f"{wdir}/../outputs/fit/{args.fit_type}_{args.data}_ns{args.n_step}"
 
     mask_roi = jnp.load(f"{wdir}/mask_roi.npy")
     mask_norm = jnp.load(f"{wdir}/mask_norm.npy")
 
-    data = np.load(f"{wdir}/sim_truth_n30.npy")[args.i]
+    data = np.load(f"../outputs/sims/sim_{args.data}_n30.npy")[args.i]
     data_full = np.zeros(hp.nside2npix(128))
     data_full[~mask_norm] = data
     data_in = jnp.array(data_full, dtype=jnp.int32)
@@ -57,4 +57,4 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError(args.fit_type)
     
-    pickle.dump(samples, open(f"{save_dir}/{args.fit_type}_samples_i{args.i}_n{args.n}.p", 'wb'))
+    pickle.dump(samples, open(f"{save_dir}/i{args.i}_n{args.n}.p", 'wb'))
