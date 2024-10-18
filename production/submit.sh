@@ -18,6 +18,6 @@ source /n/home07/yitians/setup/torch.sh
 
 cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
-python 1_fit.py -i $SLURM_ARRAY_TASK_ID -n 50000 --data s1k --fit_type svi --n_step 10000
+python 1_fit.py -i $SLURM_ARRAY_TASK_ID -n 50000 --data s1k --fit_type svi --n_step 10000 --comment kmaxfix
 
-# python 1_fit.py -i 0 -n 50000 --data s1k --fit_type svi --n_step 100
+# python 1_fit.py -i 0 -n 50000 --data s1k --fit_type svi --n_step 100 --comment kmaxfix

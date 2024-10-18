@@ -38,7 +38,7 @@ if __name__ == '__main__':
     data_in = jnp.array(data_full, dtype=jnp.int32)
 
 
-    m = NPModel()
+    m = NPModel(data=data_in)
 
     if args.fit_type == 'svi':
         m.fit_svi(n_steps=args.n_step, data=data_in)

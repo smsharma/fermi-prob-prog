@@ -78,6 +78,7 @@ class NPModel:
         
         self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
         if data is None:
+            raise ValueError("Data must be provided.")
             self.data = jnp.array(np.load("{}/fermidata_counts.npy".format(self.data_dir)).astype(np.int32))
         else:
             self.data = data
