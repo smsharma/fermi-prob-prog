@@ -21,7 +21,7 @@ def log_like_np(theta, pt_sum_compressed, npt_compressed, data, f_ary, df_rho_ar
     """ Organize and combine non-Poissonian likelihoods across multiple templates
     """
     
-    x_m_ary = jnp.zeros((npixROI, k_max + 1))
+    # x_m_ary = jnp.zeros((npixROI, k_max + 1))
     x_m_sum = jnp.zeros(npixROI)
 
     s_ary = jnp.logspace(-1, 2, 1000)
