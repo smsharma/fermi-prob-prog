@@ -14,7 +14,7 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     n_sim = 30
-    run_name = 'svi_s1k_fexp_ns10000_kmaxfix_fexp'
+    run_name = 'hmc_s1k_fexp_ns0_kmaxfix_fexp'
 
     samples_dir = f"{wdir}/../outputs/fit/{run_name}"
     theta_true = json.load(open(f"{wdir}/truth_dict.json"))
@@ -30,11 +30,11 @@ if __name__ == '__main__':
     samples_list = []
     missing_list = []
     for i in tqdm(range(n_sim)):
-        fn = f"{samples_dir}/i{i}_n50000.p"
+        fn = f"{samples_dir}/i{i}_n10000.p"
         if not os.path.exists(fn):
             missing_list.append(i)
         else:
-            samples_list.append(pickle.load(open(f"{samples_dir}/i{i}_n50000.p", 'rb')))
+            samples_list.append(pickle.load(open(fn, 'rb')))
     print(f"Missing {len(missing_list)} run(s): {missing_list}")
     
     prob_samples = {}
