@@ -97,7 +97,12 @@ def toy_simulator(temps, vd, delta_psf=True):
 
 
 
-def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask=False, psf_scheme='original'):
+def simulator_for_model(
+        m, vd,
+        no_psc_mask=False, delta_psf=False, no_plane_mask=False,
+        flat_exposure=False,
+        psf_scheme='original'
+    ):
     """Wrapper for simulator function.
 
     Args:
@@ -186,7 +191,11 @@ def simulator_for_model(m, vd, no_psc_mask=False, delta_psf=False, no_plane_mask
     else:
         kp = KingPSF()
         psf_r_func = lambda r: kp.psf_fermi_r(r)
-    exp_map = np.array(m.exposure_map)
+
+    if flat_exposure:
+        exp_map = np.ones_like(m.exposure_map)
+    else:
+        exp_map = np.array(m.exposure_map)
 
     return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme)[0]
 

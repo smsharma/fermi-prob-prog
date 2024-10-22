@@ -16,7 +16,7 @@ from models.np_model import NPModel
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', type=int, default=0)
+    parser.add_argument('-i', type=int)
     parser.add_argument('-n', type=int)
     parser.add_argument('--data', type=str)
     parser.add_argument('--n_step', type=int)
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     data_in = jnp.array(data_full, dtype=jnp.int32)
 
 
-    m = NPModel(data=data_in)
+    m = NPModel(data=data_in, use_flat_exposure=True)
 
     if args.fit_type == 'svi':
         m.fit_svi(n_steps=args.n_step, data=data_in)
