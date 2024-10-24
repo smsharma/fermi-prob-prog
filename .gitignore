@@ -9,7 +9,7 @@ data/posteriors/compare_samplers
 data/posteriors/vary_disk_mask
 cross_check/data
 outputs/
-
+issues/
 scripts/slurm_outputs/
 
 notebooks/plots/rott/
