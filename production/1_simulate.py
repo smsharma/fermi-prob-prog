@@ -13,8 +13,9 @@ from simulations.wrapper import simulator_for_model
 
 if __name__ == '__main__':
 
-    data_name = 's1k_fexp'
+    data_name = 'base1023_fexp'
     n_sim = 100
+    delta_psf = True
 
     truth_dict = json.load(open("truth_dict.json", "r"))
     m = NPModel(
@@ -24,6 +25,11 @@ if __name__ == '__main__':
 
     sims = []
     for _ in tqdm(range(n_sim)):
-        sims.append(simulator_for_model(m, truth_dict, no_psc_mask=True, flat_exposure=True))
+        sims.append(simulator_for_model(m, truth_dict, no_psc_mask=True, flat_exposure=True, delta_psf=delta_psf))
     sims = np.array(sims)
-    np.save(f"../outputs/sims/sim_{data_name}_n{n_sim}.npy", sims)
+    if delta_psf:
+        fn = f"{data_name}_deltapsf_n{n_sim}.npy"
+    else:
+        fn = f"{data_name}_n{n_sim}.npy"
+
+    np.save(f"../outputs/sims/{fn}", sims)
