@@ -69,6 +69,7 @@ class NPModel:
         use_flat_exposure=False, # TMP
         debug_model=False,
         data=None,
+        psf_tag=None,
     ):
         
         #========== General ==========
@@ -131,10 +132,9 @@ class NPModel:
         self.get_sphharms()
         
         #========== NPTF ==========
-        if self.non_poissonian:
-            self.get_psf_correction()
-            self.k_max = np.max(np.array(self.data)[~self.mask_roi])
-            print("Max photon count is {}".format(self.k_max))
+        self.get_psf_correction(psf_tag=psf_tag)
+        self.k_max = np.max(np.array(self.data)[~self.mask_roi])
+        print("Max photon count is {}".format(self.k_max))
         
         self.get_exp_regions(n_exp)
         
@@ -150,19 +150,26 @@ class NPModel:
         self.debug_model = debug_model
         
         
-    def get_psf_correction(self):
+    def get_psf_correction(self, psf_tag=None):
 
-        kp = KingPSF()
+        print('PSF tag:', psf_tag)
 
-        pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside)
-        pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
-        pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
-        pc_inst.psf_samples = 10000
-        pc_inst.psf_tag = "Fermi_PSF_2GeV2_nside{}".format(self.nside)
-        pc_inst.make_or_load_psf_corr()
+        if psf_tag == 'king':
+            kp = KingPSF()
+            pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside)
+            pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
+            pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
+            pc_inst.psf_samples = 10000
+            pc_inst.psf_tag = "Fermi_PSF_2GeV2_nside{}".format(self.nside)
+            pc_inst.make_or_load_psf_corr()
 
-        self.f_ary = pc_inst.f_ary
-        self.df_rho_ary = pc_inst.df_rho_ary
+            self.f_ary = pc_inst.f_ary
+            self.df_rho_ary = pc_inst.df_rho_ary
+        elif psf_tag == 'delta':
+            self.f_ary = np.array([0., 1.])
+            self.df_rho_ary = np.array([0., 1.])
+        else:
+            raise ValueError(psf_tag)
 
     def get_sphharms(self):
         

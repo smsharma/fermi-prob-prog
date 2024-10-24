@@ -19,26 +19,34 @@ if __name__ == '__main__':
     parser.add_argument('-i', type=int)
     parser.add_argument('-n', type=int)
     parser.add_argument('--data', type=str)
-    parser.add_argument('--n_step', type=int)
+    parser.add_argument('--model', type=str)
+    parser.add_argument('--n_step', type=int, default=0)
     parser.add_argument('--fit_type', type=str)
     parser.add_argument('--comment', type=str, default='')
     args = parser.parse_args()
 
     wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
     comment_str = '' if args.comment == '' else f"_{args.comment}"
-    save_dir = f"{wdir}/../outputs/fit/{args.fit_type}_{args.data}_ns{args.n_step}" + comment_str
+    run_name = f"{args.fit_type}_D{args.data}_M{args.model}" + comment_str
+    print('run_name:', run_name)
+
+    save_dir = f"{wdir}/../outputs/fit/{run_name}"
     os.makedirs(save_dir, exist_ok=True)
 
     mask_roi = jnp.load(f"{wdir}/mask_roi.npy")
     mask_norm = jnp.load(f"{wdir}/mask_norm.npy")
 
-    data = np.load(f"../outputs/sims/sim_{args.data}_n100.npy")[args.i]
+    data = np.load(f"../outputs/sims/{args.data}_n100.npy")[args.i]
     data_full = np.zeros(hp.nside2npix(128))
     data_full[~mask_norm] = data
     data_in = jnp.array(data_full, dtype=jnp.int32)
 
-
-    m = NPModel(data=data_in, use_flat_exposure=True)
+    if args.model == 'npdelta':
+        m = NPModel(data=data_in, use_flat_exposure=True, psf_tag='delta')
+    elif args.model == 'np':
+        m = NPModel(data=data_in, use_flat_exposure=True, psf_tag='king')
+    else:
+        raise NotImplementedError(args.model)
 
     if args.fit_type == 'svi':
         m.fit_svi(n_steps=args.n_step, data=data_in)
@@ -61,4 +69,4 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError(args.fit_type)
     
-    pickle.dump(samples, open(f"{save_dir}/i{args.i}_n{args.n}.p", 'wb'))
+    pickle.dump(samples, open(f"{save_dir}/i{args.i}_n{args.n}_ns{args.n_step}.p", 'wb'))
