@@ -1,0 +1,51 @@
+{
+    "S_pib": 0,
+    "theta_pib": [
+        1.0,
+        0.0,
+        0.0
+    ],
+    "S_ics": 0,
+    "theta_ics": [
+        1.0,
+        0.0,
+        0.0
+    ],
+    "S_bub": 0,
+    "S_iso": 0,
+    "S_psc": 0,
+    "S_gce": 0,
+    "f_bulge_poiss": 0.2,
+    "theta_bulge_poiss": [
+        0,
+        0,
+        0,
+        0,
+        1
+    ],
+    "gamma_poiss": 1.0,
+    "Sps_gce": 0.0,
+    "Sps_iso": 0.02,
+    "n1_iso": 5.0,
+    "n2_iso": 1.0,
+    "n3_iso": -5.5,
+    "sb1_iso": 40.0,
+    "lambdas_iso": 0.9,
+    "f_bulge_ps": 0.8,
+    "theta_bulge_ps": [
+        0,
+        0,
+        0,
+        0,
+        1
+    ],
+    "gamma_ps": 1.2,
+    "Sps_dsk": 0,
+    "zs": 0.6,
+    "C": 6.0,
+    "n1_dsk": 5.0,
+    "n2_dsk": 1.0,
+    "n3_dsk": -5.5,
+    "sb1_dsk": 15.0,
+    "lambdas_dsk": 0.7
+}

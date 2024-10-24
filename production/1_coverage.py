@@ -14,7 +14,7 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     n_sim = 30
-    run_name = 'hmc_Dbase1023_fexp_deltapsf_Mnpdelta'
+    run_name = 'hmc_Dbase1023_Mnp'
 
     samples_dir = f"{wdir}/../outputs/fit/{run_name}"
     theta_true = json.load(open(f"{wdir}/truth_dict.json"))
