@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=hmc_kmaxfix_fexp
+#SBATCH --job-name=hmc_kmaxfix_fexp-2
 #SBATCH --array=0-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -19,6 +19,6 @@ source /n/home07/yitians/setup/torch.sh
 cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
 # python 1_fit.py -i $SLURM_ARRAY_TASK_ID -n 50000 --data s1k_fexp --fit_type svi --n_step 10000 --comment kmaxfix_fexp
-python 1_fit.py -i $SLURM_ARRAY_TASK_ID -n 10000 --data s1k_fexp --fit_type hmc --n_step 0 --comment kmaxfix_fexp
+python 1_fit.py -i $SLURM_ARRAY_TASK_ID -n 10000 --data s1k_fexp-2 --fit_type hmc --n_step 0 --comment kmaxfix_fexp
 
 # python 1_fit.py -i 0 -n 100 --data s1k_fexp --fit_type hmc --n_step 0 --comment kmaxfix_fexp
