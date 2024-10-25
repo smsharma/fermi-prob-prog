@@ -67,7 +67,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
     return the_map
 
 
-def simulator_for_model(m, vd):
+def simulator_for_model(m, vd, sim_all=False):
     """Wrapper for simulator function.
 
     Args:
@@ -140,9 +140,12 @@ def simulator_for_model(m, vd):
         temps_ps.append(np.array(temp_ps_dsk))
         theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['n3_dsk'], vd['sb1_dsk'], vd['lambdas_dsk'] * vd['sb1_dsk']]
 
-    mask_sim = np.zeros_like(m.data, dtype=bool) # simulate all
     mask_normalize_counts = np.array(m.normalization_mask)
     mask_roi = np.array(m.mask_roi)
+    if sim_all:
+        mask_sim = np.zeros_like(m.data, dtype=bool)
+    else:
+        mask_sim = mask_normalize_counts
 
     kp = KingPSF()
     psf_r_func = lambda r: kp.psf_fermi_r(r)

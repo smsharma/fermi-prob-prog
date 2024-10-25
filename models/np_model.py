@@ -58,7 +58,7 @@ class NPModel:
     normalization_mask: mask used to normalize templates.
     """
     def __init__(
-        self, non_poissonian=True, l_max=0,
+        self, non_poissonian=True, l_max=2,
         dif_names=["ModelO", "ModelA", "ModelF"],
         bulge_hybrid=True,
         bulge_template_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"],
