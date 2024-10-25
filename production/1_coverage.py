@@ -14,10 +14,12 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     n_sim = 30
-    run_name = 'hmc_Dbase230927_Mbase230927'
+    data_name = 'base230927'
+    model_name = 'base230927'
+    run_name = f'hmc_D{data_name}_M{model_name}'
 
     samples_dir = f"{wdir}/../outputs/fit/{run_name}"
-    theta_true = json.load(open(f"{wdir}/truth_dict.json"))
+    theta_true = json.load(open(f"{wdir}/truth_dict_{data_name}.json"))
 
     ks = [
         "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
