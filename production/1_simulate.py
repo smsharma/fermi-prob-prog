@@ -13,20 +13,17 @@ from simulations.wrapper import simulator_for_model
 
 if __name__ == '__main__':
 
-    data_name = 'new_gpsfix_s1k'
+    data_name = 'gpsfix_s1k_deltapsf'
     n_sim = 100
-    delta_psf = False
+    delta_psf = True
 
-    truth_dict = json.load(open("truth_dict_base230927new.json", "r"))
-    m = NPModel(data=np.zeros(hp.nside2npix(128), dtype=np.int32))
+    truth_dict = json.load(open("truth_dict_base230927.json", "r"))
+    m = NPModel(data=np.zeros(hp.nside2npix(128), dtype=np.int32)) # dummy data
 
     sims = []
     for _ in tqdm(range(n_sim)):
-        sims.append(simulator_for_model(m, truth_dict, sim_all=True))
+        sims.append(simulator_for_model(m, truth_dict, sim_all=True, delta_psf=delta_psf))
     sims = np.array(sims)
-    if delta_psf:
-        fn = f"{data_name}_deltapsf_n{n_sim}.npy"
-    else:
-        fn = f"{data_name}_n{n_sim}.npy"
+    fn = f"{data_name}_n{n_sim}.npy"
 
     np.save(f"../outputs/sims/{fn}", sims)

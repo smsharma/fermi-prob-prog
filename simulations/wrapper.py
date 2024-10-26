@@ -9,7 +9,7 @@ from models.scd import dnds
 from models.psf import KingPSF
 
 
-def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map):
+def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme='original'):
 
     the_map = np.zeros(np.sum(~mask_sim))
     aux_vars = np.zeros(2)
@@ -43,7 +43,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
 
         # Draw PSs and simulate map
 
-        sm = SimulateMap(temps_poiss, [norm_gce] + list(norms_poiss), [s_ary] * len(temps_ps), dnds_ary, temps_ps, psf_r_func, exp_map_norm, mask_roi=mask_roi)
+        sm = SimulateMap(temps_poiss, [norm_gce] + list(norms_poiss), [s_ary] * len(temps_ps), dnds_ary, temps_ps, psf_r_func, exp_map_norm, mask_roi=mask_roi, psf_scheme=psf_scheme)
 
         the_map_temp = sm.create_map()
 
@@ -67,7 +67,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
     return the_map
 
 
-def simulator_for_model(m, vd, sim_all=False):
+def simulator_for_model(m, vd, sim_all=False, delta_psf=False):
     """Wrapper for simulator function.
 
     Args:
@@ -149,6 +149,12 @@ def simulator_for_model(m, vd, sim_all=False):
 
     kp = KingPSF()
     psf_r_func = lambda r: kp.psf_fermi_r(r)
+
+    if delta_psf:
+        psf_scheme = 'true delta'
+    else:
+        psf_scheme = 'original'
+
     exp_map = np.array(m.exposure_map)
 
-    return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map)[0]
+    return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme)[0]

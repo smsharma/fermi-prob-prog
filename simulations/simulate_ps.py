@@ -12,7 +12,7 @@ from utils.pdf_sampler import PDFSampler
 
 
 class DrawSources:
-    def __init__(self, S_ary=None, dNdS_ary=None, n_exp=None):
+    def __init__(self, S_ary=None, dNdS_ary=None, n_exp=None, psf_scheme='original'):
         """Draw sources following an SCD and create a map. Based on NPTFit-Sim
         (https://github.com/nickrodd/NPTFit-Sim).
         :param S_ary: Array of counts, spaced linearly in log-space
@@ -23,6 +23,7 @@ class DrawSources:
         self.S_ary = S_ary
         self.dNdS_ary = dNdS_ary
         self.n_exp = n_exp
+        self.psf_scheme = psf_scheme
 
         if self.S_ary is not None:
             self.init_ps()
@@ -91,9 +92,10 @@ class DrawSources:
         :param psf_r: Radial PSF
         """
         # Sample the radial PSF to later determine placement of photons.
-        f = np.linspace(0.0, np.pi, 1000000)
-        pdf_psf = f * psf_r(f)
-        pdf = PDFSampler(f, pdf_psf)
+        if self.psf_scheme != 'true delta':
+            f = np.linspace(0.0, np.pi, 1000000)
+            pdf_psf = f * psf_r(f)
+            pdf = PDFSampler(f, pdf_psf)
         nside = hp.npix2nside(len(temp))
 
         # Draw coordinates according to template
@@ -107,21 +109,27 @@ class DrawSources:
             th = th_ary[ips]
             ph = ph_ary[ips]
             num_phot = num_phot_ary[ips]
-            phm = ph + np.pi / 2.0
-            rotx = np.matrix([[1, 0, 0], [0, np.cos(th), -np.sin(th)], [0, np.sin(th), np.cos(th)]])
-            rotz = np.matrix([[np.cos(phm), -np.sin(phm), 0], [np.sin(phm), np.cos(phm), 0], [0, 0, 1]])
-            dist = pdf(num_phot)
-            randPhi = 2 * np.pi * np.random.random(num_phot)
-            X = hp.ang2vec(dist, randPhi).T
-            Xp = rotz * (rotx * X)
-            posit = np.array(hp.vec2pix(nside, *Xp))
-            np.add.at(the_map, posit, 1)
+            if self.psf_scheme == 'true delta':
+                original_pix = hp.ang2pix(nside, th, ph)
+                the_map[original_pix] += num_phot
+            elif self.psf_scheme == 'original':
+                phm = ph + np.pi / 2.0
+                rotx = np.matrix([[1, 0, 0], [0, np.cos(th), -np.sin(th)], [0, np.sin(th), np.cos(th)]])
+                rotz = np.matrix([[np.cos(phm), -np.sin(phm), 0], [np.sin(phm), np.cos(phm), 0], [0, 0, 1]])
+                dist = pdf(num_phot)
+                randPhi = 2 * np.pi * np.random.random(num_phot)
+                X = hp.ang2vec(dist, randPhi).T
+                Xp = rotz * (rotx * X)
+                posit = np.array(hp.vec2pix(nside, *Xp))
+                np.add.at(the_map, posit, 1)
+            else:
+                raise ValueError(f"PSF scheme {self.psf_scheme} not recognized.")
 
         return the_map
 
 
 class SimulateMap:
-    def __init__(self, temps, norms, S_arys=None, dNdS_arys=None, ps_temps=None, psf_r=None, exp_map_norm=None, nside=128, n_exp=None, mask_roi=None):
+    def __init__(self, temps, norms, S_arys=None, dNdS_arys=None, ps_temps=None, psf_r=None, exp_map_norm=None, nside=128, n_exp=None, mask_roi=None, psf_scheme='original'):
 
         self.temps = temps
         self.norms = norms
@@ -133,6 +141,7 @@ class SimulateMap:
         self.n_exp = n_exp
         self.exp_map_norm = exp_map_norm
         self.mask_roi = mask_roi
+        self.psf_scheme = psf_scheme
 
         if self.n_exp is None:
             self.n_exp = len(self.ps_temps) * [None]
@@ -157,7 +166,7 @@ class SimulateMap:
 
         if self.S_arys is not None:
             for i_ps in range(len(self.ps_temps)):
-                ds = DrawSources(self.S_arys[i_ps], self.dNdS_arys[i_ps], n_exp=self.n_exp[i_ps])
+                ds = DrawSources(self.S_arys[i_ps], self.dNdS_arys[i_ps], n_exp=self.n_exp[i_ps], psf_scheme=self.psf_scheme)
                 ps_map = ds.create_ps_map(self.ps_temps[i_ps], self.psf_r, self.exp_map_norm)
                 gamma_map += ps_map.astype(np.int64)
 
