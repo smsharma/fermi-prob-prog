@@ -52,10 +52,7 @@ if __name__ == '__main__':
     #     raise NotImplementedError(args.model)
     print('model:', args.model)
     print('currently model is fixed to NPModel()')
-    m = NPModel()
-    m.data = data_in
-    print('With kmax error: kmax = ', m.k_max)
-    print('data kmax = ', data_in.max())
+    m = NPModel(data = data_in)
 
     if args.fit_type == 'svi':
         m.fit_svi(n_steps=args.n_step, data=data_in)

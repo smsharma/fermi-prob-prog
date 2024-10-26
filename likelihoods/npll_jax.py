@@ -24,7 +24,7 @@ def log_like_np(theta, pt_sum_compressed, npt_compressed, data, f_ary, df_rho_di
     x_m_ary = jnp.zeros((npixROI, k_max + 1))
     x_m_sum = jnp.zeros(npixROI)
 
-    s_ary = jnp.logspace(0., 2.5, 200)
+    s_ary = jnp.logspace(-1, 2, 1000)
     
     return_x_m_vmapped = vmap(return_x_m, in_axes=(None, None, 0, None, None, 0, None))
         

@@ -13,12 +13,12 @@ from simulations.wrapper import simulator_for_model
 
 if __name__ == '__main__':
 
-    data_name = 'base230927'
+    data_name = 'gpsfix_s1k'
     n_sim = 100
     delta_psf = False
 
     truth_dict = json.load(open("truth_dict_base230927.json", "r"))
-    m = NPModel()
+    m = NPModel(data=np.zeros(hp.nside2npix(128), dtype=np.int32))
 
     sims = []
     for _ in tqdm(range(n_sim)):

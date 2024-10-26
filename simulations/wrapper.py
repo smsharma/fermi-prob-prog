@@ -13,7 +13,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
 
     the_map = np.zeros(np.sum(~mask_sim))
     aux_vars = np.zeros(2)
-    s_ary = np.logspace(-1, 2, 100)
+    s_ary = np.logspace(-1, 2, 1000)
 
     good_map = False  # Check so map doesn't contain all zeros or nans or infs
 
@@ -115,7 +115,7 @@ def simulator_for_model(m, vd, sim_all=False):
 
     # ps: nfw+blg*5 dsk
     # temp_ps
-    temp_ps_nfw = m.nfw_template.get_NFW2_template(gamma=vd['gamma_poiss'])
+    temp_ps_nfw = m.nfw_template.get_NFW2_template(gamma=vd['gamma_ps'])
     temp_ps_blg = np.einsum('i,ij->j', vd['theta_bulge_ps'], m.bulge_templates)
     A_gce_nfw = 1 / np.mean(temp_ps_nfw[~nm])
     A_gce_blg = 1 / np.mean(temp_ps_blg[~nm])
