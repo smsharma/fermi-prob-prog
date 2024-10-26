@@ -161,10 +161,10 @@ class NPModel:
 
             self.f_ary = pc_inst.f_ary
             self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
-            self.dr_rho_ary = self.f_ary * self.df_rho_div_f_ary
+            self.df_rho_ary = self.f_ary * self.df_rho_div_f_ary
         elif psf_tag == 'delta':
             self.f_ary = np.array([0., 1.])
-            self.dr_rho_ary = np.array([0., 1.])
+            self.df_rho_ary = np.array([0., 1.])
         else:
             raise ValueError(f"PSF tag {psf_tag} not recognized.")
 

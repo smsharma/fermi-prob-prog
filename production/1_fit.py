@@ -51,8 +51,8 @@ if __name__ == '__main__':
     # else:
     #     raise NotImplementedError(args.model)
     print('model:', args.model)
-    print('currently model is fixed to NPModel()')
-    m = NPModel(data = data_in)
+    print('currently model is set manually')
+    m = NPModel(data = data_in, psf_tag='delta')
 
     if args.fit_type == 'svi':
         m.fit_svi(n_steps=args.n_step, data=data_in)
