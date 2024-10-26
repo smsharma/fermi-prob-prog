@@ -14,12 +14,14 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     n_sim = 30
-    data_name = 'base230927'
-    model_name = 'base230927'
+    truth_name = 'base230927'
+    data_name = 'gpsfix_s1k'
+    model_name = 'kmaxfix_s1k'
     run_name = f'hmc_D{data_name}_M{model_name}'
+    print(f"Run name: {run_name}")
 
     samples_dir = f"{wdir}/../outputs/fit/{run_name}"
-    theta_true = json.load(open(f"{wdir}/truth_dict_{data_name}.json"))
+    theta_true = json.load(open(f"{wdir}/truth_dict_{truth_name}.json"))
 
     ks = [
         "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
@@ -38,6 +40,8 @@ if __name__ == '__main__':
         else:
             samples_list.append(pickle.load(open(fn, 'rb')))
     print(f"Missing {len(missing_list)} run(s): {missing_list}")
+    if len(missing_list) == n_sim:
+        raise ValueError("No samples found")
     
     prob_samples = {}
     for k in tqdm(ks):
