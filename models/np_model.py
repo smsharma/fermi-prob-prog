@@ -66,13 +66,14 @@ class NPModel:
         vary_disk=True,
         ps_cat="3fgl", r_outer=25, band_mask_range=2.,
         nside=128, n_exp=1, debug_model=False,
-        data=None,
+        data=None, psf_tag='king',
     ):
         
         #========== General ==========
         self.nside = nside
         self.ps_cat = ps_cat
         self.non_poissonian = non_poissonian
+        self.psf_tag = psf_tag
         
         self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
         if data is None:
@@ -126,10 +127,9 @@ class NPModel:
         self.get_sphharms()
         
         #========== NPTF ==========
-        if self.non_poissonian:
-            self.get_psf_correction()
-            self.k_max = np.max(np.array(self.data)[~self.mask_roi])
-            print("Max photon count is {}".format(self.k_max))
+        self.get_psf_correction(psf_tag=self.psf_tag)
+        self.k_max = np.max(np.array(self.data)[~self.mask_roi])
+        print("Max photon count is {}".format(self.k_max))
         
         self.get_exp_regions(n_exp)
         
@@ -145,19 +145,28 @@ class NPModel:
         self.debug_model = debug_model
         
         
-    def get_psf_correction(self):
+    def get_psf_correction(self, psf_tag):
 
-        kp = KingPSF()
+        print(f'Using psf: {psf_tag}')
 
-        pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside)
-        pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
-        pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
-        pc_inst.psf_samples = 10000
-        pc_inst.psf_tag = "Fermi_PSF_2GeV2_nside{}".format(self.nside)
-        pc_inst.make_or_load_psf_corr()
+        if psf_tag == 'king':
+            kp = KingPSF()
 
-        self.f_ary = pc_inst.f_ary
-        self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
+            pc_inst = PSFCorrection(delay_compute=True, num_f_bins=15, nside=self.nside)
+            pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
+            pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
+            pc_inst.psf_samples = 10000
+            pc_inst.psf_tag = "Fermi_PSF_2GeV2_nside{}".format(self.nside)
+            pc_inst.make_or_load_psf_corr()
+
+            self.f_ary = pc_inst.f_ary
+            self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
+            self.dr_rho_ary = self.f_ary * self.df_rho_div_f_ary
+        elif psf_tag == 'delta':
+            self.f_ary = np.array([0., 1.])
+            self.dr_rho_ary = np.array([0., 1.])
+        else:
+            raise ValueError(f"PSF tag {psf_tag} not recognized.")
 
     def get_sphharms(self):
         
@@ -356,7 +365,7 @@ class NPModel:
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
             
             if self.non_poissonian:
-                log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
+                log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_ary, self.k_max, len(expreg_indices[0]))
             else:
                 log_like_exp = log_like_poisson_exp_vmapped(mu_batch, data_batch)
             
