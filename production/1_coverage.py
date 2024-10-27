@@ -15,8 +15,8 @@ if __name__ == '__main__':
 
     n_sim = 30
     truth_name = 'base230927'
-    data_name = 'gpsfix_s1k'
-    model_name = 'kmaxfix_s1k'
+    data_name = 'gpsfix_s1k_deltapsf'
+    model_name = 'kmaxfix_s1k_deltapsf'
     run_name = f'hmc_D{data_name}_M{model_name}'
     print(f"Run name: {run_name}")
 
