@@ -217,7 +217,7 @@ class NPModel:
         self.svi_init_state = None
     
             
-    def model(self, data=...):
+    def model_full(self, data=...):
         
         # Get mixed pib template
         theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
@@ -548,3 +548,82 @@ class NPModel:
         self.MAP_estimates = guide.median(svi_results.params)
         
         return svi_results
+
+    def model(self, data=...):
+                
+        mu = jnp.zeros_like(data)
+
+        # DISK
+        zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
+        C = numpyro.sample("C", dist.Uniform(0.05, 8.))
+        temp_dsk = self.disk_template.get_template(zs=zs, C=C)
+
+        # NFW
+        gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.))
+        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps)
+        A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
+        # BULGE
+        f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.)) if self.non_poissonian else None
+        theta_bulge_ps = numpyro.sample("theta_bulge_ps", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
+        temp_bulge = jnp.sum(theta_bulge_ps[:, None] * self.bulge_templates, 0)
+        A_gce_bulge = 1 / jnp.mean(temp_bulge[~self.normalization_mask])
+        # NFW + BULGE = GCE
+        temp_gce_ps = (1 - f_bulge_ps) * A_gce_nfw * temp_gce_nfw_ps + f_bulge_ps * A_gce_bulge * temp_bulge
+
+        npt_compressed = jnp.array([temp_gce_ps, temp_dsk])
+
+        theta = []    
+
+        for ips, ps in enumerate(["gce", "dsk"]):
+
+            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
+
+            n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
+            n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
+            n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
+            sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
+            lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
+
+            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
+
+            s_ary = jnp.logspace(-1., 2., 1000)
+            dnds_ary = dnds(s_ary, theta_tmp)
+
+            A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
+
+            theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
+
+        theta = jnp.array(theta)
+                
+        # Pad the last exposure region so that all are the same size
+        exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
+        n_pad = exp_lens[0] - exp_lens[-1]
+        
+        expreg_indices = jnp.zeros_like(self.expreg_indices)
+        expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
+        expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
+
+        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
+                
+        # Get relevant arrays for different exposure regions
+        mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
+        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
+        data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
+        
+        exposure_multiplier = self.exposure_means_list / self.exposure_mean
+        
+        # Scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
+        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
+        theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
+        theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
+        theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
+        
+        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
+            
+            log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_ary, self.k_max, len(expreg_indices[0]))
+            
+            # Concatenate exposure regions
+            loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
+                                
+            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
+                return numpyro.factor('log-likelihood', loglike)
