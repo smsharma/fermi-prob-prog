@@ -14,20 +14,26 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     n_sim = 30
-    truth_name = 'base230927'
-    data_name = 'gpsfix_s1k_deltapsf'
-    model_name = 'kmaxfix_s1k_deltapsf'
+    truth_name = 'dskgce'
+    data_name = 'dskgce_deltapsf'
+    model_name = 'dskgce_deltapsf'
     run_name = f'hmc_D{data_name}_M{model_name}'
     print(f"Run name: {run_name}")
 
     samples_dir = f"{wdir}/../outputs/fit/{run_name}"
     theta_true = json.load(open(f"{wdir}/truth_dict_{truth_name}.json"))
 
+    # ks = [
+    #     "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
+    #     "Sps_dsk", "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
+    #     "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
+    #     "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
+    #     "C", "zs"
+    # ]
     ks = [
-        "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
         "Sps_dsk", "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
         "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
-        "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
+        "f_bulge_ps", "gamma_ps",
         "C", "zs"
     ]
 
