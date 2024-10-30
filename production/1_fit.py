@@ -51,8 +51,8 @@ if __name__ == '__main__':
     # else:
     #     raise NotImplementedError(args.model)
     print('model:', args.model)
-    print('currently model is set manually')
-    m = NPModel(data = data_in, psf_tag='delta')
+    print('CHECK MODEL !!! CURRENTLY MANUALLY SET')
+    m = NPModel(data = data_in, psf_tag='king')
 
     if args.fit_type == 'svi':
         m.fit_svi(n_steps=args.n_step, data=data_in)
@@ -60,14 +60,14 @@ if __name__ == '__main__':
 
     elif args.fit_type in ['hmc', 'hmcnt']:
         mcmc = m.run_nuts(
-            num_chains=4, num_warmup=1000, num_samples=args.n//4, step_size=0.01,
+            num_chains=8, num_warmup=1000, num_samples=args.n//4, step_size=0.1,
             use_neutra=(args.fit_type=='hmcnt'), data=data_in
         )
         samples = mcmc.get_samples()
 
     elif args.fit_type == 'test':
         mcmc = m.run_nuts(
-            num_chains=4, num_warmup=10, num_samples=10,
+            num_chains=8, num_warmup=10, num_samples=10, step_size=0.1,
             use_neutra=False, data=data_in
         )
         samples = mcmc.get_samples()

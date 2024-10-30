@@ -217,7 +217,7 @@ class NPModel:
         self.svi_init_state = None
     
             
-    def model_full(self, data=...):
+    def model(self, data=...):
         
         # Get mixed pib template
         theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
@@ -549,7 +549,7 @@ class NPModel:
         
         return svi_results
 
-    def model(self, data=...):
+    def model_dskgce(self, data=...):
                 
         mu = jnp.zeros_like(data)
 
