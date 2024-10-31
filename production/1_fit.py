@@ -59,13 +59,26 @@ if __name__ == '__main__':
         samples = m.get_svi_samples(num_samples=args.n)
 
     elif args.fit_type in ['hmc', 'hmcnt']:
+
+        if args.fit_type == 'hmcnt':
+            m.fit_svi(n_steps=args.n_step, data=data_in)
+            
         mcmc = m.run_nuts(
-            num_chains=8, num_warmup=1000, num_samples=args.n//4, step_size=0.1,
+            num_chains=4, num_warmup=1000, num_samples=args.n//4, step_size=0.05,
             use_neutra=(args.fit_type=='hmcnt'), data=data_in
         )
         samples = mcmc.get_samples()
 
-    elif args.fit_type == 'test':
+    elif args.fit_type in ['pthmc']:
+        mcmc = m.run_parallel_tempering_hmc(
+            num_samples=args.n,
+            step_size_base=5e-2,
+            num_leapfrog_steps=3,
+            num_adaptation_steps=600,
+        )
+        samples = mcmc.get_samples()
+
+    elif args.fit_type == 'testhmc':
         mcmc = m.run_nuts(
             num_chains=8, num_warmup=10, num_samples=10, step_size=0.1,
             use_neutra=False, data=data_in
