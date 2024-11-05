@@ -15,9 +15,9 @@ if __name__ == '__main__':
 
     n_sim = 30
     truth_name = 'base230927'
-    data_name = 'base23fix'
-    model_name = 'base23fix'
-    run_name = f'hmcnt_Dbase23fix_Mbase23fix_svi1e-4'
+    data_name = 'base23fix_deltapsf'
+    model_name = 'base23fix_deltapsf'
+    run_name = f'hmc_Dbase23fix_deltapsf_Mbase23fix_deltapsf'
     print(f"Run name: {run_name}")
 
     samples_dir = f"{wdir}/../outputs/fit/{run_name}"

@@ -52,7 +52,7 @@ if __name__ == '__main__':
     #     raise NotImplementedError(args.model)
     print('model:', args.model)
     print('CHECK MODEL !!! CURRENTLY MANUALLY SET')
-    m = NPModel(data = data_in, psf_tag='king')
+    m = NPModel(data = data_in, psf_tag='delta')
 
     if args.fit_type == 'svi':
         m.fit_svi(n_steps=args.n_step, data=data_in, lr=1e-4)
@@ -70,6 +70,7 @@ if __name__ == '__main__':
         samples = mcmc.get_samples()
 
     elif args.fit_type in ['pthmc']:
+        m.fit_svi(n_steps=args.n_step, data=data_in, lr=1e-4)
         mcmc = m.run_parallel_tempering_hmc(
             num_samples=args.n,
             step_size_base=5e-2,
