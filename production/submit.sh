@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=hmcnt_Dbase23fix_Mbase23fix_svi1e-4
-#SBATCH --array=0
+#SBATCH --array=1-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
