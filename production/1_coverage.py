@@ -14,9 +14,9 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     n_sim = 30
-    truth_name = 'base230927'
-    data_name = 'base23fix_deltapsf'
-    model_name = 'base23fix_deltapsf'
+    truth_name = 'psc'
+    # data_name = 'base23fix_deltapsf'
+    # model_name = 'base23fix_deltapsf'
     run_name = f'pthmc_Dpsc_deltapsf_Mbase23fix_deltapsf'
     print(f"Run name: {run_name}")
 
