@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=pthmc_Dpsc_deltapsf_Mbase23fix_deltapsf
+#SBATCH --job-name=hmcnt_Dbase23fix_deltapsf_Mbase23fix_deltapsf
 #SBATCH --array=0-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -19,8 +19,8 @@ source /n/home07/yitians/setup/torch.sh
 cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
 # python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 --data base1023_fexp --model np --comment nstest
-python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type pthmc -n 10000 --n_step 2000 --data psc_deltapsf --model base23fix_deltapsf
+python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmcnt -n 10000 --n_step 10000 --data base23fix_deltapsf --model base23fix_deltapsf
 
 # run svi: python 1_fit.py -i 0 --fit_type svi -n 50000 --n_step 10000 --data base1023_fexp --model np
-# test hmc: python 1_fit.py -i 0 --fit_type test --data base23fix --model base23fix --comment stepsize0p1_nchain8
+# test hmc: python 1_fit.py -i 0 --fit_type testhmc --data base23fix_deltapsf --model base23fix_deltapsf --comment test
 # test pthmc: python 1_fit.py -i 0 --fit_type pthmc -n 10000 --n_step 2000 --data psc_deltapsf --model base23fix_deltapsf
