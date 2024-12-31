@@ -44,15 +44,12 @@ if __name__ == '__main__':
     else:
         data_in = jnp.array(data, dtype=jnp.int32)
 
-    # if args.model == 'npdelta':
-    #     m = NPModel(data=data_in, use_flat_exposure=True, psf_tag='delta')
-    # elif args.model == 'np':
-    #     m = NPModel(data=data_in, use_flat_exposure=True, psf_tag='king')
-    # else:
-    #     raise NotImplementedError(args.model)
-    print('model:', args.model)
-    print('CHECK MODEL !!! CURRENTLY MANUALLY SET')
-    m = NPModel(data = data_in, psf_tag='delta')
+    if 'deltapsf' in args.model:
+        m = NPModel(data=data_in, psf_tag='delta')
+        print('USING DELTA PSF')
+    else:
+        m = NPModel(data=data_in, psf_tag='king')
+        print('USING KING PSF')
 
     if args.fit_type == 'svi':
         m.fit_svi(n_steps=args.n_step, data=data_in, lr=1e-4)
