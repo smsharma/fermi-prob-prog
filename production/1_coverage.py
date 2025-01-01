@@ -14,10 +14,10 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     n_sim = 30
-    truth_name = 'base230927'
+    truth_name = 'base230927_smalldsk'
     # data_name = 'base23fix_deltapsf'
     # model_name = 'base23fix_deltapsf'
-    run_name = f'hmcnt_Dbase23fix_deltapsf_Mbase23fix_deltapsf'
+    run_name = f'hmc_Dbase23fix_smalldsk_Mbase23fix'
     print(f"Run name: {run_name}")
 
     samples_dir = f"{wdir}/../outputs/fit/{run_name}"
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     samples_list = []
     missing_list = []
     for i in tqdm(range(n_sim)):
-        fn = f"{samples_dir}/i{i}_n10000_ns10000.p"
+        fn = f"{samples_dir}/i{i}_n10000_ns0.p"
         if not os.path.exists(fn):
             missing_list.append(i)
         else:
