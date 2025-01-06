@@ -67,7 +67,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
     return the_map
 
 
-def simulator_for_model(m, vd, sim_all=False, delta_psf=False):
+def simulator_for_model(m, vd, sim_all=False, delta_psf=False, flat_exposure=False):
     """Wrapper for simulator function.
 
     Args:
@@ -156,5 +156,7 @@ def simulator_for_model(m, vd, sim_all=False, delta_psf=False):
         psf_scheme = 'original'
 
     exp_map = np.array(m.exposure_map)
+    if flat_exposure:
+        exp_map = np.ones_like(exp_map) * np.mean(exp_map)
 
     return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme)[0]
