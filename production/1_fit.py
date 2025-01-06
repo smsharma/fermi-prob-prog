@@ -6,6 +6,8 @@ import argparse
 import numpy as np
 import healpy as hp
 
+import jax
+jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
 wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
@@ -22,6 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str)
     parser.add_argument('--n_step', type=int, default=0)
     parser.add_argument('--fit_type', type=str)
+    parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--comment', type=str, default='')
     args = parser.parse_args()
 
@@ -52,17 +55,24 @@ if __name__ == '__main__':
         print('USING KING PSF')
 
     if args.fit_type == 'svi':
-        m.fit_svi(n_steps=args.n_step, data=data_in, lr=1e-4)
+        m.fit_svi(
+            n_steps=args.n_step, data=data_in, lr=1e-4,
+            rng_key=jax.random.PRNGKey(args.seed)
+        )
         samples = m.get_svi_samples(num_samples=args.n)
 
     elif args.fit_type in ['hmc', 'hmcnt']:
 
         if args.fit_type == 'hmcnt':
-            m.fit_svi(n_steps=args.n_step, data=data_in, lr=1e-4)
+            m.fit_svi(
+                n_steps=args.n_step, data=data_in, lr=1e-4,
+                rng_key=jax.random.PRNGKey(args.seed)
+            )
             
         mcmc = m.run_nuts(
             num_chains=4, num_warmup=1000, num_samples=args.n//4, step_size=0.05,
-            use_neutra=(args.fit_type=='hmcnt'), data=data_in
+            use_neutra=(args.fit_type=='hmcnt'), data=data_in,
+            rng_key=jax.random.PRNGKey(args.seed)
         )
         samples = mcmc.get_samples()
 
