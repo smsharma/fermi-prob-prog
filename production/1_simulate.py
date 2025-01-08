@@ -13,12 +13,12 @@ from simulations.wrapper import simulator_for_model
 
 if __name__ == '__main__':
 
-    data_name = '23newfexp_deltapsf'
+    data_name = 'hardsbfexp_deltapsf'
     n_sim = 100
     delta_psf = True
     flat_exposure = True
 
-    truth_dict = json.load(open("truth_dict_base230927new.json", "r"))
+    truth_dict = json.load(open("truth_dict_hardsb.json", "r"))
     m = NPModel(data=np.zeros(hp.nside2npix(128), dtype=np.int32)) # dummy data
 
     sims = []
