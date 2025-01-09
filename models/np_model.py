@@ -166,7 +166,9 @@ class NPModel:
             self.f_ary = np.array([0., 1.])
             self.df_rho_ary = np.array([0., 1.])
         else:
-            raise ValueError(f"PSF tag {psf_tag} not recognized.")
+            logging.warning(f'psf_tag is {psf_tag}, PSF not initialized!')
+            self.f_ary = None
+            self.df_rho_ary = None
 
     def get_sphharms(self):
         
