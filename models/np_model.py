@@ -496,7 +496,7 @@ class NPModel:
         self.model_neutra = neutra.reparam(self.model)
     
     def run_nuts(self, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1,
-                 rng_key=jax.random.PRNGKey(0), use_neutra=True, **model_static_kwargs):
+                 rng_key=jax.random.PRNGKey(0), use_neutra=True, debug_fit_dsk_gce=False, **model_static_kwargs):
         
         if use_neutra:
             self.get_neutra_model()

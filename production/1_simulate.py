@@ -13,7 +13,7 @@ from simulations.wrapper import simulator_for_model
 
 if __name__ == '__main__':
 
-    data_name = 'hardsbfexp_deltapsf'
+    data_name = 'base23fixfexp'
     n_sim = 100
     delta_psf = True
     flat_exposure = True
