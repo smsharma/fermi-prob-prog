@@ -22,6 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', type=int)
     parser.add_argument('--data', type=str)
     parser.add_argument('--model', type=str)
+    parser.add_argument('--n_exp', type=int)
     parser.add_argument('--n_step', type=int, default=0)
     parser.add_argument('--fit_type', type=str)
     parser.add_argument('--seed', type=int, default=42)
@@ -36,8 +37,16 @@ if __name__ == '__main__':
     save_dir = f"{wdir}/../outputs/fit/{run_name}"
     os.makedirs(save_dir, exist_ok=True)
 
-    mask_roi = jnp.load(f"{wdir}/mask_roi.npy")
+    mask_roi = np.load(f"{wdir}/mask_roi.npy")
     mask_norm = jnp.load(f"{wdir}/mask_norm.npy")
+
+    # Ensure mask_roi's length is divisible by args.n_exp
+    n_pix_remainder = int(np.sum(~mask_roi)) % args.n_exp
+    print(f'Pixel number: {int(np.sum(~mask_roi))}', end=' ')
+    if n_pix_remainder != 0:
+        unmasked_indices = np.where(mask_roi == 0)[0]
+        mask_roi[unmasked_indices[-n_pix_remainder:]] = 1
+    print(f'-> {int(np.sum(~mask_roi))} = {args.n_exp} * {int(np.sum(~mask_roi) / args.n_exp)}')
 
     data = np.load(f"../outputs/sims/{args.data}_n100.npy")[args.i]
     if len(data) < hp.nside2npix(128):
@@ -47,12 +56,9 @@ if __name__ == '__main__':
     else:
         data_in = jnp.array(data, dtype=jnp.int32)
 
-    if 'deltapsf' in args.model:
-        m = NPModel(data=data_in, psf_tag='delta')
-        print('USING DELTA PSF')
-    else:
-        m = NPModel(data=data_in, psf_tag='king')
-        print('USING KING PSF')
+    psf_tag = 'delta' if 'deltapsf' in args.model else 'king'
+    print('PSF:', psf_tag)
+    m = NPModel(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, custom_mask_roi=mask_roi)
 
     if args.fit_type == 'svi':
         m.fit_svi(

@@ -66,7 +66,7 @@ class NPModel:
         vary_disk=True,
         ps_cat="3fgl", r_outer=25, band_mask_range=2.,
         nside=128, n_exp=1, debug_model=False,
-        data=None, psf_tag='king',
+        data=None, psf_tag='king', custom_mask_roi=None,
     ):
         
         #========== General ==========
@@ -97,7 +97,10 @@ class NPModel:
         self.mask_roi = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=band_mask_range, mask_ring=True, inner=0, outer=r_outer, custom_mask=mask_ps)
         self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
         self.normalization_mask = self.mask_plane
+        if custom_mask_roi is not None:
+            self.mask_roi = custom_mask_roi
 
+        print(f'Number of exposure regions: {n_exp}')
         print(f'Number of pixels in ROI: {np.sum(~self.mask_roi)}')
 
         #========== Templates ==========
@@ -386,6 +389,8 @@ class NPModel:
         pix_array = np.where(self.mask_roi == False)[0]
         exp_array = np.array([[pix_array[i], self.exposure_map[pix_array[i]]] for i in range(len(pix_array))])
         array_sorted = exp_array[np.argsort(exp_array[:, 1])]
+
+        # Edit: discard pixels 
 
         # Convert from list of exreg pixels to masks (int as used to index)
         array_split = np.array_split(array_sorted, nexp)
