@@ -48,7 +48,7 @@ if __name__ == '__main__':
         mask_roi[unmasked_indices[-n_pix_remainder:]] = 1
     print(f'-> {int(np.sum(~mask_roi))} = {args.n_exp} * {int(np.sum(~mask_roi) / args.n_exp)}')
 
-    data = np.load(f"../outputs/sims/{args.data}_n100.npy")[args.i]
+    data = np.load(f"../outputs/sims/{args.data}.npy")[args.i]
     if len(data) < hp.nside2npix(128):
         data_full = np.zeros(hp.nside2npix(128))
         data_full[~mask_norm] = data
@@ -59,6 +59,7 @@ if __name__ == '__main__':
     psf_tag = 'delta' if 'deltapsf' in args.model else 'king'
     print('PSF:', psf_tag)
     m = NPModel(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, custom_mask_roi=mask_roi)
+    m.debug_exaggerate_exposure(5)
 
     if args.fit_type == 'svi':
         m.fit_svi(

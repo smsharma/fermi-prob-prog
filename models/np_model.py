@@ -134,6 +134,7 @@ class NPModel:
         self.k_max = np.max(np.array(self.data)[~self.mask_roi])
         print("Max photon count is {}".format(self.k_max))
         
+        self.n_exp = n_exp
         self.get_exp_regions(n_exp)
         
         #========== sample expand keys ==========
@@ -146,6 +147,15 @@ class NPModel:
         
         #========== Other ==========
         self.debug_model = debug_model
+
+    def debug_exaggerate_exposure(self, multiplier=5):
+        mean = np.mean(self.exposure_map)
+        delta = self.exposure_map - mean
+        self.exposure_map = mean + multiplier * delta
+        self.get_exp_regions(self.n_exp)
+        logging.warning(f'!!! Exposure map exaggerated by {multiplier} !!!')
+        logging.warning(f'!!! Exposure map exaggerated by {multiplier} !!!')
+        logging.warning(f'!!! Exposure map exaggerated by {multiplier} !!!')
         
         
     def get_psf_correction(self, psf_tag):
@@ -390,8 +400,6 @@ class NPModel:
         exp_array = np.array([[pix_array[i], self.exposure_map[pix_array[i]]] for i in range(len(pix_array))])
         array_sorted = exp_array[np.argsort(exp_array[:, 1])]
 
-        # Edit: discard pixels 
-
         # Convert from list of exreg pixels to masks (int as used to index)
         array_split = np.array_split(array_sorted, nexp)
         expreg_array = [np.array([array_split[i][j][0] for j in range(len(array_split[i]))], dtype="int32") for i in range(len(array_split))]
@@ -507,7 +515,10 @@ class NPModel:
             self.get_neutra_model()
             model = self.model_neutra
         else:
-            model = self.model
+            model = self.model_gceps
+            logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
+            logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
+            logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
         
         kernel = NUTS(model, max_tree_depth=4, dense_mass=False, step_size=step_size)
         self.nuts_mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
@@ -582,6 +593,76 @@ class NPModel:
         theta = []    
 
         for ips, ps in enumerate(["gce", "dsk"]):
+
+            Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
+
+            n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
+            n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
+            n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
+            sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
+            lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
+
+            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
+
+            s_ary = jnp.logspace(-1., 2., 1000)
+            dnds_ary = dnds(s_ary, theta_tmp)
+
+            A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
+
+            theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
+
+        theta = jnp.array(theta)
+                
+        # Pad the last exposure region so that all are the same size
+        exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
+        n_pad = exp_lens[0] - exp_lens[-1]
+        
+        expreg_indices = jnp.zeros_like(self.expreg_indices)
+        expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
+        expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
+
+        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
+                
+        # Get relevant arrays for different exposure regions
+        mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
+        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
+        data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
+        
+        exposure_multiplier = self.exposure_means_list / self.exposure_mean
+        
+        # Scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
+        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
+        theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
+        theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
+        theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
+        
+        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
+            
+            log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_ary, self.k_max, len(expreg_indices[0]))
+            
+            # Concatenate exposure regions
+            loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
+                                
+            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
+                return numpyro.factor('log-likelihood', loglike)
+            
+
+    def model_gceps(self, data=...):
+                
+        mu = jnp.zeros_like(data)
+
+        # NFW
+        gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.))
+        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps)
+        A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
+        # NFW + BULGE = GCE
+        temp_gce_ps = A_gce_nfw * temp_gce_nfw_ps
+
+        npt_compressed = jnp.array([temp_gce_ps])
+
+        theta = []    
+
+        for ips, ps in enumerate(["gce"]):
 
             Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 4.))
 
