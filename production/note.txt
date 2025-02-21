@@ -1,0 +1,17 @@
+base1023 = sim_s1k
+
+base1023_fexp_n100.npy == sim_s1k_fexp-2_n100.npy
+base1023_n100.npy == sim_s1k_n100.npy
+
+base23fix = gpsfix + s1k + kmaxfix
+base23fix_n100.npy == gpsfix_s1k_n100.npy
+base23fix_deltapsf_n100.npy == gpsfix_s1k_deltapsf_n100.npy
+
+base23fixfexp = base23fix + flat_exposure in data
+
+23newfexp = base23fixfexp but with new truth_dict_base230927new.json
+
+hardsbfexp = base23fixfexp with higher spectral break as truth_dict_base230927new.json
+(truth_dict_hardsb.json = truth_dict_base230927 but with truth_dict_base230927new.json for sb1_dsk and sb1_gce)
+
+truth_dict_1b = truth_dict_base230927 with n2 removed, n3->n2, sb2 removed, sb1->sb

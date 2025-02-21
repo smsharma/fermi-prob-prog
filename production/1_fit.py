@@ -13,6 +13,7 @@ import jax.numpy as jnp
 wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
 sys.path.append(f"{wdir}/..")
 from models.np_model import NPModel
+from models.np_model_1b import NPModel1B
 
 
 if __name__ == '__main__':
@@ -58,7 +59,11 @@ if __name__ == '__main__':
 
     psf_tag = 'delta' if 'deltapsf' in args.model else 'king'
     print('PSF:', psf_tag)
-    m = NPModel(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, custom_mask_roi=mask_roi)
+    if '1b' in args.model:
+        Model = NPModel1B
+    else:
+        Model = NPModel
+    m = Model(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, custom_mask_roi=mask_roi)
     # m.debug_exaggerate_exposure(5)
 
     if args.fit_type == 'svi':
