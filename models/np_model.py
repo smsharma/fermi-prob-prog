@@ -515,10 +515,10 @@ class NPModel:
             self.get_neutra_model()
             model = self.model_neutra
         else:
-            model = self.model_gceps
-            logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
-            logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
-            logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
+            model = self.model
+            # logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
+            # logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
+            # logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
         
         kernel = NUTS(model, max_tree_depth=4, dense_mass=False, step_size=step_size)
         self.nuts_mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
