@@ -61,8 +61,10 @@ if __name__ == '__main__':
     print('PSF:', psf_tag)
     if '1b' in args.model:
         Model = NPModel1B
+        print('Using NPModel1B model')
     else:
         Model = NPModel
+        print('Using NPModel model')
     m = Model(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, custom_mask_roi=mask_roi)
     # m.debug_exaggerate_exposure(5)
 

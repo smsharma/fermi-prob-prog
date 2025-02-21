@@ -19,10 +19,10 @@ from tensorflow_probability.substrates import jax as tfp
 import optax
 from einops import repeat
 
-from models.scd import dnds1b as dnds
+from models.scd import dnds_1b as dnds
 from models.templates import NFWTemplate, LorimerDiskTemplate
 from models.bulge_models import BulgeTemplates
-from likelihoods.npll_jax import log_like_np
+from likelihoods.npll_jax_1b import log_like_np
 from likelihoods.pll_jax import log_like_poisson
 from utils.sph_harm import Ylm
 from utils import create_mask as cm
@@ -512,10 +512,10 @@ class NPModel1B:
             self.get_neutra_model()
             model = self.model_neutra
         else:
-            model = self.model_gceps
-            logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
-            logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
-            logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
+            model = self.model
+            # logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
+            # logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
+            # logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
         
         kernel = NUTS(model, max_tree_depth=4, dense_mass=False, step_size=step_size)
         self.nuts_mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
