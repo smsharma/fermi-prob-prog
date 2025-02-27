@@ -71,7 +71,9 @@ if __name__ == '__main__':
     if args.fit_type == 'svi':
         m.fit_svi(
             n_steps=args.n_step, data=data_in, lr=1e-4,
-            rng_key=jax.random.PRNGKey(args.seed)
+            rng_key=jax.random.PRNGKey(args.seed),
+            guide='iaf', num_flows=5, hidden_dims=[128, 128],
+            num_particles=8,
         )
         samples = m.get_svi_samples(num_samples=args.n)
 

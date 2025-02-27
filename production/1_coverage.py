@@ -14,10 +14,10 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     n_sim = 30
-    truth_name = 'gceps'
+    truth_name = 'base230927'
     # data_name = 'base23fix_deltapsf'
     # model_name = 'base23fix_deltapsf'
-    run_name = 'hmc_Dgceps_x1exp_deltapsf_Mgceps_1exp_deltapsf'
+    run_name = 'hmc_Dbase23fix_deltapsf_2_Mbase23fix_1exp_deltapsf'
     print(f"Run name: {run_name}")
 
     samples_dir = f"{wdir}/../outputs/fit/{run_name}"
@@ -30,9 +30,16 @@ if __name__ == '__main__':
         "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
         "C", "zs"
     ]
-    ks = [
-        "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce", "gamma_ps",
-    ]
+    # ks = [
+    #     "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
+    #     "Sps_dsk", "n1_dsk", "n2_dsk", "sb_dsk",
+    #     "Sps_gce", "n1_gce", "n2_gce", "sb_gce",
+    #     "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
+    #     "C", "zs"
+    # ]
+    # ks = [
+    #     "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce", "gamma_ps",
+    # ]
     # ks = [
     #     "Sps_dsk", "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
     #     "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
