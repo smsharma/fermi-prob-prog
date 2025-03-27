@@ -28,6 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('--fit_type', type=str)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--nfn', type=int, default=128)
     parser.add_argument('--comment', type=str, default='')
     args = parser.parse_args()
 
@@ -73,7 +74,7 @@ if __name__ == '__main__':
         m.fit_svi(
             n_steps=args.n_step, data=data_in, lr=args.lr,
             rng_key=jax.random.PRNGKey(args.seed),
-            guide='iaf', num_flows=5, hidden_dims=[128, 128],
+            guide='iaf', num_flows=5, hidden_dims=[args.nfn, args.nfn],
             num_particles=8,
         )
         samples = m.get_svi_samples(num_samples=args.n)
