@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=svi_np_1nfexp_s100_kmax103_ns5k
-#SBATCH --array=0-29
+#SBATCH --job-name=hmc_Dsim_truth_n30_Mnp
+#SBATCH --array=0
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -14,17 +14,12 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=yitians@mit.com
 
-#source /n/home07/yitians/setup/jax.sh
 source /n/home07/yitians/setup/torch.sh
 
 cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
-python fit.py -i $SLURM_ARRAY_TASK_ID -n 50000 --fit_type svi --n_step 5000 \
-    --psf king --model np --data 1nfexp --label s100_kmax103_ns5k_1018
-# python fit.py -i $SLURM_ARRAY_TASK_ID -n 10000 --fit_type hmc --n_step 0 \
-#     --psf king --model gcfullAlm --data gcfull --label kmax103
-# python fit.py -i $SLURM_ARRAY_TASK_ID -n 10000 --fit_type hmc --psf delta
-#python fit.py -i $SLURM_ARRAY_TASK_ID -n 20000 --fit_type hmcnt --n_step 1000
+# python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 5000 -n 50000 --data sim_truth_n30 --model np --label 0327
+python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0    -n 10000 --data sim_truth_n30 --model np --label 0327
 
-# test with: python fit.py -i 0 -n 50000 --fit_type svi --n_step 100 --psf king --model np --data 1nfexp --label s100_kmax103_ns5k_1018
+# test with: python fit.py -i 0 --fit_type svi --n_step 500 -n 5000 --data sim_truth_n30 --model np --label 0327
 # test with: python fit.py -i 0 -n 100 --fit_type hmc --n_step 0 --psf king --model gcfullAlm --data gcfull --label kmax103

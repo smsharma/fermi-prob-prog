@@ -136,8 +136,8 @@ class NPModel:
         if self.non_poissonian:
             self.get_psf_correction(psf_tags)
             self.k_max = np.max(np.array(self.data)[~self.mask_roi])
-            print("WARNING: CAPPING KMAX AT 103")
-            self.k_max = 103
+            # print("WARNING: CAPPING KMAX AT 103")
+            # self.k_max = 103
             print("Max photon count is {}".format(self.k_max))
         
         self.get_exp_regions(n_exp)
