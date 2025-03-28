@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=svi_D23new_Mbase23fix_1exp_le1e-4_ns20k
+#SBATCH --job-name=svi_D23new_deltapsf_Mbase23fix_1exp_deltapsf_1
 #SBATCH --array=0
 #SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
@@ -18,7 +18,7 @@ source /n/home07/yitians/setup/torch.sh
 
 cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
-python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 20000 -n 50000 --data 23new --model base23fix_1exp --n_exp 1 --seed 4242 --comment "lr1e-4_ns20k" --lr 1e-4
+python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 7500 -n 50000 --data 23new_deltapsf --model base23fix_1exp_deltapsf --n_exp 1 --seed 4242 --lr 1e-4
 # python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 --data 23new --model base23fix_7exp --n_exp 7 --seed 4242
 
 # run svi: python 1_fit.py -i 0 --fit_type svi -n 10000 --n_step 100 --data base23fix_smalldsk_deltapsf --model base23fixnexp2_deltapsf --n_exp 2 --comment test
