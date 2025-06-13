@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=svi_D23new_deltapsf_Mbase23fix_1exp_deltapsf_1
+#SBATCH --job-name=svi_Dbase23fix_Mbase23fix_7exp_a0.01_lf_expdlr
 #SBATCH --array=0
 #SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
@@ -18,9 +18,17 @@ source /n/home07/yitians/setup/torch.sh
 
 cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
-python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 7500 -n 50000 --data 23new_deltapsf --model base23fix_1exp_deltapsf --n_exp 1 --seed 4242 --lr 1e-4
-# python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 --data 23new --model base23fix_7exp --n_exp 7 --seed 4242
+python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 \
+    --data base23fix --model base23fix_7exp --n_exp 7 --seed 424242 --lr 3e-4 --n_par 16 \
+    --guide iaf --num_flows 5 --hidden_dim_n 128 --renyi_alpha 0.01 --comment "a0.01_lf_expdlr"
 
-# run svi: python 1_fit.py -i 0 --fit_type svi -n 10000 --n_step 100 --data base23fix_smalldsk_deltapsf --model base23fixnexp2_deltapsf --n_exp 2 --comment test
-# test hmc: python 1_fit.py -i 0 --fit_type testhmc --data base23fix_deltapsf_2 --model base23fix_1exp_deltapsf --n_exp 7 --comment test
-# test pthmc: python 1_fit.py -i 0 --fit_type pthmc -n 10000 --n_step 2000 --data psc_deltapsf --model base23fix_deltapsf
+# python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 \
+#     --data base23fixfexp --model base23fix_1exp --n_exp 1 --seed 4224 --comment ""
+
+#===== test =====
+# run svi: python 1_fit.py -i 0 --fit_type svi -n 10000 --n_step 100 \
+#     --data base23fix_smalldsk_deltapsf --model base23fixnexp2_deltapsf --n_exp 2 --comment test
+# test hmc: python 1_fit.py -i 0 --fit_type testhmc \
+#     --data base23fix_deltapsf_2 --model base23fix_1exp_deltapsf --n_exp 7 --comment test
+# test pthmc: python 1_fit.py -i 0 --fit_type pthmc -n 10000 --n_step 2000 \
+#     --data psc_deltapsf --model base23fix_deltapsf

@@ -386,7 +386,7 @@ class NPModel:
             
             # Concatenate exposure regions
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
-                                
+
             with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
                 return numpyro.factor('log-likelihood', loglike)
         
@@ -428,12 +428,22 @@ class NPModel:
             
             
     def fit_svi(
-        self, rng_key=jax.random.PRNGKey(42),
+        self, model_name = 'np', rng_key=jax.random.PRNGKey(42),
         guide='iaf', num_flows=5, hidden_dims=[128, 128],
-        n_steps=7500, lr=5e-3, num_particles=8, vectorize_particles=True,
+        n_steps=7500, lr=5e-3, num_particles=8, vectorize_particles=True, renyi_alpha=None,
+        lr_exp_decay = False,
         **model_static_kwargs
     ):
+        
+        #===== model =====
+        if model_name == 'np':
+            model = self.model
+        elif model_name == 'pois':
+            model = self.model_pois
+        else:
+            raise NotImplementedError("Model not recognized. Use 'np' or 'pois'.")
 
+        #===== guide =====
         iaf_kwargs = dict(num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
 
         if guide == "mvn":
@@ -442,35 +452,59 @@ class NPModel:
         elif guide == "iaf":
             self.guide = autoguide.AutoIAFNormal(self.model, **iaf_kwargs)
             
-        # elif guide == "iaf_mixture":
-        #     class AutoIAFMixture(autoguide.AutoIAFNormal):
-        #         def get_base_dist(self):
-        #             C = num_base_mixture
-        #             mixture = dist.MixtureSameFamily(
-        #                 dist.Categorical(probs=jnp.ones(C) / C),
-        #                 dist.Normal(jnp.arange(float(C)), 1.)
-        #             )
-        #             return mixture.expand([self.latent_dim]).to_event()
-        #     self.guide = AutoIAFMixture(self.model, **iaf_kwargs)
-            
-        elif guide == "iaf_gaussians":
-            class AutoIAFMultiGaussian(autoguide.AutoIAFNormal):
+        elif guide == "iafm":
+            class AutoIAFMixture(autoguide.AutoIAFNormal):
                 def get_base_dist(self):
-                    return dist.Normal(
-                        jnp.array([-5, -2, -1, 0, 1, 2, 5, 20], dtype=jnp.float32),
-                        1.,
+                    C = 8
+                    mixture = dist.MixtureSameFamily(
+                        dist.Categorical(probs=jnp.ones(C) / C),
+                        dist.Normal(jnp.arange(float(C)), 1.)
                     )
-            self.guide = AutoIAFMultiGaussian(self.model, **iaf_kwargs)
+                    return mixture.expand([self.latent_dim]).to_event()
+            self.guide = AutoIAFMixture(self.model, **iaf_kwargs)
+
+        elif guide == "iafst":
+            class AutoIAFStudentT(autoguide.AutoIAFNormal):
+                def get_base_dist(self):
+                    # For instance, a single StudentT distribution
+                    # with df=5, loc=0, scale=1 for the entire latent dimension
+                    return dist.StudentT(df=5.0, loc=0.0, scale=1.0).expand([self.latent_dim]).to_event(1)
+            self.guide = AutoIAFStudentT(self.model, **iaf_kwargs)
             
         else:
             raise NotImplementedError
+        
+        #===== optimizer =====
+        if lr_exp_decay:
+            lr_schedule = optax.join_schedules(
+                schedules=[
+                    optax.constant_schedule(lr),
+                    optax.exponential_decay(
+                        init_value = lr,
+                        transition_steps = 100,
+                        decay_rate = 0.97,
+                        staircase = False
+                    )
+                ],
+                boundaries=[2000]
+            )
+        else:
+            lr_schedule = lr
 
         optimizer = optim.optax_to_numpyro(optax.chain(
             optax.clip(1.),
-            optax.adam(lr),
+            optax.adam(lr_schedule),
         ))
+        
+        #===== loss =====
+        if renyi_alpha != 1:
+            loss = RenyiELBO(num_particles=num_particles, alpha=renyi_alpha)
+            print(f'USING RENYI ELBO WITH ALPHA = {renyi_alpha}')
+        else:
+            loss = Trace_ELBO(num_particles=num_particles, vectorize_particles=vectorize_particles)
 
-        self.svi = SVI(self.model, self.guide, optimizer, Trace_ELBO(num_particles=num_particles, vectorize_particles=vectorize_particles))
+        #===== SVI =====
+        self.svi = SVI(model, self.guide, optimizer, loss)
         self.svi_results = self.svi.run(rng_key, n_steps, **model_static_kwargs)
         
         return self.svi_results
@@ -508,17 +542,18 @@ class NPModel:
         neutra = NeuTraReparam(self.guide, self.svi_results.params)
         self.model_neutra = neutra.reparam(self.model)
     
-    def run_nuts(self, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1,
-                 rng_key=jax.random.PRNGKey(0), use_neutra=True, debug_fit_dsk_gce=False, **model_static_kwargs):
+    def run_nuts(self, model_name='np', num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1,
+                 rng_key=jax.random.PRNGKey(0), **model_static_kwargs):
         
-        if use_neutra:
+        if model_name == 'np':
+            model = self.model
+        elif model_name == 'pois':
+            model = self.model_pois
+        elif model_name == 'neutra':
             self.get_neutra_model()
             model = self.model_neutra
         else:
-            model = self.model
-            # logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
-            # logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
-            # logging.warning("!!! RUN_NUTS: DEBUGGING WITH MODEL_GCEPS !!!")
+            raise NotImplementedError("Model not recognized. Use 'np', 'pois' or 'neutra'.")
         
         kernel = NUTS(model, max_tree_depth=4, dense_mass=False, step_size=step_size)
         self.nuts_mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
@@ -556,13 +591,13 @@ class NPModel:
         return self.mcmc
     
     
-    def get_MAP_estimates(self, rng_key=jax.random.PRNGKey(42), lr=0.1, n_steps=30000):
+    def get_MAP_estimates(self, rng_key=jax.random.PRNGKey(42), lr=0.1, n_steps=30000, **model_static_kwargs):
         
         #optimizer = numpyro.optim.Adam(lr=lr)
         guide = autoguide.AutoDelta(self.model)
         optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(1.), optax.adamw(lr)))
         svi = SVI(self.model, guide, optimizer, loss=Trace_ELBO())
-        svi_results = svi.run(rng_key, n_steps, self.data)
+        svi_results = svi.run(rng_key, n_steps, **model_static_kwargs)
         self.MAP_estimates = guide.median(svi_results.params)
         
         return svi_results
@@ -713,5 +748,98 @@ class NPModel:
             # Concatenate exposure regions
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
                                 
+            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
+                return numpyro.factor('log-likelihood', loglike)
+            
+    def model_pois(self, data=...):
+        
+        # Get mixed pib template
+        theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
+        temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)
+
+        # Get mixed ics template
+        theta_ics = numpyro.sample("theta_ics", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
+        temp_ics = jnp.sum(theta_ics[:, None] * self.ics, 0)
+
+        S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 4.))
+            
+        temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pib, temp_ics]
+        temp_labels = ["iso", "bub", "psc", "pib", "ics"]
+                
+        mu = jnp.zeros_like(data)
+        
+        for temp, temp_label in zip(temps, temp_labels):
+            
+            if temp_label in ["pib", "ics"]:
+                prior_lo, prior_hi = 1e-3, 14.
+            else:
+                prior_lo, prior_hi = 1e-3, 5.0
+                
+            prior_dist = dist.Uniform(prior_lo, prior_hi)
+            S_temp = numpyro.sample("S_{}".format(temp_label), prior_dist)
+            
+            if temp_label in ["pib"]:
+                
+                temp_pib_mod = jnp.zeros_like(data)
+                for ii in range(len(self.Ylm_temps)):
+                    Alm = numpyro.sample("Alm_{}".format(ii), dist.Uniform(-0.05, 0.05))
+                    temp_pib_mod += Alm * self.Ylm_temps[ii]
+                
+                temp_pib_mod = (1. + temp_pib_mod) * temp
+                
+                A_temp = S_temp / jnp.mean(temp_pib_mod[~self.normalization_mask])
+                mu += A_temp * temp_pib_mod  
+            else:
+                A_temp = S_temp / jnp.mean(temp[~self.normalization_mask])
+                mu += A_temp * temp     
+                                            
+        if self.vary_gamma:
+            gamma_poiss = numpyro.sample("gamma_poiss", dist.Uniform(0.2, 2.))
+        else:
+            gamma_poiss = 1.2
+
+        temp_gce_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
+                
+        if self.bulge_hybrid:
+            f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
+            
+            theta_bulge_poiss = numpyro.sample("theta_bulge_poiss", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
+            temp_bulge = jnp.sum(theta_bulge_poiss[:, None] * self.bulge_templates, 0)
+        else:
+            f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
+            temp_bulge = self.bulge_templates[0]
+        
+        # Normalize to same mean
+        A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.normalization_mask])
+        A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.normalization_mask])
+        temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_nfw_poiss \
+                            + f_bulge_poiss * A_gce_bulge * temp_bulge
+        
+        A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.normalization_mask])
+        mu += A_gce * temp_gce_poiss
+                
+        # Pad the last exposure region so that all are the same size
+        exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
+        n_pad = exp_lens[0] - exp_lens[-1]
+        
+        expreg_indices = jnp.zeros_like(self.expreg_indices)
+        expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
+        expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
+
+        log_like_poisson_exp_vmapped = jax.vmap(log_like_poisson, in_axes=(0, 0))
+                
+        # Get relevant arrays for different exposure regions
+        mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
+        data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
+        
+        # exposure_multiplier = self.exposure_means_list / self.exposure_mean
+        
+        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
+            
+            log_like_exp = log_like_poisson_exp_vmapped(mu_batch, data_batch)
+            
+            # Concatenate exposure regions
+            loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
+
             with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
                 return numpyro.factor('log-likelihood', loglike)

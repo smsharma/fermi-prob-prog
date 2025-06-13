@@ -28,7 +28,11 @@ if __name__ == '__main__':
     parser.add_argument('--fit_type', type=str)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--lr', type=float, default=1e-4)
-    # parser.add_argument('--nfn', type=int, default=128)
+    parser.add_argument('--guide', type=str, default='iaf')
+    parser.add_argument('--n_par', type=int, default=8)
+    parser.add_argument('--renyi_alpha', type=float, default=1)
+    parser.add_argument('--num_flows', type=int, default=4)
+    parser.add_argument('--hidden_dim_n', type=int, default=64)
     parser.add_argument('--comment', type=str, default='')
     args = parser.parse_args()
 
@@ -74,8 +78,9 @@ if __name__ == '__main__':
         m.fit_svi(
             n_steps=args.n_step, data=data_in, lr=args.lr,
             rng_key=jax.random.PRNGKey(args.seed),
-            guide='iaf', num_flows=5, hidden_dims=[128, 128],
-            num_particles=16, vectorize_particles=True
+            guide=args.guide, num_flows=args.num_flows, hidden_dims=[args.hidden_dim_n, args.hidden_dim_n],
+            num_particles=args.n_par, vectorize_particles=True,
+            renyi_alpha=args.renyi_alpha, lr_exp_decay=True,
         )
         samples = m.get_svi_samples(num_samples=args.n)
 
@@ -115,3 +120,5 @@ if __name__ == '__main__':
         raise NotImplementedError(args.fit_type)
     
     pickle.dump(samples, open(f"{save_dir}/i{args.i}_n{args.n}_ns{args.n_step}.p", 'wb'))
+    if args.fit_type == 'svi':
+        pickle.dump(m.svi_results.losses, open(f"{save_dir}/i{args.i}_n{args.n}_ns{args.n_step}_losses.p", 'wb'))
