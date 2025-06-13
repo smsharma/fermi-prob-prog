@@ -17,3 +17,7 @@ hardsbfexp = base23fixfexp with higher spectral break as truth_dict_base230927ne
 truth_dict_1b = truth_dict_base230927 with n2 removed, n3->n2, sb2 removed, sb1->sb
 
 23new = base23fix with truth_dict_base230927new.json
+
+----- Poissonian -----
+
+pois230927
