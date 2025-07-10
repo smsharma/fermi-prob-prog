@@ -431,7 +431,7 @@ class NPModel:
         self, model_name = 'np', rng_key=jax.random.PRNGKey(42),
         guide='iaf', num_flows=5, hidden_dims=[128, 128],
         n_steps=7500, lr=5e-3, num_particles=8, vectorize_particles=True, renyi_alpha=None,
-        lr_exp_decay = False,
+        lr_exp_decay=False,
         **model_static_kwargs
     ):
         
@@ -447,10 +447,10 @@ class NPModel:
         iaf_kwargs = dict(num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
 
         if guide == "mvn":
-            self.guide = autoguide.AutoMultivariateNormal(self.model)
+            self.guide = autoguide.AutoMultivariateNormal(model)
             
         elif guide == "iaf":
-            self.guide = autoguide.AutoIAFNormal(self.model, **iaf_kwargs)
+            self.guide = autoguide.AutoIAFNormal(model, **iaf_kwargs)
             
         elif guide == "iafm":
             class AutoIAFMixture(autoguide.AutoIAFNormal):
@@ -461,7 +461,7 @@ class NPModel:
                         dist.Normal(jnp.arange(float(C)), 1.)
                     )
                     return mixture.expand([self.latent_dim]).to_event()
-            self.guide = AutoIAFMixture(self.model, **iaf_kwargs)
+            self.guide = AutoIAFMixture(model, **iaf_kwargs)
 
         elif guide == "iafst":
             class AutoIAFStudentT(autoguide.AutoIAFNormal):
@@ -469,7 +469,7 @@ class NPModel:
                     # For instance, a single StudentT distribution
                     # with df=5, loc=0, scale=1 for the entire latent dimension
                     return dist.StudentT(df=5.0, loc=0.0, scale=1.0).expand([self.latent_dim]).to_event(1)
-            self.guide = AutoIAFStudentT(self.model, **iaf_kwargs)
+            self.guide = AutoIAFStudentT(model, **iaf_kwargs)
             
         else:
             raise NotImplementedError

@@ -74,34 +74,41 @@ if __name__ == '__main__':
     m = Model(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, custom_mask_roi=mask_roi)
     # m.debug_exaggerate_exposure(5)
 
+    if 'pois' in args.model:
+        model_type = 'pois'
+    else:
+        model_type = 'np'
+
     if args.fit_type == 'svi':
         m.fit_svi(
-            n_steps=args.n_step, data=data_in, lr=args.lr,
+            model_name=model_type, n_steps=args.n_step, data=data_in, lr=args.lr,
             rng_key=jax.random.PRNGKey(args.seed),
             guide=args.guide, num_flows=args.num_flows, hidden_dims=[args.hidden_dim_n, args.hidden_dim_n],
             num_particles=args.n_par, vectorize_particles=True,
-            renyi_alpha=args.renyi_alpha, lr_exp_decay=True,
+            renyi_alpha=args.renyi_alpha, lr_exp_decay=False,
         )
         samples = m.get_svi_samples(num_samples=args.n)
 
     elif args.fit_type in ['hmc', 'hmcnt']:
 
         if args.fit_type == 'hmcnt':
+            model_type = 'neutra'
             m.fit_svi(
-                n_steps=args.n_step, data=data_in, lr=1e-4,
+                model_name=model_type, n_steps=args.n_step, data=data_in, lr=1e-4,
                 rng_key=jax.random.PRNGKey(args.seed)
             )
             
         mcmc = m.run_nuts(
-            num_chains=4, num_warmup=1000, num_samples=args.n//4, step_size=0.05,
-            use_neutra=(args.fit_type=='hmcnt'), data=data_in,
+            model_name=model_type, num_chains=4, num_warmup=1000, num_samples=args.n//4, step_size=0.05,
+            data=data_in,
             rng_key=jax.random.PRNGKey(args.seed)
         )
         samples = mcmc.get_samples()
 
     elif args.fit_type in ['pthmc']:
-        m.fit_svi(n_steps=args.n_step, data=data_in, lr=1e-4)
+        m.fit_svi(model_name=model_type, n_steps=args.n_step, data=data_in, lr=1e-4)
         mcmc = m.run_parallel_tempering_hmc(
+            model_name=model_type,
             num_samples=args.n,
             step_size_base=5e-2,
             num_leapfrog_steps=3,
@@ -111,7 +118,7 @@ if __name__ == '__main__':
 
     elif args.fit_type == 'testhmc':
         mcmc = m.run_nuts(
-            num_chains=8, num_warmup=10, num_samples=10, step_size=0.1,
+            model_name=model_type, num_chains=8, num_warmup=10, num_samples=10, step_size=0.1,
             use_neutra=False, data=data_in
         )
         samples = mcmc.get_samples()
