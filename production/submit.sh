@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=hmc_Dpois_Mpois
-#SBATCH --array=1-29
+#SBATCH --job-name=hmc_D23new_Mbase23fix
+#SBATCH --array=0-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -20,19 +20,19 @@ cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
 #===== np =====
 # python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 \
-#     --data base23fix --model base23fix_7exp --n_exp 7 --seed 424242 --lr 3e-4 --n_par 16 \
-#     --guide iaf --num_flows 5 --hidden_dim_n 128 --renyi_alpha "-0.5" --comment "a-0.5_lf_expdlr"
+#     --data 23new --model base23fix --n_exp 7 --seed 424242 --lr 3e-4 --n_par 16 \
+#     --guide iaf --num_flows 5 --hidden_dim_n 128 --renyi_alpha "1" --comment ""
 
-# python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 \
-#     --data base23fixfexp --model base23fix_1exp --n_exp 1 --seed 4224 --comment ""
+python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 \
+    --data 23new --model base23fix --n_exp 7 --seed 4224 --comment ""
 
 #===== pois =====
-# python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 \
-#     --data pois --model pois --n_exp 7 --seed 424242 --lr 3e-4 --n_par 16 \
+# python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 15000 -n 50000 \
+#     --data pois --model pois --n_exp 1 --seed 424242 --lr 1e-4 --lrexpdecay --n_par 16 \
 #     --guide iaf --num_flows 5 --hidden_dim_n 128 --renyi_alpha 1 --comment ""
 
-python 1_fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 \
-    --data pois --model pois --n_exp 7 --seed 4224 --comment ""
+# python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 \
+#     --data pois --model pois --n_exp 7 --seed 4224 --comment ""
 
 #===== test =====
 # run svi: python 1_fit.py -i 0 --fit_type svi -n 10000 --n_step 100 \

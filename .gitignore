@@ -12,6 +12,8 @@ outputs/
 issues/
 scripts/slurm_outputs/
 
+production/plots/
+
 notebooks/plots/rott/
 validating/plots/
 

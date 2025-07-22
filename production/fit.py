@@ -28,6 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('--fit_type', type=str)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lrexpdecay', action='store_true')
     parser.add_argument('--guide', type=str, default='iaf')
     parser.add_argument('--n_par', type=int, default=8)
     parser.add_argument('--renyi_alpha', type=float, default=1)
@@ -85,7 +86,7 @@ if __name__ == '__main__':
             rng_key=jax.random.PRNGKey(args.seed),
             guide=args.guide, num_flows=args.num_flows, hidden_dims=[args.hidden_dim_n, args.hidden_dim_n],
             num_particles=args.n_par, vectorize_particles=True,
-            renyi_alpha=args.renyi_alpha, lr_exp_decay=False,
+            renyi_alpha=args.renyi_alpha, lr_exp_decay=args.lrexpdecay,
         )
         samples = m.get_svi_samples(num_samples=args.n)
 

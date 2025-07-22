@@ -14,43 +14,34 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     n_sim = 30
-    truth_name = 'base230927'
-    # data_name = 'base23fix_deltapsf'
-    # model_name = 'base23fix_deltapsf'
-    run_name = 'hmc_Dbase23fix_deltapsf_2_Mbase23fix_1exp_deltapsf'
+    truth_name = 'base230927new'
+    run_name = 'hmc_D23new_Mbase23fix'
     print(f"Run name: {run_name}")
 
     samples_dir = f"{wdir}/../outputs/fit/{run_name}"
     theta_true = json.load(open(f"{wdir}/truth_dict_{truth_name}.json"))
 
-    ks = [
-        "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
-        "Sps_dsk", "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
-        "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
-        "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
-        "C", "zs"
-    ]
-    # ks = [
-    #     "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
-    #     "Sps_dsk", "n1_dsk", "n2_dsk", "sb_dsk",
-    #     "Sps_gce", "n1_gce", "n2_gce", "sb_gce",
-    #     "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
-    #     "C", "zs"
-    # ]
-    # ks = [
-    #     "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce", "gamma_ps",
-    # ]
-    # ks = [
-    #     "Sps_dsk", "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
-    #     "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
-    #     "f_bulge_ps", "gamma_ps",
-    #     "C", "zs"
-    # ]
+    if 'pois' in run_name:
+        ks = [
+            "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
+            "f_bulge_poiss", "gamma_poiss"
+        ]
+    else:
+        ks = [
+            "S_bub", "S_gce", "S_ics", "S_iso", "S_pib", "S_psc",
+            "Sps_dsk", "n1_dsk", "n2_dsk", "n3_dsk", "sb1_dsk", "lambdas_dsk",
+            "Sps_gce", "n1_gce", "n2_gce", "n3_gce", "sb1_gce", "lambdas_gce",
+            "f_bulge_poiss", "f_bulge_ps", "gamma_poiss", "gamma_ps",
+            "C", "zs"
+        ]
 
     samples_list = []
     missing_list = []
     for i in tqdm(range(n_sim)):
-        fn = f"{samples_dir}/i{i}_n10000_ns0.p"
+        if 'hmc' in run_name:
+            fn = f"{samples_dir}/i{i}_n10000_ns0.p"
+        else:
+            fn = f"{samples_dir}/i{i}_n50000_ns10000.p"
         if not os.path.exists(fn):
             missing_list.append(i)
         else:
