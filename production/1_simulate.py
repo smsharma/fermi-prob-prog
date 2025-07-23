@@ -9,15 +9,15 @@ from tqdm import tqdm
 sys.path.append("..")
 from models.np_model import NPModel
 from simulations.wrapper import simulator_for_model
-from simulations.wrapper_1b import simulator_for_model_1b
+# from simulations.wrapper_1b import simulator_for_model_1b
 
 
 if __name__ == '__main__':
 
-    data_name = 'base23fixfexp'
-    n_sim = 30
+    data_name = 'base23fix_2'
+    n_sim = 100
     delta_psf = False
-    flat_exposure = True
+    flat_exposure = False
     sim_func = simulator_for_model
 
     truth_dict = json.load(open("truth_dict_base230927.json", "r"))

@@ -14,8 +14,8 @@ from utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     n_sim = 30
-    truth_name = 'base230927new'
-    run_name = 'hmc_D23new_Mbase23fix'
+    truth_name = 'base230927'
+    run_name = 'hmc_Dbase23fix_deltapsf_2_Mbase23fix_deltapsf'
     print(f"Run name: {run_name}")
 
     samples_dir = f"{wdir}/../outputs/fit/{run_name}"
