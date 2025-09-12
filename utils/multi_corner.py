@@ -68,4 +68,7 @@ def multi_corner(
                                  '*', color=point_est_color, ms=10)
                 
     if save_fn is not None:
-        plt.savefig(save_fn)
+        if save_fn.endswith('.pdf'):
+            plt.savefig(save_fn)
+        else:
+            plt.savefig(save_fn, dpi=300)

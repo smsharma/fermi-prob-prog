@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     n_sim = 30
     truth_name = 'base230927'
-    run_name = 'hmc_Dbase23fix_deltapsf_2_Mbase23fix_deltapsf'
+    run_name = 'svi_Dbase23fix_2_Mbase23fix_a-30.0'
     print(f"Run name: {run_name}")
 
     samples_dir = f"{wdir}/../outputs/fit/{run_name}"
@@ -41,7 +41,7 @@ if __name__ == '__main__':
         if 'hmc' in run_name:
             fn = f"{samples_dir}/i{i}_n10000_ns0.p"
         else:
-            fn = f"{samples_dir}/i{i}_n50000_ns10000.p"
+            fn = f"{samples_dir}/i{i}_n50000_ns5000.p"
         if not os.path.exists(fn):
             missing_list.append(i)
         else:
