@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=svi_Dbase23fix_2_Mbase23fix_a-30.0
+#SBATCH --job-name=svi_Dbase23fix_smalldskgce_deltapsf_Mbase23fix_deltapsf
 #SBATCH --array=0-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -20,8 +20,8 @@ cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
 #===== np =====
 python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 5000 -n 50000 \
-    --data base23fix_2 --model base23fix --n_exp 7 --seed 424242 --lr 3e-4 --n_par 16 \
-    --guide iaf --num_flows 5 --hidden_dim_n 128 --renyi_alpha "-30.0" --comment _a-30.0""
+    --data base23fix_smalldskgce_deltapsf --model base23fix_deltapsf --n_exp 7 --seed 424242 --lr 3e-4 --n_par 16 \
+    --guide iaf --num_flows 5 --hidden_dim_n 128 --renyi_alpha "1" --comment ""
 
 # python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 \
 #     --data base23fix_2 --model base23fix --n_exp 7 --seed 4224 --comment ""

@@ -14,13 +14,13 @@ from simulations.wrapper import simulator_for_model
 
 if __name__ == '__main__':
 
-    data_name = '23new2'
+    data_name = 'base23fix_smalldskgce_deltapsf'
     n_sim = 30
-    delta_psf = False
+    delta_psf = True
     flat_exposure = False
     sim_func = simulator_for_model
 
-    truth_dict = json.load(open("truth_dict_base230927new2.json", "r"))
+    truth_dict = json.load(open("truth_dict_base230927_smalldskgce.json", "r"))
     m = NPModel(data=np.zeros(hp.nside2npix(128), dtype=np.int32)) # dummy data
     # m.debug_exaggerate_exposure(5)
 
