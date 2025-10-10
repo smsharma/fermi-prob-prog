@@ -36,6 +36,112 @@ wdir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(wdir, '../data')
 
 
+#===== Run SVI ======
+
+from functools import partial
+import warnings
+import tqdm
+from jax import jit, lax, random
+from numpyro.infer.svi import SVIRunResult
+
+def beta_schedule(num_steps, start_T=10.0, end_T=1.0, kind="geometric"):
+    """
+    Returns betas in (0,1], where beta = 1/T.
+    Geometric is robust; cosine is a smooth alternative.
+    """
+    assert start_T >= end_T >= 1.0
+    if kind == "geometric":
+        # T_t = start_T * (end_T/start_T)^(t/(num_steps-1))
+        t = jnp.linspace(0, 1, num_steps)
+        T = start_T * (end_T / start_T) ** t
+    elif kind == "cosine":
+        # T_t = end_T + 0.5*(start_T-end_T)*(1+cos(pi * (1 - t)))
+        t = jnp.linspace(0, 1, num_steps)
+        T = end_T + 0.5 * (start_T - end_T) * (1.0 + jnp.cos(jnp.pi * (1.0 - t)))
+    else:
+        raise ValueError("kind must be 'geometric' or 'cosine'")
+    return 1.0 / T  # beta = 1/T
+
+def run_svi(
+    svi,
+    rng_key,
+    num_steps,
+    *args,
+    progress_bar=True,
+    stable_update=False,
+    # forward_mode_differentiation=False,
+    init_state=None,
+    init_params=None,
+    annealing_schedule="none", # "none", "geometric" or "cosine"
+    **kwargs,
+):
+
+    if num_steps < 1:
+        raise ValueError("num_steps must be a positive integer.")
+
+    if annealing_schedule == "none":
+        betas = jnp.ones(num_steps)
+    else:
+        betas = beta_schedule(num_steps, kind=annealing_schedule)
+
+    def body_fn(svi_state, beta, _):
+        if stable_update:
+            svi_state, loss = svi.stable_update(
+                svi_state,
+                *args,
+                # forward_mode_differentiation=forward_mode_differentiation,
+                beta=beta,
+                **kwargs,
+            )
+        else:
+            svi_state, loss = svi.update(
+                svi_state,
+                *args,
+                # forward_mode_differentiation=forward_mode_differentiation,
+                beta=beta,
+                **kwargs,
+            )
+        return svi_state, loss
+
+    if init_state is None:
+        svi_state = svi.init(rng_key, *args, init_params=init_params, **kwargs)
+    else:
+        svi_state = init_state
+    if progress_bar:
+        losses = []
+        with tqdm.trange(1, num_steps + 1) as t:
+            batch = max(num_steps // 20, 1)
+            for i in t:
+                beta = betas[i - 1]
+                svi_state, loss = jit(body_fn)(svi_state, beta, None)
+                losses.append(jax.device_get(loss))
+                if i % batch == 0:
+                    if stable_update:
+                        valid_losses = [x for x in losses[i - batch :] if x == x]
+                        num_valid = len(valid_losses)
+                        if num_valid == 0:
+                            avg_loss = float("nan")
+                        else:
+                            avg_loss = sum(valid_losses) / num_valid
+                    else:
+                        avg_loss = sum(losses[i - batch :]) / batch
+                    t.set_postfix_str(
+                        "init loss: {:.4f}, avg. loss [{}-{}]: {:.4f}, beta: {:.4f}".format(
+                            losses[0], i - batch + 1, i, avg_loss, beta
+                        ),
+                        refresh=False,
+                    )
+        losses = jnp.stack(losses)
+    else:
+        svi_state, losses = lax.scan(body_fn, svi_state, None, length=num_steps)
+
+    # XXX: we also return the last svi_state for further inspection of both
+    # optimizer's state and mutable state.
+    return SVIRunResult(svi.get_params(svi_state), svi_state, losses)
+
+#====================
+
+
 class NPModel:
     """
     Parameters
@@ -232,7 +338,7 @@ class NPModel:
         self.svi_init_state = None
     
             
-    def model(self, data=...):
+    def model(self, data=..., beta=1.):
         
         # Get mixed pib template
         theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
@@ -388,7 +494,8 @@ class NPModel:
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
 
             with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
-                return numpyro.factor('log-likelihood', loglike)
+                with handlers.scale(scale=beta):
+                    return numpyro.factor('log-likelihood', loglike)
         
 
     def get_exp_regions(self, nexp):
@@ -432,6 +539,8 @@ class NPModel:
         guide='iaf', num_flows=5, hidden_dims=[128, 128],
         n_steps=7500, lr=5e-3, num_particles=8, vectorize_particles=True, renyi_alpha=None,
         lr_exp_decay=False,
+        init_state=None,
+        annealing_schedule='none',
         **model_static_kwargs
     ):
         
@@ -505,7 +614,15 @@ class NPModel:
 
         #===== SVI =====
         self.svi = SVI(model, self.guide, optimizer, loss)
-        self.svi_results = self.svi.run(rng_key, n_steps, **model_static_kwargs)
+        # self.svi_results = self.svi.run(rng_key, n_steps, **model_static_kwargs)
+        self.svi_results = run_svi(
+            self.svi,
+            rng_key,
+            n_steps,
+            init_state=init_state,
+            annealing_schedule=annealing_schedule,
+            **model_static_kwargs
+        )
         
         return self.svi_results
     

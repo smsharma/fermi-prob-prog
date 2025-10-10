@@ -32,6 +32,7 @@ if __name__ == '__main__':
     parser.add_argument('--guide', type=str, default='iaf')
     parser.add_argument('--n_par', type=int, default=8)
     parser.add_argument('--renyi_alpha', type=float, default=1)
+    parser.add_argument('--annealing_schedule', type=str, default='none')
     parser.add_argument('--num_flows', type=int, default=4)
     parser.add_argument('--hidden_dim_n', type=int, default=64)
     parser.add_argument('--comment', type=str, default='')
@@ -87,6 +88,7 @@ if __name__ == '__main__':
             guide=args.guide, num_flows=args.num_flows, hidden_dims=[args.hidden_dim_n, args.hidden_dim_n],
             num_particles=args.n_par, vectorize_particles=True,
             renyi_alpha=args.renyi_alpha, lr_exp_decay=args.lrexpdecay,
+            annealing_schedule=args.annealing_schedule,
         )
         samples = m.get_svi_samples(num_samples=args.n)
 
