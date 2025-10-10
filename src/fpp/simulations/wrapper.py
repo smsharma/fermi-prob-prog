@@ -121,14 +121,81 @@ def simulator_for_model(m, vd, sim_all=False, delta_psf=False, flat_exposure=Fal
     temp_ps_gce = (1 - vd['f_bulge_ps']) * A_gce_nfw * temp_ps_nfw + vd['f_bulge_ps'] * A_gce_blg * temp_ps_blg
     temp_ps_dsk = m.disk_template.get_template(zs=vd['zs'], C=vd['C'])
 
-    # A_gce, A_dsk
-    # s_ary = np.logspace(0., 2., 100)
-    # theta_tmp = np.array([1., vd['n1_gce'], vd['n2_gce'], vd['n3_gce'], vd['sb1_gce'], vd['lambdas_gce'] * vd['sb1_gce']])
-    # dnds_ary = dnds(s_ary, theta_tmp)
-    # A_gce = vd['Sps_gce'] / np.mean(temp_ps_gce[~nm] * np.trapz(s_ary * dnds_ary, s_ary))
-    # theta_tmp = np.array([1., vd['n1_dsk'], vd['n2_dsk'], vd['n3_dsk'], vd['sb1_dsk'], vd['lambdas_dsk'] * vd['sb1_dsk']])
-    # dnds_ary = dnds(s_ary, theta_tmp)
-    # A_dsk = vd['Sps_dsk'] / np.mean(temp_ps_dsk[~nm] * np.trapz(s_ary * dnds_ary, s_ary))
+    temps_ps = []
+    if vd['Sps_gce'] > 0:
+        temps_ps.append(np.array(temp_ps_gce))
+        # theta[0] should be expected photon count per pixel in normalization mask region
+        theta += [vd['Sps_gce'], vd['n1_gce'], vd['n2_gce'], vd['n3_gce'], vd['sb1_gce'], vd['lambdas_gce'] * vd['sb1_gce']]
+    if vd['Sps_dsk'] > 0:
+        temps_ps.append(np.array(temp_ps_dsk))
+        theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['n3_dsk'], vd['sb1_dsk'], vd['lambdas_dsk'] * vd['sb1_dsk']]
+
+    mask_normalize_counts = np.array(m.normalization_mask)
+    mask_roi = np.array(m.mask_roi)
+    if sim_all:
+        mask_sim = np.zeros_like(m.data, dtype=bool)
+    else:
+        mask_sim = mask_normalize_counts
+
+    kp = KingPSF()
+    psf_r_func = lambda r: kp.psf_fermi_r(r)
+
+    if delta_psf:
+        psf_scheme = 'true delta'
+    else:
+        psf_scheme = 'original'
+
+    exp_map = np.array(m.exposure_map)
+    if flat_exposure:
+        exp_map = np.ones_like(exp_map) * np.mean(exp_map)
+
+    return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme)[0]
+
+
+def simulator_for_model_p6v11(m, vd, sim_all=False, delta_psf=False, flat_exposure=False):
+    """Wrapper for simulator function.
+
+    Args:
+        m (NPModel): model object
+        vd (dict): Dictionary of truth parameters
+    """
+
+    # poiss: nfw iso bub psc pib*3 ics*3 blg*5
+    nm = m.normalization_mask
+    temps_poiss = [
+        m.nfw_template.get_NFW2_template(gamma=vd['gamma_poiss']),
+        m.temp_iso / np.mean(m.temp_iso[~nm]),
+        m.temp_bub / np.mean(m.temp_bub[~nm]),
+        m.temp_psc / np.mean(m.temp_psc[~nm]),
+        m.temp_p6v11 / np.mean(m.temp_p6v11[~nm]),
+        m.bulge_templates[0] / np.mean(m.bulge_templates[0][~nm]),
+        m.bulge_templates[1] / np.mean(m.bulge_templates[1][~nm]),
+        m.bulge_templates[2] / np.mean(m.bulge_templates[2][~nm]),
+        m.bulge_templates[3] / np.mean(m.bulge_templates[3][~nm]),
+        m.bulge_templates[4] / np.mean(m.bulge_templates[4][~nm]),
+    ]
+    temps_poiss = [np.array(t) for t in temps_poiss]
+    theta = [
+        vd['S_gce'] * (1 - vd['f_bulge_poiss']),
+        vd['S_iso'],
+        vd['S_bub'],
+        vd['S_psc'],
+        vd['S_p6v11'],
+        vd['S_gce'] * vd['f_bulge_poiss'] * vd['theta_bulge_poiss'][0],
+        vd['S_gce'] * vd['f_bulge_poiss'] * vd['theta_bulge_poiss'][1],
+        vd['S_gce'] * vd['f_bulge_poiss'] * vd['theta_bulge_poiss'][2],
+        vd['S_gce'] * vd['f_bulge_poiss'] * vd['theta_bulge_poiss'][3],
+        vd['S_gce'] * vd['f_bulge_poiss'] * vd['theta_bulge_poiss'][4],
+    ]
+
+    # ps: nfw+blg*5 dsk
+    # temp_ps
+    temp_ps_nfw = m.nfw_template.get_NFW2_template(gamma=vd['gamma_ps'])
+    temp_ps_blg = np.einsum('i,ij->j', vd['theta_bulge_ps'], m.bulge_templates)
+    A_gce_nfw = 1 / np.mean(temp_ps_nfw[~nm])
+    A_gce_blg = 1 / np.mean(temp_ps_blg[~nm])
+    temp_ps_gce = (1 - vd['f_bulge_ps']) * A_gce_nfw * temp_ps_nfw + vd['f_bulge_ps'] * A_gce_blg * temp_ps_blg
+    temp_ps_dsk = m.disk_template.get_template(zs=vd['zs'], C=vd['C'])
 
     temps_ps = []
     if vd['Sps_gce'] > 0:

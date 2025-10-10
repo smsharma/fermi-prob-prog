@@ -10,10 +10,8 @@ import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
-wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
-sys.path.append(f"{wdir}/..")
-from models.np_model import NPModel
-from models.np_model_1b import NPModel1B
+wdir = "/n/home07/yitians/fermi/fermi-prob-prog/analysis"
+from fpp.models.np_model import NPModel
 
 
 if __name__ == '__main__':
@@ -38,12 +36,11 @@ if __name__ == '__main__':
     parser.add_argument('--comment', type=str, default='')
     args = parser.parse_args()
 
-    wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
     comment_str = '' if args.comment == '' else f"_{args.comment}"
     run_name = f"{args.fit_type}_D{args.data}_M{args.model}" + comment_str
     print('run_name:', run_name)
 
-    save_dir = f"{wdir}/../outputs/fit/{run_name}"
+    save_dir = f"{wdir}/../outputs/fits/{run_name}"
     os.makedirs(save_dir, exist_ok=True)
 
     mask_roi = np.load(f"{wdir}/mask_roi.npy")
@@ -57,7 +54,7 @@ if __name__ == '__main__':
         mask_roi[unmasked_indices[-n_pix_remainder:]] = 1
     print(f'-> {int(np.sum(~mask_roi))} = {args.n_exp} * {int(np.sum(~mask_roi) / args.n_exp)}')
 
-    data = np.load(f"../outputs/sims/{args.data}.npy")[args.i]
+    data = np.load(f"../outputs/simulations/{args.data}.npy")[args.i]
     if len(data) < hp.nside2npix(128):
         data_full = np.zeros(hp.nside2npix(128))
         data_full[~mask_norm] = data

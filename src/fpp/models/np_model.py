@@ -304,6 +304,7 @@ class NPModel:
         self.temp_iso = np.load("{}/template_iso.npy".format(self.data_dir))
         self.temp_bub = np.load("{}/template_bub.npy".format(self.data_dir))
         self.temp_dsk = np.load("{}/template_dsk_z0p3.npy".format(self.data_dir))
+        self.temp_p6v11 = np.load("{}/template_dif.npy".format(self.data_dir))
 
         # Load Model O templates
         self.temp_mO_pib = np.load("{}/template_Opi.npy".format(self.data_dir))

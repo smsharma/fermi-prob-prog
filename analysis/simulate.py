@@ -1,26 +1,21 @@
-import sys
-
 import numpy as np
 import healpy as hp
 import json
 from tqdm import tqdm
 
-
-sys.path.append("..")
-from models.np_model import NPModel
-from simulations.wrapper import simulator_for_model
-# from simulations.wrapper_1b import simulator_for_model_1b
+from fpp.models.np_model import NPModel
+from fpp.simulations.wrapper import simulator_for_model, simulator_for_model_p6v11
 
 
 if __name__ == '__main__':
 
-    data_name = 'base23fix_smalldskgce_deltapsf'
+    data_name = '23new_p6v11'
     n_sim = 30
-    delta_psf = True
+    delta_psf = False
     flat_exposure = False
-    sim_func = simulator_for_model
+    sim_func = simulator_for_model_p6v11
 
-    truth_dict = json.load(open("truth_dict_base230927_smalldskgce.json", "r"))
+    truth_dict = json.load(open("../outputs/truths/truth_dict_base230927new_p6v11.json", "r"))
     m = NPModel(data=np.zeros(hp.nside2npix(128), dtype=np.int32)) # dummy data
     # m.debug_exaggerate_exposure(5)
 
@@ -28,6 +23,5 @@ if __name__ == '__main__':
     for _ in tqdm(range(n_sim)):
         sims.append(sim_func(m, truth_dict, sim_all=True, delta_psf=delta_psf, flat_exposure=flat_exposure))
     sims = np.array(sims)
-    fn = f"{data_name}.npy"
 
-    np.save(f"../outputs/sims/{fn}", sims)
+    np.save(f"../outputs/simulations/{data_name}.npy", sims)
