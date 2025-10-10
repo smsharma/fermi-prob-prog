@@ -1,10 +1,7 @@
-import sys
-sys.path.append("../")
-
 import numpy as np
 import healpy as hp
 
-from utils import create_mask as cm
+from fpp.utils import create_mask as cm
 
 def mod(dividends, divisor):
     """ Return dividends (array) mod divisor (double)

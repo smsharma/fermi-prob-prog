@@ -10,9 +10,7 @@ data/posteriors/vary_disk_mask
 cross_check/data
 outputs/
 issues/
-scripts/slurm_outputs/
-
-production/plots/
+plots/
 
 notebooks/plots/rott/
 validating/plots/

@@ -1,18 +1,13 @@
-import sys
-
-sys.path.append("../")
-
-from functools import partial
-
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import gammaln
 from jax import vmap, jit
+from functools import partial
 
 import numpy as np
 import healpy as hp
 
-from utils import create_mask as cm
+from fpp.utils import create_mask as cm
 
 
 class NFWTemplate:

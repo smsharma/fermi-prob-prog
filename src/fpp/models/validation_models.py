@@ -1,6 +1,3 @@
-import os
-import sys
-
 import numpy as np
 import healpy as hp
 
@@ -17,11 +14,10 @@ from numpyro.contrib.tfp.mcmc import ReplicaExchangeMC
 import optax
 from tensorflow_probability.substrates import jax as tfp
 
-sys.path.append("..")
-from utils import create_mask as cm
-from likelihoods.pll_jax import log_like_poisson
+from fpp.utils import create_mask as cm
+from fpp.likelihoods.pll_jax import log_like_poisson
 
-
+import os
 os.environ["XLA_FLAGS"] = "--xla_gpu_force_compilation_parallelism=1"
 
 

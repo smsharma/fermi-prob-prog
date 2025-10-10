@@ -5,7 +5,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 current_file_path = os.path.abspath(os.path.dirname(__file__))
-mpl.rc_file(os.path.join(current_file_path, '../notebooks/matplotlibrc'))
+mpl.rc_file(os.path.join(current_file_path, '../../../analysis/matplotlibrc'))
 
 
 def multi_corner(

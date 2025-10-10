@@ -4,12 +4,12 @@ import numpy as np
 from reproject import reproject_to_healpix
 from astropy.io import fits
 
-from utils import create_mask as cm
-from utils.cart import make_wcs
+from fpp.utils import create_mask as cm
+from fpp.utils.cart import make_wcs
 
 
 wdir = os.path.dirname(os.path.abspath(__file__))
-data_dir = os.path.join(wdir, '../data')
+data_dir = os.path.join(wdir, '../../../data')
 
 
 class BulgeTemplates:

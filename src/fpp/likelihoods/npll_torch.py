@@ -1,9 +1,5 @@
-import sys
-
-sys.path.append("./")
-
 import torch
-from models.scd import dnds_torch as dnds
+from fpp.models.scd import dnds_torch as dnds
 
 
 def log_like_np(theta, pt_sum_compressed, npt_compressed, data, f_ary, df_rho_div_f_ary):

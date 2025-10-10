@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fpp"
+version = "0.0.0.20251010"
+readme = "README.md"
+description = "Fermi Probalistic Programming"
+requires-python = ">=3.10"
+dependencies = [
+]
+
+[project.urls]
+Homepage = "https://github.com/smsharma/fermi-prob-prog"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["fpp", "fpp.*"]

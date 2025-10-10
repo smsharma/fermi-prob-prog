@@ -1,19 +1,14 @@
-import sys
-
-sys.path.append("./")
+import numpy as np
 
 import jax
-from jax import jit, vmap
-import jax.numpy as jnp
-import numpy as np
 from jax.config import config
 config.update("jax_enable_x64", True)
-
+from jax import jit, vmap
+import jax.numpy as jnp
 import numpyro.distributions as dist
-
-from models.scd import dnds
-
 from functools import partial
+
+from fpp.models.scd import dnds_1b as dnds
 
 
 @partial(jit, static_argnums=(6,7,))
@@ -53,15 +48,6 @@ def log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum, k_max, npixROI)
                 
         n = jnp.arange(k - 1)
         pk_ary = pk_ary.at[:, k].set(jnp.sum((k - n) / k * x_m_ary[:, k - n] * pk_ary[:, n], axis=1) + f1_ary * pk_ary[:, k - 1] / k)
-            
-#     def recursion(pk_ary, k):
-
-#         n = jnp.arange(k_max - 1)
-
-#         pk_ary = pk_ary.at[:, k].set(jnp.cumsum((k - n) / k * x_m_ary[:, k - n] * pk_ary[:, n], axis=1)[:, k - 2] + f1_ary * pk_ary[:, k - 1] / k)
-#         return pk_ary, pk_ary
-    
-#     pk_ary, _ jax.lax.scan(recursion, pk_ary, jnp.arange(2, k_max + 1))
 
     pk_dat_ary = pk_ary[jnp.arange(npixROI), data]
         

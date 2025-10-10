@@ -1,11 +1,13 @@
 import os
-import numpyro
+
 import healpy as hp
 import numpy as np
+
 import jax.numpy as jnp
 import jax
 from jax.example_libraries import stax
 
+import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import SVI, Predictive, Trace_ELBO, TraceGraph_ELBO, RenyiELBO, autoguide
 from numpyro.infer.initialization import init_to_median, init_to_uniform
@@ -19,21 +21,20 @@ from tensorflow_probability.substrates import jax as tfp
 import optax
 from einops import repeat
 
-from models.scd import dnds
-from models.templates import NFWTemplate, LorimerDiskTemplate
-from models.bulge_models import BulgeTemplates
-from likelihoods.npll_jax import log_like_np
-from likelihoods.pll_jax import log_like_poisson
-from utils.sph_harm import Ylm
-from utils import create_mask as cm
-from models.psf import KingPSF
-from utils.psf_correction import PSFCorrection
+from fpp.models.scd import dnds
+from fpp.models.templates import NFWTemplate, LorimerDiskTemplate
+from fpp.models.bulge_models import BulgeTemplates
+from fpp.likelihoods.npll_jax import log_like_np
+from fpp.likelihoods.pll_jax import log_like_poisson
+from fpp.utils.sph_harm import Ylm
+from fpp.utils import create_mask as cm
+from fpp.models.psf import KingPSF
+from fpp.utils.psf_correction import PSFCorrection
 
 import logging
 
-
 wdir = os.path.dirname(os.path.abspath(__file__))
-data_dir = os.path.join(wdir, '../data')
+data_dir = os.path.join(wdir, '../../../data')
 
 
 #===== Run SVI ======

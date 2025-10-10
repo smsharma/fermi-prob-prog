@@ -1,19 +1,14 @@
-import sys
-
-sys.path.append("./")
+import numpy as np
 
 import jax
-from jax import jit, vmap
-import jax.numpy as jnp
-import numpy as np
 from jax.config import config
 config.update("jax_enable_x64", True)
-
+from jax import jit, vmap
+import jax.numpy as jnp
 import numpyro.distributions as dist
-
-from models.scd import dnds_1b as dnds
-
 from functools import partial
+
+from fpp.models.scd import dnds
 
 
 @partial(jit, static_argnums=(6,7,))

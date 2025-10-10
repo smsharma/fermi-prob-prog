@@ -1,12 +1,11 @@
 import logging
-
 logger = logging.getLogger(__name__)
 
 import numpy as np
 
-from simulations.simulate_ps import SimulateMap
-from models.scd import dnds
-from models.psf import KingPSF
+from fpp.simulations.simulate_ps import SimulateMap
+from fpp.models.scd import dnds_1b as dnds
+from fpp.models.psf import KingPSF
 
 
 def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme='original'):
@@ -31,13 +30,13 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
         dnds_ary = []
         idx_theta_ps = len(temps_poiss)
         for temp_ps in temps_ps:
-            dnds_ary_temp = dnds(s_ary, theta[idx_theta_ps : idx_theta_ps + 6])
+            dnds_ary_temp = dnds(s_ary, theta[idx_theta_ps : idx_theta_ps + 4])
             s_exp = np.trapz(s_ary * dnds_ary_temp, s_ary)
             temp_ratio = np.sum(temp_ps[~mask_normalize_counts]) / np.sum(temp_ps)
             exp_ratio = np.mean(exp_map[~mask_normalize_counts]) / np.mean(exp_map)
             dnds_ary_temp *= theta[idx_theta_ps] * np.sum(~mask_normalize_counts) / s_exp / temp_ratio / exp_ratio
             dnds_ary.append(dnds_ary_temp)
-            idx_theta_ps += 6
+            idx_theta_ps += 4
 
         exp_map_norm = exp_map / np.mean(exp_map)  #  * exp_ratio
 
@@ -67,7 +66,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
     return the_map
 
 
-def simulator_for_model(m, vd, sim_all=False, delta_psf=False, flat_exposure=False):
+def simulator_for_model_1b(m, vd, sim_all=False, delta_psf=False, flat_exposure=False):
     """Wrapper for simulator function.
 
     Args:
@@ -135,10 +134,10 @@ def simulator_for_model(m, vd, sim_all=False, delta_psf=False, flat_exposure=Fal
     if vd['Sps_gce'] > 0:
         temps_ps.append(np.array(temp_ps_gce))
         # theta[0] should be expected photon count per pixel in normalization mask region
-        theta += [vd['Sps_gce'], vd['n1_gce'], vd['n2_gce'], vd['n3_gce'], vd['sb1_gce'], vd['lambdas_gce'] * vd['sb1_gce']]
+        theta += [vd['Sps_gce'], vd['n1_gce'], vd['n2_gce'], vd['sb_gce']]
     if vd['Sps_dsk'] > 0:
         temps_ps.append(np.array(temp_ps_dsk))
-        theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['n3_dsk'], vd['sb1_dsk'], vd['lambdas_dsk'] * vd['sb1_dsk']]
+        theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['sb_dsk']]
 
     mask_normalize_counts = np.array(m.normalization_mask)
     mask_roi = np.array(m.mask_roi)
