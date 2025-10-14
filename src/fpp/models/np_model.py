@@ -869,9 +869,9 @@ class NPModel:
                                 
             with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
                 return numpyro.factor('log-likelihood', loglike)
-            
-    def model_pois(self, data=...):
-        
+
+    def model_pois(self, data=..., beta=None):
+
         # Get mixed pib template
         theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
         temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)

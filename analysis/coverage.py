@@ -6,20 +6,18 @@ import dill as pickle
 
 import numpy as np
 
-wdir = "/n/home07/yitians/fermi/fermi-prob-prog/production"
-sys.path.append(f"{wdir}/..")
-from utils.validation import find_hdi_prob
+from fpp.utils.validation import find_hdi_prob
 
 
 if __name__ == '__main__':
 
     n_sim = 30
-    truth_name = 'base230927_smalldskgce'
-    run_name = 'svi_Dbase23fix_smalldskgce_deltapsf_Mbase23fix_deltapsf'
+    truth_name = 'pois230927'
+    run_name = 'svi_Dpois_Mpois'
     print(f"Run name: {run_name}")
 
-    samples_dir = f"{wdir}/../outputs/fit/{run_name}"
-    theta_true = json.load(open(f"{wdir}/truth_dict_{truth_name}.json"))
+    samples_dir = f"../outputs/fits/{run_name}"
+    theta_true = json.load(open(f"../outputs/truths/truth_dict_{truth_name}.json"))
 
     if 'pois' in run_name:
         ks = [
@@ -41,7 +39,7 @@ if __name__ == '__main__':
         if 'hmc' in run_name:
             fn = f"{samples_dir}/i{i}_n10000_ns0.p"
         else:
-            fn = f"{samples_dir}/i{i}_n50000_ns5000.p"
+            fn = f"{samples_dir}/i{i}_n50000_ns10000.p"
         if not os.path.exists(fn):
             missing_list.append(i)
         else:
