@@ -12,8 +12,8 @@ from fpp.utils.validation import find_hdi_prob
 if __name__ == '__main__':
 
     n_sim = 30
-    truth_name = 'pois230927'
-    run_name = 'svi_Dpois_Mpois'
+    truth_name = 'pois23new'
+    run_name = 'svi_Dpois23new_Mpois'
     print(f"Run name: {run_name}")
 
     samples_dir = f"../outputs/fits/{run_name}"

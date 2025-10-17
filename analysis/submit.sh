@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=svi_Dpois2_Mpois
-#SBATCH --array=0-99
+#SBATCH --job-name=svi_Dpois23new_Mpois
+#SBATCH --array=0-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -28,11 +28,11 @@ cd /n/home07/yitians/fermi/fermi-prob-prog/analysis
 
 #===== pois =====
 python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 \
-    --data pois2 --model pois --n_exp 7 --seed 424242 --lr 3e-4 --n_par 16 \
+    --data pois23new --model pois --n_exp 7 --seed 424242 --lr 3e-4 --n_par 16 \
     --guide iaf --num_flows 5 --hidden_dim_n 128 --renyi_alpha 1 --comment ""
 
 # python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 \
-#     --data pois2 --model pois --n_exp 7 --seed 4224 --comment ""
+#     --data pois23new --model pois --n_exp 7 --seed 4224 --comment ""
 
 #===== test =====
 # run svi: python 1_fit.py -i 0 --fit_type svi -n 10000 --n_step 100 \
