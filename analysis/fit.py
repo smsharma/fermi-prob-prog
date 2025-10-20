@@ -75,6 +75,8 @@ if __name__ == '__main__':
 
     if 'pois' in args.model:
         model_type = 'pois'
+    elif 'nofs' in args.model:
+        model_type = 'nofs'
     else:
         model_type = 'np'
 
