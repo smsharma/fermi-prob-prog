@@ -347,164 +347,164 @@ class NPModel:
         self.svi_init_state = None
     
             
-    # def model(self, data=..., beta=1.):
+    def model(self, data=..., beta=1.):
         
-    #     # Get mixed pib template
-    #     theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
-    #     temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)
+        # Get mixed pib template
+        theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
+        temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)
 
-    #     # Get mixed ics template
-    #     theta_ics = numpyro.sample("theta_ics", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
-    #     temp_ics = jnp.sum(theta_ics[:, None] * self.ics, 0)
+        # Get mixed ics template
+        theta_ics = numpyro.sample("theta_ics", dist.Dirichlet(jnp.ones((self.n_dif_templates,)) / self.n_dif_templates))
+        temp_ics = jnp.sum(theta_ics[:, None] * self.ics, 0)
 
-    #     S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 2*4.))
+        S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 4.))
             
-    #     temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pib, temp_ics]
-    #     temp_labels = ["iso", "bub", "psc", "pib", "ics"]
+        temps = [self.temp_iso, self.temp_bub, self.temp_psc, temp_pib, temp_ics]
+        temp_labels = ["iso", "bub", "psc", "pib", "ics"]
                 
-    #     mu = jnp.zeros_like(data)
+        mu = jnp.zeros_like(data)
         
-    #     for temp, temp_label in zip(temps, temp_labels):
+        for temp, temp_label in zip(temps, temp_labels):
             
-    #         if temp_label in ["pib", "ics"]:
-    #             prior_lo, prior_hi = 1e-3, 2*14.
-    #         else:
-    #             prior_lo, prior_hi = 1e-3, 2*5.
+            if temp_label in ["pib", "ics"]:
+                prior_lo, prior_hi = 1e-3, 14.
+            else:
+                prior_lo, prior_hi = 1e-3, 5.
                 
-    #         prior_dist = dist.Uniform(prior_lo, prior_hi)
-    #         S_temp = numpyro.sample("S_{}".format(temp_label), prior_dist)
+            prior_dist = dist.Uniform(prior_lo, prior_hi)
+            S_temp = numpyro.sample("S_{}".format(temp_label), prior_dist)
             
-    #         if temp_label in ["pib"]:
+            if temp_label in ["pib"]:
                 
-    #             temp_pib_mod = jnp.zeros_like(data)
-    #             for ii in range(len(self.Ylm_temps)):
-    #                 Alm = numpyro.sample("Alm_{}".format(ii), dist.Uniform(-0.05, 0.05))
-    #                 temp_pib_mod += Alm * self.Ylm_temps[ii]
+                temp_pib_mod = jnp.zeros_like(data)
+                for ii in range(len(self.Ylm_temps)):
+                    Alm = numpyro.sample("Alm_{}".format(ii), dist.Uniform(-0.05, 0.05))
+                    temp_pib_mod += Alm * self.Ylm_temps[ii]
                 
-    #             temp_pib_mod = (1. + temp_pib_mod) * temp
+                temp_pib_mod = (1. + temp_pib_mod) * temp
                 
-    #             A_temp = S_temp / jnp.mean(temp_pib_mod[~self.normalization_mask])
-    #             mu += A_temp * temp_pib_mod  
-    #         else:
-    #             A_temp = S_temp / jnp.mean(temp[~self.normalization_mask])
-    #             mu += A_temp * temp     
+                A_temp = S_temp / jnp.mean(temp_pib_mod[~self.normalization_mask])
+                mu += A_temp * temp_pib_mod  
+            else:
+                A_temp = S_temp / jnp.mean(temp[~self.normalization_mask])
+                mu += A_temp * temp     
                                             
-    #     if self.vary_gamma:
-    #         gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.)) if self.non_poissonian else None
-    #         gamma_poiss = numpyro.sample("gamma_poiss", dist.Uniform(0.2, 2.))
-    #     else:
-    #         gamma_ps = 1.2 if self.non_poissonian else None
-    #         gamma_poiss = 1.2
+        if self.vary_gamma:
+            gamma_ps = numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.)) if self.non_poissonian else None
+            gamma_poiss = numpyro.sample("gamma_poiss", dist.Uniform(0.2, 2.))
+        else:
+            gamma_ps = 1.2 if self.non_poissonian else None
+            gamma_poiss = 1.2
 
-    #     temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps) if self.non_poissonian else None
-    #     temp_gce_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
+        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps) if self.non_poissonian else None
+        temp_gce_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
             
-    #     if self.non_poissonian:
-    #         if self.vary_disk:
-    #             zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
-    #             C = numpyro.sample("C", dist.Uniform(0.05, 8.))
-    #             temp_dsk = self.disk_template.get_template(zs=zs, C=C)
-    #         else:
-    #             temp_dsk = self.temp_dsk
+        if self.non_poissonian:
+            if self.vary_disk:
+                zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
+                C = numpyro.sample("C", dist.Uniform(0.05, 8.))
+                temp_dsk = self.disk_template.get_template(zs=zs, C=C)
+            else:
+                temp_dsk = self.temp_dsk
                 
-    #     if self.bulge_hybrid:
-    #         f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.)) if self.non_poissonian else None
-    #         f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
+        if self.bulge_hybrid:
+            f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.)) if self.non_poissonian else None
+            f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
             
-    #         theta_bulge_poiss = numpyro.sample("theta_bulge_poiss", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
-    #         temp_bulge = jnp.sum(theta_bulge_poiss[:, None] * self.bulge_templates, 0)
-    #     else:
-    #         f_bulge_ps = 0. if self.non_poissonian else None
-    #         f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
-    #         temp_bulge = self.bulge_templates[0]
+            theta_bulge_poiss = numpyro.sample("theta_bulge_poiss", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
+            temp_bulge = jnp.sum(theta_bulge_poiss[:, None] * self.bulge_templates, 0)
+        else:
+            f_bulge_ps = 0. if self.non_poissonian else None
+            f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
+            temp_bulge = self.bulge_templates[0]
         
-    #     # Normalize to same mean
-    #     A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.normalization_mask])
-    #     A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.normalization_mask])
-    #     temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_nfw_poiss \
-    #                         + f_bulge_poiss * A_gce_bulge * temp_bulge
+        # Normalize to same mean
+        A_gce_nfw = S_gce / jnp.mean(temp_gce_nfw_poiss[~self.normalization_mask])
+        A_gce_bulge = S_gce / jnp.mean(temp_bulge[~self.normalization_mask])
+        temp_gce_poiss = (1 - f_bulge_poiss) * A_gce_nfw * temp_gce_nfw_poiss \
+                            + f_bulge_poiss * A_gce_bulge * temp_bulge
         
-    #     A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.normalization_mask])
-    #     mu += A_gce * temp_gce_poiss
+        A_gce = S_gce / jnp.mean(temp_gce_poiss[~self.normalization_mask])
+        mu += A_gce * temp_gce_poiss
         
-    #     if self.non_poissonian:
-    #         # Get mixed bulge template
-    #         theta_bulge_ps = numpyro.sample("theta_bulge_ps", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
-    #         temp_bulge = jnp.sum(theta_bulge_ps[:, None] * self.bulge_templates, 0)
+        if self.non_poissonian:
+            # Get mixed bulge template
+            theta_bulge_ps = numpyro.sample("theta_bulge_ps", dist.Dirichlet(jnp.ones((self.n_bulge_templates,)) / self.n_bulge_templates))
+            temp_bulge = jnp.sum(theta_bulge_ps[:, None] * self.bulge_templates, 0)
 
-    #         # Normalize to same mean
-    #         A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
-    #         A_gce_bulge = 1 / jnp.mean(temp_bulge[~self.normalization_mask])
+            # Normalize to same mean
+            A_gce_nfw = 1 / jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
+            A_gce_bulge = 1 / jnp.mean(temp_bulge[~self.normalization_mask])
 
-    #         # Get hybrid template
-    #         temp_gce_ps = (1 - f_bulge_ps) * A_gce_nfw * temp_gce_nfw_ps + f_bulge_ps * A_gce_bulge * temp_bulge
+            # Get hybrid template
+            temp_gce_ps = (1 - f_bulge_ps) * A_gce_nfw * temp_gce_nfw_ps + f_bulge_ps * A_gce_bulge * temp_bulge
 
-    #         npt_compressed = jnp.array([temp_gce_ps, temp_dsk])
+            npt_compressed = jnp.array([temp_gce_ps, temp_dsk])
 
-    #         theta = []    
+            theta = []    
 
-    #         for ips, ps in enumerate(["gce", "dsk"]):
+            for ips, ps in enumerate(["gce", "dsk"]):
 
-    #             Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 2*4.))
+                Sps = numpyro.sample("Sps_{}".format(ps), dist.Uniform(1e-3, 2*4.))
 
-    #             n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
-    #             n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
-    #             n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
-    #             sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
-    #             lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
+                n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
+                n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
+                n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
+                sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
+                lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
 
-    #             theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
+                theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
 
-    #             s_ary = jnp.logspace(-1., 2., 1000)
-    #             dnds_ary = dnds(s_ary, theta_tmp)
+                s_ary = jnp.logspace(-1., 2., 1000)
+                dnds_ary = dnds(s_ary, theta_tmp)
 
-    #             A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
+                A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
 
-    #             theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
+                theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
 
-    #         theta = jnp.array(theta)
+            theta = jnp.array(theta)
                 
-    #     # Pad the last exposure region so that all are the same size
-    #     exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
-    #     n_pad = exp_lens[0] - exp_lens[-1]
+        # Pad the last exposure region so that all are the same size
+        exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
+        n_pad = exp_lens[0] - exp_lens[-1]
         
-    #     expreg_indices = jnp.zeros_like(self.expreg_indices)
-    #     expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
-    #     expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
+        expreg_indices = jnp.zeros_like(self.expreg_indices)
+        expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
+        expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
 
-    #     if self.non_poissonian:
-    #         log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
-    #     else:
-    #         log_like_poisson_exp_vmapped = jax.vmap(log_like_poisson, in_axes=(0, 0))
+        if self.non_poissonian:
+            log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
+        else:
+            log_like_poisson_exp_vmapped = jax.vmap(log_like_poisson, in_axes=(0, 0))
                 
-    #     # Get relevant arrays for different exposure regions
-    #     mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
-    #     if self.non_poissonian:
-    #         npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
-    #     data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
+        # Get relevant arrays for different exposure regions
+        mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
+        if self.non_poissonian:
+            npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
+        data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
         
-    #     exposure_multiplier = self.exposure_means_list / self.exposure_mean
+        exposure_multiplier = self.exposure_means_list / self.exposure_mean
         
-    #     # Scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
-    #     if self.non_poissonian:
-    #         theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
-    #         theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
-    #         theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
-    #         theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
+        # Scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
+        if self.non_poissonian:
+            theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
+            theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
+            theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
+            theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
         
-    #     with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
+        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
             
-    #         if self.non_poissonian:
-    #             log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_ary, self.k_max, len(expreg_indices[0]))
-    #         else:
-    #             log_like_exp = log_like_poisson_exp_vmapped(mu_batch, data_batch)
+            if self.non_poissonian:
+                log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_ary, self.k_max, len(expreg_indices[0]))
+            else:
+                log_like_exp = log_like_poisson_exp_vmapped(mu_batch, data_batch)
             
-    #         # Concatenate exposure regions
-    #         loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
+            # Concatenate exposure regions
+            loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
 
-    #         with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
-    #             with handlers.scale(scale=beta):
-    #                 return numpyro.factor('log-likelihood', loglike)
+            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
+                with handlers.scale(scale=beta):
+                    return numpyro.factor('log-likelihood', loglike)
 
 
     def model_nofs(self, data=..., beta=1.):
