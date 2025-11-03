@@ -9,13 +9,13 @@ from fpp.simulations.wrapper import simulator_for_model, simulator_for_model_p6v
 
 if __name__ == '__main__':
 
-    data_name = 'pois23new'
-    n_sim = 100
+    data_name = 'large'
+    n_sim = 30
     delta_psf = False
     flat_exposure = False
     sim_func = simulator_for_model
 
-    truth_dict = json.load(open("../outputs/truths/truth_dict_pois23new.json", "r"))
+    truth_dict = json.load(open("../outputs/truths/truth_dict_large.json", "r"))
     m = NPModel(data=np.zeros(hp.nside2npix(128), dtype=np.int32)) # dummy data
     # m.debug_exaggerate_exposure(5)
 
