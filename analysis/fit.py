@@ -43,6 +43,7 @@ if __name__ == '__main__':
     save_dir = f"{wdir}/../outputs/fits/{run_name}"
     os.makedirs(save_dir, exist_ok=True)
 
+    #===== masks =====
     mask_roi = np.load(f"{wdir}/mask_roi.npy")
     mask_norm = jnp.load(f"{wdir}/mask_norm.npy")
 
@@ -54,6 +55,7 @@ if __name__ == '__main__':
         mask_roi[unmasked_indices[-n_pix_remainder:]] = 1
     print(f'-> {int(np.sum(~mask_roi))} = {args.n_exp} * {int(np.sum(~mask_roi) / args.n_exp)}')
 
+    #===== data =====
     data = np.load(f"../outputs/simulations/{args.data}.npy")[args.i]
     if len(data) < hp.nside2npix(128):
         data_full = np.zeros(hp.nside2npix(128))
@@ -62,6 +64,7 @@ if __name__ == '__main__':
     else:
         data_in = jnp.array(data, dtype=jnp.int32)
 
+    #===== model =====
     psf_tag = 'delta' if 'deltapsf' in args.model else 'king'
     print('PSF:', psf_tag)
     if '1b' in args.model:
@@ -70,7 +73,15 @@ if __name__ == '__main__':
     else:
         Model = NPModel
         print('Using NPModel model')
-    m = Model(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, custom_mask_roi=mask_roi)
+    if args.model == 'base23fixO':
+        dif_names = ["ModelO"]
+    elif args.model == 'base23fixA':
+        dif_names = ["ModelA"]
+    elif args.model == 'base23fixF':
+        dif_names = ["ModelF"]
+    else:
+        dif_names = ["ModelO", "ModelA", "ModelF"]
+    m = Model(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, custom_mask_roi=mask_roi, dif_names=dif_names)
     # m.debug_exaggerate_exposure(5)
 
     if 'pois' in args.model:
@@ -80,6 +91,7 @@ if __name__ == '__main__':
     else:
         model_type = 'np'
 
+    #===== fit =====
     if args.fit_type == 'svi':
         m.fit_svi(
             model_name=model_type, n_steps=args.n_step, data=data_in, lr=args.lr,
