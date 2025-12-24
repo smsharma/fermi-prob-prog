@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=svi_Dfermi_Mbase23fix
-#SBATCH --array=0-2
+#SBATCH --job-name=hmc_Dbase23fix_p6v11_Mbase23fix
+#SBATCH --array=0-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -19,12 +19,12 @@ source /n/home07/yitians/setup/torch.sh
 cd /n/home07/yitians/fermi/fermi-prob-prog/analysis
 
 #===== np =====
-python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 \
-    --data fermi --model base23fix --n_exp 7 --seed $((SLURM_ARRAY_TASK_ID * 4224)) --lr 3e-4 --n_par 16 \
-    --guide iaf --num_flows 5 --hidden_dim_n 128 --renyi_alpha 1 --comment ""
+# python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 \
+#     --data fermi --model base23fix --n_exp 7 --seed $((SLURM_ARRAY_TASK_ID * 4224)) --lr 3e-4 --n_par 16 \
+#     --guide iaf --num_flows 5 --hidden_dim_n 128 --renyi_alpha 1 --comment ""
 
-# python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 \
-#     --data fermi --model base23fix --n_exp 7 --seed $((SLURM_ARRAY_TASK_ID * 4224)) --comment ""
+python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 \
+    --data base23fix_p6v11 --model base23fix --n_exp 7 --seed $((SLURM_ARRAY_TASK_ID * 4224)) --comment ""
 
 #===== pois =====
 # python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 \
