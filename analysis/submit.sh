@@ -12,7 +12,7 @@
 #SBATCH --error=/n/home07/yitians/fermi/fermi-prob-prog/outputs/slurm/%x_%a.err
 #SBATCH --account=iaifi_lab
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=yitians@mit.com
+#SBATCH --mail-user=yitians@mit.edu
 
 source /n/home07/yitians/setup/torch.sh
 

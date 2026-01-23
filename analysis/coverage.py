@@ -38,7 +38,8 @@ if __name__ == '__main__':
 
     n_sim = 30
     truth_name = 'base230927'
-    run_name = 'hmc_Dbase23fix_deltapsf_2_Mnofs_deltapsf'
+    # truth_name = 'base230927new'
+    run_name = 'hmc_Dbase23fix_p6v11_Mbase23fix'
     print(f"Run name: {run_name}")
 
     samples_dir = f"../outputs/fits/{run_name}"

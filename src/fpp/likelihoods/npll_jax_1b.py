@@ -5,7 +5,7 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 from jax import jit, vmap
 import jax.numpy as jnp
-import numpyro.distributions as dist
+
 from functools import partial
 
 from fpp.models.scd import dnds_1b as dnds
