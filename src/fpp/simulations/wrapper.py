@@ -230,3 +230,50 @@ def simulator_for_model_p6v11(m, vd, sim_all=False, delta_psf=False, flat_exposu
         exp_map = np.ones_like(exp_map) * np.mean(exp_map)
 
     return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme)[0]
+
+
+
+def simulator_for_cmp(m, vd):
+    """Wrapper for simulator function.
+
+    Args:
+        m (NPModel): model object
+        vd (dict): Dictionary of truth parameters
+    """
+
+    # pois
+    nm = m.normalization_mask
+    temps_poiss = [
+        m.nfw_1p0,
+        m.iso,
+        m.bub,
+        m.psc,
+        m.pib,
+        m.ics
+    ]
+    temps_poiss = [np.array(t / np.mean(t[~nm])) for t in temps_poiss]
+    theta = [
+        vd['S_nfw'],
+        vd['S_iso'],
+        vd['S_bub'],
+        vd['S_psc'],
+        vd['S_pib'],
+        vd['S_ics']
+    ]
+
+    # ps
+    temps_ps = [m.nfw_1p2, m.dsk]
+    theta += [vd['Sps_nfw'], vd['n1_nfw'], vd['n2_nfw'], vd['sb_nfw']]
+    theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['sb_dsk']]
+
+    mask_normalize_counts = np.array(m.normalization_mask)
+    mask_roi = np.array(m.mask_roi)
+    mask_sim = mask_normalize_counts
+
+    kp = KingPSF()
+    psf_r_func = lambda r: kp.psf_fermi_r(r)
+    psf_scheme = 'original'
+
+    exp_map = np.array(m.exposure_map)
+
+    return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme, sim1b=True)[0]
