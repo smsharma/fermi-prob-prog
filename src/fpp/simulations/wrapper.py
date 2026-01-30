@@ -153,7 +153,7 @@ def simulator_for_model(m, vd, sim_all=False, delta_psf=False, flat_exposure=Fal
     if flat_exposure:
         exp_map = np.ones_like(exp_map) * np.mean(exp_map)
 
-    return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme)[0]
+    return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme, sim1b=sim1b)[0]
 
 
 def simulator_for_model_p6v11(m, vd, sim_all=False, delta_psf=False, flat_exposure=False):
