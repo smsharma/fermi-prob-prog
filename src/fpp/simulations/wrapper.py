@@ -4,45 +4,43 @@ logger = logging.getLogger(__name__)
 import numpy as np
 
 from fpp.simulations.simulate_ps import SimulateMap
-from fpp.models.scd import dnds
+from fpp.models.scd import dnds, dnds_1b
 from fpp.models.psf import KingPSF
 
 
-def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme='original'):
+def simulator(
+    theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map,
+    psf_scheme='original', sim1b=False
+):
 
     the_map = np.zeros(np.sum(~mask_sim))
     aux_vars = np.zeros(2)
     s_ary = np.logspace(-1, 2, 1000)
 
+    norms_poiss = theta[:len(temps_poiss)]
+
+    dnds_func = dnds_1b if sim1b else dnds
+    PS_THETA_LEN = 4 if sim1b else 6
+
     good_map = False  # Check so map doesn't contain all zeros or nans or infs
-
     while not good_map:
-
-        # Normalize poiss DM norm to get correct counts/pix in ROI
-        norm_gce = theta[0] / np.mean(temps_poiss[0][~mask_normalize_counts])
-
-        # Grab the rest of the poiss norms
-        norms_poiss = theta[1 : len(temps_poiss)]
-
-        # Normalize PS map to get correct counts/pix in ROI
-        # and construct appropriate dnds arrays for each PS template
 
         dnds_ary = []
         idx_theta_ps = len(temps_poiss)
         for temp_ps in temps_ps:
-            dnds_ary_temp = dnds(s_ary, theta[idx_theta_ps : idx_theta_ps + 6])
+            dnds_ary_temp = dnds_func(s_ary, theta[idx_theta_ps : idx_theta_ps + PS_THETA_LEN])
             s_exp = np.trapz(s_ary * dnds_ary_temp, s_ary)
             temp_ratio = np.sum(temp_ps[~mask_normalize_counts]) / np.sum(temp_ps)
             exp_ratio = np.mean(exp_map[~mask_normalize_counts]) / np.mean(exp_map)
             dnds_ary_temp *= theta[idx_theta_ps] * np.sum(~mask_normalize_counts) / s_exp / temp_ratio / exp_ratio
             dnds_ary.append(dnds_ary_temp)
-            idx_theta_ps += 6
+            idx_theta_ps += PS_THETA_LEN
 
         exp_map_norm = exp_map / np.mean(exp_map)  #  * exp_ratio
 
         # Draw PSs and simulate map
 
-        sm = SimulateMap(temps_poiss, [norm_gce] + list(norms_poiss), [s_ary] * len(temps_ps), dnds_ary, temps_ps, psf_r_func, exp_map_norm, mask_roi=mask_roi, psf_scheme=psf_scheme)
+        sm = SimulateMap(temps_poiss, norms_poiss, [s_ary] * len(temps_ps), dnds_ary, temps_ps, psf_r_func, exp_map_norm, mask_roi=mask_roi, psf_scheme=psf_scheme)
 
         the_map_temp = sm.create_map()
 
@@ -66,7 +64,7 @@ def simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mas
     return the_map
 
 
-def simulator_for_model(m, vd, sim_all=False, delta_psf=False, flat_exposure=False):
+def simulator_for_model(m, vd, sim_all=False, delta_psf=False, flat_exposure=False, sim1b=False):
     """Wrapper for simulator function.
 
     Args:
@@ -78,22 +76,22 @@ def simulator_for_model(m, vd, sim_all=False, delta_psf=False, flat_exposure=Fal
     nm = m.normalization_mask
     temps_poiss = [
         m.nfw_template.get_NFW2_template(gamma=vd['gamma_poiss']),
-        m.temp_iso / np.mean(m.temp_iso[~nm]),
-        m.temp_bub / np.mean(m.temp_bub[~nm]),
-        m.temp_psc / np.mean(m.temp_psc[~nm]),
-        m.pib[0] / np.mean(m.pib[0][~nm]),
-        m.pib[1] / np.mean(m.pib[1][~nm]),
-        m.pib[2] / np.mean(m.pib[2][~nm]),
-        m.ics[0] / np.mean(m.ics[0][~nm]),
-        m.ics[1] / np.mean(m.ics[1][~nm]),
-        m.ics[2] / np.mean(m.ics[2][~nm]),
-        m.bulge_templates[0] / np.mean(m.bulge_templates[0][~nm]),
-        m.bulge_templates[1] / np.mean(m.bulge_templates[1][~nm]),
-        m.bulge_templates[2] / np.mean(m.bulge_templates[2][~nm]),
-        m.bulge_templates[3] / np.mean(m.bulge_templates[3][~nm]),
-        m.bulge_templates[4] / np.mean(m.bulge_templates[4][~nm]),
+        m.temp_iso,
+        m.temp_bub,
+        m.temp_psc,
+        m.pib[0],
+        m.pib[1],
+        m.pib[2],
+        m.ics[0],
+        m.ics[1],
+        m.ics[2],
+        m.bulge_templates[0],
+        m.bulge_templates[1],
+        m.bulge_templates[2],
+        m.bulge_templates[3],
+        m.bulge_templates[4],
     ]
-    temps_poiss = [np.array(t) for t in temps_poiss]
+    temps_poiss = [np.array(t / np.mean(t[~nm])) for t in temps_poiss]
     theta = [
         vd['S_gce'] * (1 - vd['f_bulge_poiss']),
         vd['S_iso'],
@@ -125,10 +123,16 @@ def simulator_for_model(m, vd, sim_all=False, delta_psf=False, flat_exposure=Fal
     if vd['Sps_gce'] > 0:
         temps_ps.append(np.array(temp_ps_gce))
         # theta[0] should be expected photon count per pixel in normalization mask region
-        theta += [vd['Sps_gce'], vd['n1_gce'], vd['n2_gce'], vd['n3_gce'], vd['sb1_gce'], vd['lambdas_gce'] * vd['sb1_gce']]
+        if sim1b:
+            theta += [vd['Sps_gce'], vd['n1_gce'], vd['n2_gce'], vd['sb_gce']]
+        else:
+            theta += [vd['Sps_gce'], vd['n1_gce'], vd['n2_gce'], vd['n3_gce'], vd['sb1_gce'], vd['lambdas_gce'] * vd['sb1_gce']]
     if vd['Sps_dsk'] > 0:
         temps_ps.append(np.array(temp_ps_dsk))
-        theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['n3_dsk'], vd['sb1_dsk'], vd['lambdas_dsk'] * vd['sb1_dsk']]
+        if sim1b:
+            theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['sb_dsk']]
+        else:
+            theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['n3_dsk'], vd['sb1_dsk'], vd['lambdas_dsk'] * vd['sb1_dsk']]
 
     mask_normalize_counts = np.array(m.normalization_mask)
     mask_roi = np.array(m.mask_roi)
