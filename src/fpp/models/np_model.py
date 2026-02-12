@@ -319,11 +319,17 @@ class NPModel:
         self.temp_mF_ics = np.load("{}/template_Fic.npy".format(self.data_dir))
 
         # Normalize all templates
-        for t in [self.temp_psc, self.temp_iso, self.temp_bub, self.temp_dsk, self.temp_p6v11,
-                  self.temp_mO_pib, self.temp_mO_ics,
-                  self.temp_mA_pib, self.temp_mA_ics,
-                  self.temp_mF_pib, self.temp_mF_ics]:
-            t /= np.mean(t[~self.normalization_mask])
+        self.temp_psc /= np.mean(self.temp_psc[~self.normalization_mask])
+        self.temp_iso /= np.mean(self.temp_iso[~self.normalization_mask])
+        self.temp_bub /= np.mean(self.temp_bub[~self.normalization_mask])
+        self.temp_dsk /= np.mean(self.temp_dsk[~self.normalization_mask])
+        self.temp_p6v11 /= np.mean(self.temp_p6v11[~self.normalization_mask])
+        self.temp_mO_pib /= np.mean(self.temp_mO_pib[~self.normalization_mask])
+        self.temp_mO_ics /= np.mean(self.temp_mO_ics[~self.normalization_mask])
+        self.temp_mA_pib /= np.mean(self.temp_mA_pib[~self.normalization_mask])
+        self.temp_mA_ics /= np.mean(self.temp_mA_ics[~self.normalization_mask])
+        self.temp_mF_pib /= np.mean(self.temp_mF_pib[~self.normalization_mask])
+        self.temp_mF_ics /= np.mean(self.temp_mF_ics[~self.normalization_mask])
                 
         self.pib = []
         self.ics = []
@@ -396,8 +402,10 @@ class NPModel:
             gamma_ps = 1.2 if self.non_poissonian else None
             gamma_poiss = 1.2
 
-        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps) if self.non_poissonian else None
+        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=gamma_ps)
         temp_gce_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=gamma_poiss)
+        temp_gce_nfw_ps /= jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
+        temp_gce_nfw_poiss /= jnp.mean(temp_gce_nfw_poiss[~self.normalization_mask])
             
         if self.non_poissonian:
             if self.vary_disk:
@@ -406,6 +414,7 @@ class NPModel:
                 temp_dsk = self.disk_template.get_template(zs=zs, C=C)
             else:
                 temp_dsk = self.temp_dsk
+            temp_dsk /= jnp.mean(temp_dsk[~self.normalization_mask])
                 
         if self.bulge_hybrid:
             f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.)) if self.non_poissonian else None

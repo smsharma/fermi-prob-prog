@@ -233,7 +233,7 @@ def simulator_for_model_p6v11(m, vd, sim_all=False, delta_psf=False, flat_exposu
 
 
 
-def simulator_for_cmp(m, vd):
+def simulator_for_cmp(m, vd, **kwargs):
     """Wrapper for simulator function.
 
     Args:
@@ -268,7 +268,7 @@ def simulator_for_cmp(m, vd):
 
     mask_normalize_counts = np.array(m.normalization_mask)
     mask_roi = np.array(m.mask_roi)
-    mask_sim = mask_normalize_counts
+    mask_sim = np.zeros_like(m.data, dtype=bool)
 
     kp = KingPSF()
     psf_r_func = lambda r: kp.psf_fermi_r(r)

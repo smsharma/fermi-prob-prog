@@ -27,13 +27,16 @@ from fpp.utils.psf_correction import PSFCorrection
 class NPModelCMP:
 
 
-    def __init__(self):
+    def __init__(self, data=None):
 
         self.n_exp = 7
         self.nside = 128
         self.data_dir = "/n/home07/yitians/fermi/fermi-prob-prog/data/fermi_data_573w/fermi_data_128/"
 
-        self.data = jnp.array(np.load(f"{self.data_dir}/fermidata_counts.npy").astype(np.int32))
+        if data is None:
+            self.data = jnp.array(np.load(f"{self.data_dir}/fermidata_counts.npy").astype(np.int32))
+        else:
+            self.data = jnp.array(data.astype(np.int32))
         self.exposure_map = jnp.array(np.load(f"{self.data_dir}/fermidata_exposure.npy"))
 
         mask_ps = hp.ud_grade(np.load(f"{self.data_dir}/../../mask_3fgl_0p8deg.npy"), nside_out=self.nside) > 0
@@ -51,9 +54,13 @@ class NPModelCMP:
         self.dsk = jnp.array(np.load(f"{self.data_dir}/template_dsk_z0p3.npy"))
         self.nfw_1p0 = jnp.array(np.load(f"{self.data_dir}/template_nfw_g1p0.npy"))
         self.nfw_1p2 = jnp.array(np.load(f"{self.data_dir}/template_nfw_g1p2.npy"))
-        self.blg = jnp.array(np.load(f"{self.data_dir}/../../nptfit_cmp/coleman2019_bulge_template.npy"))
-        for t in [self.pib, self.ics, self.psc, self.bub, self.iso, self.dsk, self.nfw_1p0, self.nfw_1p2, self.blg]:
-            t /= jnp.mean(t[~self.normalization_mask])
+        self.pib = self.pib / jnp.mean(self.pib[~self.normalization_mask])
+        self.ics = self.ics / jnp.mean(self.ics[~self.normalization_mask])
+        self.psc = self.psc / jnp.mean(self.psc[~self.normalization_mask])
+        self.bub = self.bub / jnp.mean(self.bub[~self.normalization_mask])
+        self.iso = self.iso / jnp.mean(self.iso[~self.normalization_mask])
+        self.nfw_1p0 = self.nfw_1p0 / jnp.mean(self.nfw_1p0[~self.normalization_mask])
+        self.nfw_1p2 = self.nfw_1p2 / jnp.mean(self.nfw_1p2[~self.normalization_mask])
 
         self.get_psf_correction()
         self.get_exp_regions(self.n_exp)
@@ -127,22 +134,16 @@ class NPModelCMP:
         mu += numpyro.sample(f'S_bub', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.bub
         mu += numpyro.sample(f'S_psc', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.psc
         mu += numpyro.sample(f'S_nfw', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.nfw_1p0
-        # mu += numpyro.sample(f'S_blg', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.blg
 
         # np templates
         npt_compressed = jnp.array([self.nfw_1p2, self.dsk])
         theta = []
         for ips, ps in enumerate(["nfw", "dsk"]):
-            Sps = numpyro.sample(f"Sps_{ps}", dist.Uniform(PRIOR_LOW, PRIOR_HIGH))
-            n1  = numpyro.sample(f"n1_{ps}",  dist.Uniform(4.0, 6.0))
-            n2  = numpyro.sample(f"n2_{ps}",  dist.Uniform(-6., -5.))
-            sb1 = numpyro.sample(f"sb1_{ps}", dist.Uniform(5., 40.0))
-
-            theta_tmp = jnp.array([1., n1, n2, sb1])
-            s_ary = jnp.logspace(-1., 2., 1000)
-            dnds_ary = dnds(s_ary, theta_tmp)
-            A = Sps / jnp.trapz(s_ary * dnds_ary, s_ary)
-            theta.append([A, n1, n2, sb1])
+            A   = numpyro.sample(f"A_{ps}",   dist.Uniform(1e-4, 1.))
+            n1  = numpyro.sample(f"n1_{ps}",  dist.Uniform(3., 7.))
+            n2  = numpyro.sample(f"n2_{ps}",  dist.Uniform(-7., -3.))
+            sb  = numpyro.sample(f"sb_{ps}",  dist.Uniform(5., 20.))
+            theta.append([A, n1, n2, sb])
         theta = jnp.array(theta)
 
         
@@ -166,7 +167,53 @@ class NPModelCMP:
         theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
         theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
         theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
-        theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
+        # theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
+        
+        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
+            
+            log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_ary, self.k_max, len(expreg_indices[0]))
+            loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
+
+            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
+                return numpyro.factor('log-likelihood', loglike)
+
+    def model_ps(self):
+        
+        mu = jnp.zeros_like(self.data)
+
+        # np templates
+        npt_compressed = jnp.array([self.nfw_1p2])
+        theta = []
+        for ips, ps in enumerate(["nfw"]):
+            A   = numpyro.sample(f"A_{ps}",   dist.Uniform(1e-4, 1.))
+            n1  = numpyro.sample(f"n1_{ps}",  dist.Uniform(3., 7.))
+            n2  = numpyro.sample(f"n2_{ps}",  dist.Uniform(-7., -3.))
+            sb  = numpyro.sample(f"sb_{ps}",  dist.Uniform(5., 20.))
+            theta.append([A, n1, n2, sb])
+        theta = jnp.array(theta)
+
+        
+        # likelihoods and exposure
+        # Pad the last exposure region so that all are the same size
+        exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
+        n_pad = exp_lens[0] - exp_lens[-1]
+        
+        expreg_indices = jnp.zeros_like(self.expreg_indices)
+        expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
+        expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
+
+        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
+                
+        # Get relevant arrays for different exposure regions
+        mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
+        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
+        data_batch = self.data[~self.mask_roi][jnp.array(expreg_indices)]
+        exposure_multiplier = self.exposure_means_list / self.exposure_mean
+        
+        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
+        theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
+        theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
+        # theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
         
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
             
@@ -177,15 +224,22 @@ class NPModelCMP:
                 return numpyro.factor('log-likelihood', loglike)
 
 
-    def fit_svi(self, n_steps=10000, lr=5e-3):
+    def fit_svi(self, model_name='model', n_steps=10000, lr=5e-3):
+
+        if model_name == 'model':
+            model = self.model
+        elif model_name == 'model_ps':
+            model = self.model_ps
+        else:
+            raise ValueError("model_name not recognized")
 
         self.guide = autoguide.AutoIAFNormal(
-            self.model, num_flows=5, hidden_dims=[128, 128], nonlinearity=stax.Tanh
+            model, num_flows=5, hidden_dims=[128, 128], nonlinearity=stax.Tanh
         )
         optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(1.), optax.adam(lr)))
         loss = Trace_ELBO(num_particles=8, vectorize_particles=True)
 
-        self.svi = SVI(self.model, self.guide, optimizer, loss)
+        self.svi = SVI(model, self.guide, optimizer, loss)
         self.svi_results = self.svi.run(jax.random.PRNGKey(42), n_steps)
         return self.svi_results
 
@@ -201,9 +255,16 @@ class NPModelCMP:
         return self.svi_samples
 
 
-    def run_nuts(self, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1, **model_static_kwargs):
+    def run_nuts(self, model_name='model', num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1, **model_static_kwargs):
         
-        kernel = NUTS(self.model, max_tree_depth=4, dense_mass=False, step_size=step_size)
+        if model_name == 'model':
+            model = self.model
+        elif model_name == 'model_ps':
+            model = self.model_ps
+        else:
+            raise ValueError("model_name not recognized")
+        
+        kernel = NUTS(model, max_tree_depth=4, dense_mass=False, step_size=step_size)
         self.nuts_mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
         self.nuts_mcmc.run(jax.random.PRNGKey(42), **model_static_kwargs)
         
