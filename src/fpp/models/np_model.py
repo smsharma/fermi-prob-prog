@@ -295,11 +295,9 @@ class NPModel:
         npix = hp.nside2npix(self.nside)
 
         theta_ary, phi_ary = hp.pix2ang(self.nside, np.arange(npix))
-        Ylm_list = [[np.real(Ylm(l, m, theta_ary, phi_ary)) for m in range(-l + 1, l + 1)] for l in range(1, self.l_max + 1)]
+        Ylm_list = [[np.real(Ylm(l, m, theta_ary, phi_ary)) for m in range(0, l + 1)] for l in range(1, self.l_max + 1)]
         self.Ylm_temps = np.array([item for sublist in Ylm_list for item in sublist])
 
-        # l=1 0, 1
-        # l=2 -1, 0, 1, 2
 
     def load_templates(self):
 
@@ -309,15 +307,12 @@ class NPModel:
         self.temp_dsk = np.load("{}/template_dsk_z0p3.npy".format(self.data_dir))
         self.temp_p6v11 = np.load("{}/template_dif.npy".format(self.data_dir))
 
-        # Load Model O templates
         self.temp_mO_pib = np.load("{}/template_Opi.npy".format(self.data_dir))
         self.temp_mO_ics = np.load("{}/template_Oic.npy".format(self.data_dir))
 
-        # Load Model A templates
         self.temp_mA_pib = np.load("{}/template_Api.npy".format(self.data_dir))
         self.temp_mA_ics = np.load("{}/template_Aic.npy".format(self.data_dir))
 
-        # Load Model F templates
         self.temp_mF_pib = np.load("{}/template_Fpi.npy".format(self.data_dir))
         self.temp_mF_ics = np.load("{}/template_Fic.npy".format(self.data_dir))
 
@@ -672,7 +667,7 @@ class NPModel:
     def fit_svi(
         self, model_name='np', rng_key=jax.random.PRNGKey(42),
         guide='iaf', num_flows=5, hidden_dims=[128, 128],
-        n_steps=7500, lr=5e-3, num_particles=8, vectorize_particles=True, renyi_alpha=None,
+        n_steps=7500, lr=5e-3, num_particles=8, vectorize_particles=True, renyi_alpha=1,
         lr_exp_decay=False,
         init_state=None,
         annealing_schedule='none',
