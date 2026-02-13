@@ -18,6 +18,8 @@ truth_dict_1b = truth_dict_base230927 with n2 removed, n3->n2, sb2 removed, sb1-
 
 23new = base23fix with truth_dict_base230927new.json
 
+Model: base extra A removed. Now just A(1,0), A(1,1), A(2,0), A(2,1), A(2,2)
+
 ----- Poissonian -----
 
 pois230927

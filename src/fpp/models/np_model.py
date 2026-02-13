@@ -298,6 +298,9 @@ class NPModel:
         Ylm_list = [[np.real(Ylm(l, m, theta_ary, phi_ary)) for m in range(-l + 1, l + 1)] for l in range(1, self.l_max + 1)]
         self.Ylm_temps = np.array([item for sublist in Ylm_list for item in sublist])
 
+        # l=1 0, 1
+        # l=2 -1, 0, 1, 2
+
     def load_templates(self):
 
         self.temp_psc = np.load("{}/template_psc_{}.npy".format(self.data_dir, self.ps_cat))
@@ -535,114 +538,6 @@ class NPModel:
             Alm = numpyro.sample("Alm_{}".format(i), dist.Uniform(-0.05, 0.05))
             temp_pib_mod += Alm * self.Ylm_temps[i]
         mu += (1. + temp_pib_mod) * temp_pib
-
-        # ics
-        for i, ics in enumerate(self.ics):
-            mu += numpyro.sample(f'S_ics_{i}', dist.Uniform(PRIOR_LOW, PRIOR_HIGH_ICS)) * ics
-
-        # iso bub psc
-        for temp, temp_label in zip(
-            [self.temp_iso, self.temp_bub, self.temp_psc],
-            ["iso", "bub", "psc"]
-        ):
-            mu += numpyro.sample(f"S_{temp_label}", dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * temp
-
-        # poiss gce: nfw
-        temp_gce_nfw_poiss = self.nfw_template.get_NFW2_template(gamma=numpyro.sample("gamma_poiss", dist.Uniform(0.2, 2.)))
-        temp_gce_nfw_poiss /= jnp.mean(temp_gce_nfw_poiss[~self.normalization_mask])
-        mu += numpyro.sample("S_gce_nfw", dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * temp_gce_nfw_poiss
-
-        # poiss gce: blg
-        for i, blg in enumerate(self.bulge_templates):
-            mu += numpyro.sample(f'S_gce_blg_{i}', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * blg
-
-        # ps gce: nfw
-        temp_gce_nfw_ps = self.nfw_template.get_NFW2_template(gamma=numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.)))
-        temp_gce_nfw_ps /= jnp.mean(temp_gce_nfw_ps[~self.normalization_mask])
-        temp_gce_nfw_ps *= numpyro.sample("Sps_gce_nfw", dist.Uniform(PRIOR_LOW, PRIOR_HIGH))
-
-        # ps gce: blg
-        temp_gce_blg_ps = jnp.zeros_like(data)
-        for i, blg in enumerate(self.bulge_templates):
-            temp_gce_blg_ps += numpyro.sample(f'Sps_gce_blg_{i}', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * blg
-
-        temp_gce_ps = temp_gce_nfw_ps + temp_gce_blg_ps
-        Sps_gce = jnp.mean(temp_gce_ps[~self.normalization_mask])
-        temp_gce_ps_normalized = temp_gce_ps / Sps_gce
-        
-        # ps dsk
-        Sps_dsk = numpyro.sample("Sps_dsk", dist.Uniform(PRIOR_LOW, PRIOR_HIGH))
-        zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
-        C = numpyro.sample("C", dist.Uniform(0.05, 8.))
-        temp_dsk = self.disk_template.get_template(zs=zs, C=C)
-        temp_dsk_normalized = temp_dsk / jnp.mean(temp_dsk[~self.normalization_mask])
-        temp_dsk = Sps_dsk * temp_dsk_normalized
-
-        # n's, sb's
-        npt_compressed = jnp.array([temp_gce_ps_normalized, temp_dsk_normalized])
-
-        theta = []
-        for ips, ps in enumerate(["gce", "dsk"]):
-            Sps = Sps_gce if ps == "gce" else Sps_dsk
-            n1 = numpyro.sample("n1_{}".format(ps), dist.Uniform(4.0, 6.0))
-            n2 = numpyro.sample("n2_{}".format(ps), dist.Uniform(0.5, 1.99))
-            n3 = numpyro.sample("n3_{}".format(ps), dist.Uniform(-6., -5.))
-            sb1 = numpyro.sample("sb1_{}".format(ps), dist.Uniform(5., 40.0))
-            lambda_s = numpyro.sample("lambdas_{}".format(ps), dist.Uniform(0.1, 0.95))
-
-            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
-            s_ary = jnp.logspace(-1., 2., 1000)
-            dnds_ary = dnds(s_ary, theta_tmp)
-            A = Sps / jnp.trapz(s_ary * dnds_ary, s_ary)
-            theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
-
-        theta = jnp.array(theta)
-        
-        # likelihoods and exposure
-        # Pad the last exposure region so that all are the same size
-        exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
-        n_pad = exp_lens[0] - exp_lens[-1]
-        
-        expreg_indices = jnp.zeros_like(self.expreg_indices)
-        expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
-        expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
-
-        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
-                
-        # Get relevant arrays for different exposure regions
-        mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
-        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
-        data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
-        exposure_multiplier = self.exposure_means_list / self.exposure_mean
-        
-        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
-        theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
-        theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
-        theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
-        
-        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
-            
-            log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_ary, self.k_max, len(expreg_indices[0]))
-            loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
-
-            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
-                with handlers.scale(scale=beta):
-                    return numpyro.factor('log-likelihood', loglike)
-
-    def model_cmp(self, data=..., beta=1.):
-
-        PRIOR_LOW = 1e-3
-        PRIOR_HIGH_PIB = 12.
-        PRIOR_HIGH_ICS = 8.
-        PRIOR_HIGH = 3.
-        
-        mu = jnp.zeros_like(data)
-
-        # pib
-        temp_pib = jnp.zeros_like(data)
-        for i, pib in enumerate(self.pib):
-            temp_pib += numpyro.sample(f'S_pib_{i}', dist.Uniform(PRIOR_LOW, PRIOR_HIGH_PIB)) * pib
-        mu += temp_pib
 
         # ics
         for i, ics in enumerate(self.ics):
