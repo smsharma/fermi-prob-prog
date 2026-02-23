@@ -30,7 +30,7 @@ if __name__ == '__main__':
     parser.add_argument('--guide', type=str, default='iaf')
     parser.add_argument('--n_par', type=int, default=8)
     parser.add_argument('--renyi_alpha', type=float, default=1)
-    parser.add_argument('--annealing_schedule', type=str, default='none')
+    parser.add_argument('--tempering_schedule', type=str, default='none')
     parser.add_argument('--num_flows', type=int, default=4)
     parser.add_argument('--hidden_dim_n', type=int, default=64)
     parser.add_argument('--comment', type=str, default='')
@@ -65,14 +65,12 @@ if __name__ == '__main__':
         data_in = jnp.array(data, dtype=jnp.int32)
 
     #===== model =====
+    if 'A6' in args.model:
+        sphold = True
+    else:
+        sphold = False
     psf_tag = 'delta' if 'deltapsf' in args.model else 'king'
     print('PSF:', psf_tag)
-    if '1b' in args.model:
-        Model = NPModel1B
-        print('Using NPModel1B model')
-    else:
-        Model = NPModel
-        print('Using NPModel model')
     if args.model == 'base23fixO':
         dif_names = ["ModelO"]
     elif args.model == 'base23fixA':
@@ -81,59 +79,43 @@ if __name__ == '__main__':
         dif_names = ["ModelF"]
     else:
         dif_names = ["ModelO", "ModelA", "ModelF"]
-    m = Model(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, custom_mask_roi=mask_roi, dif_names=dif_names)
+    m = NPModel(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, diffuse_names=dif_names, debug_old_sphh=sphold)
     # m.debug_exaggerate_exposure(5)
-
-    if 'pois' in args.model:
-        model_type = 'pois'
-    elif 'nofs' in args.model:
-        model_type = 'nofs'
-    else:
-        model_type = 'np'
 
     #===== fit =====
     if args.fit_type == 'svi':
         m.fit_svi(
-            model_name=model_type, n_steps=args.n_step, data=data_in, lr=args.lr,
+            n_steps=args.n_step, data=data_in, lr=args.lr,
             rng_key=jax.random.PRNGKey(args.seed),
             guide=args.guide, num_flows=args.num_flows, hidden_dims=[args.hidden_dim_n, args.hidden_dim_n],
-            num_particles=args.n_par, vectorize_particles=True,
+            num_particles=args.n_par,
             renyi_alpha=args.renyi_alpha, lr_exp_decay=args.lrexpdecay,
-            annealing_schedule=args.annealing_schedule,
+            tempering_schedule=args.tempering_schedule
         )
         samples = m.get_svi_samples(num_samples=args.n)
 
     elif args.fit_type in ['hmc', 'hmcnt']:
 
         if args.fit_type == 'hmcnt':
-            model_type = 'neutra'
-            m.fit_svi(
-                model_name=model_type, n_steps=args.n_step, data=data_in, lr=1e-4,
-                rng_key=jax.random.PRNGKey(args.seed)
-            )
+            use_neutra = True
+            m.fit_svi(n_steps=args.n_step, data=data_in, lr=1e-4, rng_key=jax.random.PRNGKey(args.seed))
+        else:
+            use_neutra = False
             
         mcmc = m.run_nuts(
-            model_name=model_type, num_chains=4, num_warmup=1000, num_samples=args.n//4, step_size=0.05,
+            use_neutra=use_neutra, num_chains=4, num_warmup=1000, num_samples=args.n//4, step_size=0.05,
             data=data_in,
             rng_key=jax.random.PRNGKey(args.seed)
         )
         samples = mcmc.get_samples()
 
     elif args.fit_type in ['pthmc']:
-        m.fit_svi(model_name=model_type, n_steps=args.n_step, data=data_in, lr=1e-4)
+        m.fit_svi(n_steps=args.n_step, data=data_in, lr=1e-4, rng_key=jax.random.PRNGKey(args.seed))
         mcmc = m.run_parallel_tempering_hmc(
-            model_name=model_type,
             num_samples=args.n,
             step_size_base=5e-2,
             num_leapfrog_steps=3,
             num_adaptation_steps=600,
-        )
-        samples = mcmc.get_samples()
-
-    elif args.fit_type == 'testhmc':
-        mcmc = m.run_nuts(
-            model_name=model_type, num_chains=8, num_warmup=10, num_samples=10, step_size=0.1,
-            use_neutra=False, data=data_in
         )
         samples = mcmc.get_samples()
 

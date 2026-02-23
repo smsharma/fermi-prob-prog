@@ -53,26 +53,6 @@ def log_like_internal(pt_sum_compressed, data, x_m_ary, x_m_sum, k_max, npixROI)
         
     return jnp.log(pk_dat_ary)
 
-# @partial(jit, static_argnums=(6,))
-# def return_x_m(f_ary, df_rho_ary, npt_compressed, data, s_ary, dnds_ary, k_max):
-#     """ Dedicated calculation of x_m and x_m_sum
-#     """
-
-#     m_ary = jnp.arange(k_max + 1 , dtype=jnp.float64)
-#     gamma_ary = jnp.exp(jax.lax.lgamma(m_ary + 1))
-
-#     x_m_ary = df_rho_ary[:, None] * jnp.trapz(((dnds_ary * jnp.exp(-jnp.outer(f_ary, s_ary)))[:, :, None] * jax.lax.pow(jnp.outer(f_ary, s_ary)[:, :, None], m_ary[None, None, :]) / gamma_ary), s_ary, axis=1)
-#     x_m_ary = jnp.sum(x_m_ary, axis=0)
-
-#     x_m_ary = jnp.outer(npt_compressed, x_m_ary)
-
-#     x_m_sum_ary = jnp.sum((df_rho_ary)[:, None] * jnp.trapz(dnds_ary, s_ary), axis=0)
-#     x_m_sum_ary = jnp.sum(x_m_sum_ary, axis=0)
-
-#     x_m_sum_ary = npt_compressed * x_m_sum_ary - x_m_ary[:, 0]
-
-#     return x_m_ary, x_m_sum_ary
-
 
 from jax.scipy.special import logsumexp
 from jax.numpy import logaddexp
