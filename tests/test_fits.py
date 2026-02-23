@@ -18,41 +18,31 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_data")
 FITS_FIXTURE = os.path.join(DATA_DIR, "fits_fixture.npz")
 
 MODEL_KWARGS = dict(
-    non_poissonian=True,
     l_max=2,
-    dif_names=["ModelO", "ModelA", "ModelF"],
-    bulge_hybrid=True,
-    bulge_template_names=[
+    diffuse_names=["ModelO", "ModelA", "ModelF"],
+    bulge_names=[
         "mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x",
         "macias2019", "coleman2019",
     ],
-    vary_gamma=True,
-    vary_disk=True,
     ps_cat="3fgl",
-    r_outer=25,
-    band_mask_range=2.0,
     nside=128,
     n_exp=7,
-    debug_model=False,
     psf_tag="king",
 )
 
 SVI_KWARGS = dict(
-    model_name="np",
     guide="iaf",
     num_flows=3,
     hidden_dims=[64, 64],
     n_steps=10,
     lr=5e-3,
     num_particles=4,
-    vectorize_particles=True,
     renyi_alpha=1,
     lr_exp_decay=False,
-    annealing_schedule="none",
+    tempering_schedule="none",
 )
 
 HMC_KWARGS = dict(
-    model_name="np",
     num_chains=1,
     num_warmup=5,
     num_samples=5,
