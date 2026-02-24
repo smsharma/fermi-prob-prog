@@ -3,30 +3,25 @@ import healpy as hp
 import json
 from tqdm import tqdm
 
-# from fpp.models.np_model import NPModel
-from fpp.models.np_model_cmp import NPModelCMP
+from fpp.models.np_model import NPModel
+# from fpp.models.np_model_cmp import NPModelCMP
 # from fpp.simulations.wrapper import simulator_for_model, simulator_for_model_p6v11
-from fpp.simulations.wrapper import simulator_for_cmp
+# from fpp.simulations.wrapper import simulator_for_cmp
 
 
 if __name__ == '__main__':
 
-    data_name = 'cmp'
-    truth_name = 'cmp'
-    n_sim = 30
-    delta_psf = False
-    flat_exposure = False
-    sim1b = True
-    sim_func = simulator_for_cmp
+    data_name = 'testdsk2'
+    truth_name = 'testdsk'
+    n_sim = 100
+    modifiers = [] # ['deltapsf', 'flatexp']
     
     truth_dict = json.load(open(f"../outputs/truths/truth_dict_{truth_name}.json", "r"))
-    # m = NPModel(data=np.zeros(hp.nside2npix(128), dtype=np.int32)) # dummy data
-    m = NPModelCMP()
-    # m.debug_exaggerate_exposure(5)
+    m = NPModel()
 
     sims = []
     for _ in tqdm(range(n_sim)):
-        sims.append(sim_func(m, truth_dict, sim_all=True, delta_psf=delta_psf, flat_exposure=flat_exposure, sim1b=sim1b))
+        sims.append(m.simulate(truth_dict, modifiers=modifiers))
     sims = np.array(sims)
 
     np.save(f"../outputs/simulations/{data_name}.npy", sims)
