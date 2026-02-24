@@ -26,6 +26,7 @@ validating/**/*.p
 .tmp.driveupload/
 .tmp.drivedownload/
 **/.vscode
+.claude/
 #========================
 
 # Byte-compiled / optimized / DLL files
