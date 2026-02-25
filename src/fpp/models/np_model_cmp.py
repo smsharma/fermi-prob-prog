@@ -269,3 +269,31 @@ class NPModelCMP:
         self.nuts_mcmc.run(jax.random.PRNGKey(42), **model_static_kwargs)
         
         return self.nuts_mcmc
+        
+
+    def simulate(self, vd, modifiers=[], rng_seed=None):
+
+        if rng_seed is not None:
+            np.random.seed(rng_seed)
+
+        # pois
+        temps_poiss = [self.nfw_1p0, self.iso, self.bub, self.psc, self.pib, self.ics]
+        temps_poiss = [np.array(t / np.mean(t[~self.nm])) for t in temps_poiss]
+        theta = [vd['S_nfw'], vd['S_iso'], vd['S_bub'], vd['S_psc'], vd['S_pib'], vd['S_ics']]
+
+        # ps
+        temps_ps = [self.nfw_1p2, self.dsk]
+        theta += [vd['Sps_nfw'], vd['n1_nfw'], vd['n2_nfw'], vd['sb_nfw']]
+        theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['sb_dsk']]
+
+        kp = KingPSF()
+
+        return simulator(
+            theta, temps_poiss, temps_ps,
+            mask_norm=self.nm,
+            mask_sim=self.nm,
+            psf_r_func=lambda r: kp.psf_fermi_r(r),
+            exp_map=self.exposure,
+            psf_scheme='original',
+            sim1b=True
+        )

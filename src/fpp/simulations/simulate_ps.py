@@ -111,12 +111,12 @@ class DrawSources:
                 the_map[original_pix] += num_phot
             elif self.psf_scheme == 'original':
                 phm = ph + np.pi / 2.0
-                rotx = np.matrix([[1, 0, 0], [0, np.cos(th), -np.sin(th)], [0, np.sin(th), np.cos(th)]])
-                rotz = np.matrix([[np.cos(phm), -np.sin(phm), 0], [np.sin(phm), np.cos(phm), 0], [0, 0, 1]])
+                rotx = np.array([[1, 0, 0], [0, np.cos(th), -np.sin(th)], [0, np.sin(th), np.cos(th)]])
+                rotz = np.array([[np.cos(phm), -np.sin(phm), 0], [np.sin(phm), np.cos(phm), 0], [0, 0, 1]])
                 dist = pdf(num_phot)
                 randPhi = 2 * np.pi * np.random.random(num_phot)
                 X = hp.ang2vec(dist, randPhi).T
-                Xp = rotz * (rotx * X)
+                Xp = rotz @ (rotx @ X)
                 posit = np.array(hp.vec2pix(nside, *Xp))
                 np.add.at(the_map, posit, 1)
             else:

@@ -505,6 +505,7 @@ class NPModel:
         
         return self.mcmc
     
+
     def get_MAP_estimates(self, rng_key=jax.random.PRNGKey(42), lr=0.1, n_steps=30000, **model_static_kwargs):
         
         guide = autoguide.AutoDelta(self.model)
@@ -515,54 +516,42 @@ class NPModel:
         
         return svi_results
 
-    def simulate(self, vd, modifiers=[], rng_seed=42):
+
+    def simulate(self, vd, modifiers=[], rng_seed=None):
         """ Simulate a map based on model templates.
 
         Args:
             vd (dict): Dictionary of truth parameters.
-            modifiers (list of str): From ['deltapsf', 'flatexp'].
+            modifiers (list of str): From ['deltapsf', 'flatexp', 'p6v11'].
+                'deltapsf': Assumes PSF is trivial.
+                'flatexp': Uses a flat exposure map.
+                'p6v11': Uses the p6v11 diffuse template instead of the pib and ics templates.
+            rng_seed (int): Random seed for deterministic testing. If None, no seeding is done.
+
+        Return:
+            np.ndarray: Simulated counts map.
         """
 
-        np.random.seed(rng_seed)
+        if rng_seed is not None:
+            np.random.seed(rng_seed)
 
         # poiss: nfw iso bub psc pib*3 ics*3 blg*5
         temp_nfw_poiss = self.nfw_temp_gen.get_NFW2_template(gamma=vd['gamma_poiss'])
         temp_nfw_poiss /= np.mean(temp_nfw_poiss[~self.nm])
 
-        temps_poiss = [
-            temp_nfw_poiss,
-            self.temp_iso,
-            self.temp_bub,
-            self.temp_psc,
-            self.pib[0],
-            self.pib[1],
-            self.pib[2],
-            self.ics[0],
-            self.ics[1],
-            self.ics[2],
-            self.blg_s[0],
-            self.blg_s[1],
-            self.blg_s[2],
-            self.blg_s[3],
-            self.blg_s[4],
-        ]
-        theta = [
-            vd['S_gce'] * (1 - vd['f_bulge_poiss']),
-            vd['S_iso'],
-            vd['S_bub'],
-            vd['S_psc'],
-            vd['S_pib'] * vd['theta_pib'][0],
-            vd['S_pib'] * vd['theta_pib'][1],
-            vd['S_pib'] * vd['theta_pib'][2],
-            vd['S_ics'] * vd['theta_ics'][0],
-            vd['S_ics'] * vd['theta_ics'][1],
-            vd['S_ics'] * vd['theta_ics'][2],
-            vd['S_gce'] * vd['f_bulge_poiss'] * vd['theta_bulge_poiss'][0],
-            vd['S_gce'] * vd['f_bulge_poiss'] * vd['theta_bulge_poiss'][1],
-            vd['S_gce'] * vd['f_bulge_poiss'] * vd['theta_bulge_poiss'][2],
-            vd['S_gce'] * vd['f_bulge_poiss'] * vd['theta_bulge_poiss'][3],
-            vd['S_gce'] * vd['f_bulge_poiss'] * vd['theta_bulge_poiss'][4],
-        ]
+        temps_poiss = [temp_nfw_poiss, self.temp_iso, self.temp_bub, self.temp_psc]
+        theta = [vd['S_gce'] * (1 - vd['f_bulge_poiss']), vd['S_iso'], vd['S_bub'], vd['S_psc']]
+        temps_poiss += list(self.blg_s)
+        theta += list(vd['S_gce'] * vd['f_bulge_poiss'] * np.array(vd['theta_bulge_poiss']))
+
+        if 'p6v11' in modifiers:
+            temps_poiss.append(self.temp_p6v11)
+            theta.append(vd['S_p6v11'])
+        else:
+            temps_poiss += list(self.pib)
+            temps_poiss += list(self.ics)
+            theta += list(vd['S_pib'] * np.array(vd['theta_pib']))
+            theta += list(vd['S_ics'] * np.array(vd['theta_ics']))
 
         # ps: nfw+blg*5 dsk
         # temp_ps
@@ -598,7 +587,7 @@ class NPModel:
         return simulator(
             theta, temps_poiss, temps_ps,
             mask_norm = self.nm,
-            mask_roi = self.nm,
+            mask_sim = self.nm,
             psf_r_func = lambda r: kp.psf_fermi_r(r),
             exp_map = exp_map,
             psf_scheme = psf_scheme,

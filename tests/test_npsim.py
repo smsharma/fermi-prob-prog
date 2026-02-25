@@ -88,7 +88,7 @@ def _generate():
 #  Test                                                               #
 # ------------------------------------------------------------------ #
 
-def test_simulate_regression():
+def test_npsim():
     """Compare NPModel.simulate output against saved ground truth."""
     assert os.path.exists(SIM_FIXTURE), (
         f"Fixture not found at {SIM_FIXTURE}. "
