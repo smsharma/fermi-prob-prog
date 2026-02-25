@@ -1,13 +1,13 @@
 #!/bin/bash
 
-#SBATCH --job-name=hmc_Dfermi_MintmA6
-#SBATCH --array=0
+#SBATCH --job-name=hmc_Dnmnew_deltapsf_Mbase_deltapsf
+#SBATCH --array=0-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64GB
-#SBATCH --time=0-08:00:00
+#SBATCH --time=0-03:00:00
 #SBATCH --output=/n/home07/yitians/fermi/fermi-prob-prog/outputs/slurm/%x_%a.out
 #SBATCH --error=/n/home07/yitians/fermi/fermi-prob-prog/outputs/slurm/%x_%a.err
 #SBATCH --account=iaifi_lab
@@ -19,12 +19,12 @@ source /n/home07/yitians/setup/torch.sh
 cd /n/home07/yitians/fermi/fermi-prob-prog/analysis
 
 #===== np =====
-#python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 \
-#    --data fermi --model intmA6 --n_exp 7 --seed $((SLURM_ARRAY_TASK_ID * 4224)) --lr 3e-4 --n_par 16 \
+# python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 \
+#    --data nmnew_deltapsf --model base_deltapsf --n_exp 7 --seed $((SLURM_ARRAY_TASK_ID * 4224)) --lr 3e-4 --n_par 16 \
 #    --guide iaf --num_flows 5 --hidden_dim_n 128 --renyi_alpha 1 --comment ""
 
 python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type hmc --n_step 0     -n 10000 \
-    --data fermi --model intmA6 --n_exp 7 --seed $((SLURM_ARRAY_TASK_ID * 4224)) --comment ""
+    --data nmnew_deltapsf --model base_deltapsf --n_exp 7 --seed $((SLURM_ARRAY_TASK_ID * 4224)) --comment ""
 
 #===== pois =====
 # python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 \

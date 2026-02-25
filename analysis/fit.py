@@ -38,9 +38,10 @@ if __name__ == '__main__':
 
     comment_str = '' if args.comment == '' else f"_{args.comment}"
     run_name = f"{args.fit_type}_D{args.data}_M{args.model}" + comment_str
-    print('run_name:', run_name)
+    print('----------')
+    print('Run name:', run_name)
 
-    save_dir = f"{wdir}/../outputs/fits/{run_name}"
+    save_dir = f"{wdir}/../outputs/production/fits/{run_name}"
     os.makedirs(save_dir, exist_ok=True)
 
     #===== masks =====
@@ -56,7 +57,7 @@ if __name__ == '__main__':
     print(f'-> {int(np.sum(~mask_roi))} = {args.n_exp} * {int(np.sum(~mask_roi) / args.n_exp)}')
 
     #===== data =====
-    data = np.load(f"../outputs/simulations/{args.data}.npy")[args.i]
+    data = np.load(f"../outputs/production/simulations/{args.data}.npy")[args.i]
     if len(data) < hp.nside2npix(128):
         data_full = np.zeros(hp.nside2npix(128))
         data_full[~mask_norm] = data
@@ -65,10 +66,6 @@ if __name__ == '__main__':
         data_in = jnp.array(data, dtype=jnp.int32)
 
     #===== model =====
-    if 'A6' in args.model:
-        sphold = True
-    else:
-        sphold = False
     psf_tag = 'delta' if 'deltapsf' in args.model else 'king'
     print('PSF:', psf_tag)
     if args.model == 'base23fixO':
@@ -79,8 +76,8 @@ if __name__ == '__main__':
         dif_names = ["ModelF"]
     else:
         dif_names = ["ModelO", "ModelA", "ModelF"]
-    m = NPModel(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, diffuse_names=dif_names, debug_old_sphh=sphold)
-    # m.debug_exaggerate_exposure(5)
+    m = NPModel(data=data_in, psf_tag=psf_tag, n_exp=args.n_exp, diffuse_names=dif_names)
+    print('----------')
 
     #===== fit =====
     if args.fit_type == 'svi':
@@ -103,7 +100,7 @@ if __name__ == '__main__':
             use_neutra = False
             
         mcmc = m.run_nuts(
-            use_neutra=use_neutra, num_chains=4, num_warmup=1000, num_samples=args.n//4, step_size=0.05,
+            use_neutra=use_neutra, num_chains=4, num_warmup=1, num_samples=args.n//4, step_size=0.05,
             data=data_in,
             rng_key=jax.random.PRNGKey(args.seed)
         )
