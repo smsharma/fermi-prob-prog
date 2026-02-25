@@ -56,28 +56,19 @@ SVI_PREFIX = "svi__"
 HMC_PREFIX = "hmc__"
 
 
-def _load_data():
-    data_dir = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "..", "data", "fermi_data_573w", "fermi_data_128",
-    )
-    counts = np.load(os.path.join(data_dir, "fermidata_counts.npy")).astype(np.int32)
-    return jnp.array(counts, dtype=jnp.int32)
-
-
 def _run_all():
     data = _load_data()
-    model = NPModel(data=data, **MODEL_KWARGS)
+    model = NPModel(**MODEL_KWARGS)
 
     rng_key = jax.random.PRNGKey(RNG_SEED)
-    model.fit_svi(rng_key=rng_key, data=data, **SVI_KWARGS)
+    model.fit_svi(rng_key=rng_key, data=model.data, **SVI_KWARGS)
     svi_samples = model.get_svi_samples(
         rng_key=jax.random.PRNGKey(RNG_SEED), num_samples=SVI_NUM_SAMPLES,
     )
     svi_samples = {k: np.asarray(v) for k, v in svi_samples.items()}
 
     rng_key = jax.random.PRNGKey(RNG_SEED)
-    mcmc = model.run_nuts(rng_key=rng_key, data=data, **HMC_KWARGS)
+    mcmc = model.run_nuts(rng_key=rng_key, data=model.data, **HMC_KWARGS)
     hmc_samples = {k: np.asarray(v) for k, v in mcmc.get_samples().items()}
 
     return svi_samples, hmc_samples
