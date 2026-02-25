@@ -30,6 +30,7 @@ from fpp.utils.sph_harm import Ylm
 from fpp.utils import create_mask as cm
 from fpp.models.psf import KingPSF
 from fpp.utils.psf_correction import PSFCorrection
+from fpp.simulations.simulator import simulator
 
 import logging
 
@@ -514,13 +515,15 @@ class NPModel:
         
         return svi_results
 
-    def simulate(self, vd, modifiers=[]):
+    def simulate(self, vd, modifiers=[], rng_seed=42):
         """ Simulate a map based on model templates.
 
         Args:
             vd (dict): Dictionary of truth parameters.
             modifiers (list of str): From ['deltapsf', 'flatexp'].
         """
+
+        np.random.seed(rng_seed)
 
         # poiss: nfw iso bub psc pib*3 ics*3 blg*5
         temp_nfw_poiss = self.nfw_temp_gen.get_NFW2_template(gamma=vd['gamma_poiss'])
@@ -574,26 +577,30 @@ class NPModel:
         temps_ps = []
         if vd['Sps_gce'] > 0:
             temps_ps.append(np.array(temp_ps_gce))
-            # theta[0] should be expected photon count per pixel in normalization mask region
+            # theta[0] is the expected photon count per pixel in normalization mask region
             theta += [vd['Sps_gce'], vd['n1_gce'], vd['n2_gce'], vd['n3_gce'], vd['sb1_gce'], vd['lambdas_gce'] * vd['sb1_gce']]
         if vd['Sps_dsk'] > 0:
             temps_ps.append(np.array(temp_ps_dsk))
             theta += [vd['Sps_dsk'], vd['n1_dsk'], vd['n2_dsk'], vd['n3_dsk'], vd['sb1_dsk'], vd['lambdas_dsk'] * vd['sb1_dsk']]
 
-        mask_normalize_counts = self.nm
-        mask_roi = np.array(self.mask_roi)
-        mask_sim = mask_normalize_counts
-
         kp = KingPSF()
-        psf_r_func = lambda r: kp.psf_fermi_r(r)
 
         if 'deltapsf' in modifiers:
             psf_scheme = 'true delta'
         else:
             psf_scheme = 'original'
 
-        exp_map = np.array(self.exposure)
         if 'flatexp' in modifiers:
-            exp_map = np.ones_like(exp_map) * np.mean(exp_map)
+            exp_map = np.ones_like(self.exposure) * np.mean(self.exposure)
+        else:
+            exp_map = self.exposure
 
-        return simulator(theta, temps_poiss, temps_ps, mask_sim, mask_normalize_counts, mask_roi, psf_r_func, exp_map, psf_scheme=psf_scheme, sim1b=False)[0]
+        return simulator(
+            theta, temps_poiss, temps_ps,
+            mask_norm = self.nm,
+            mask_roi = self.nm,
+            psf_r_func = lambda r: kp.psf_fermi_r(r),
+            exp_map = exp_map,
+            psf_scheme = psf_scheme,
+            sim1b = False
+        )

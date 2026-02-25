@@ -11,7 +11,7 @@ from fpp.models.np_model import NPModel
 
 if __name__ == '__main__':
 
-    data_name = 'testdsk2'
+    data_name = 'testdsk3'
     truth_name = 'testdsk'
     n_sim = 100
     modifiers = [] # ['deltapsf', 'flatexp']
