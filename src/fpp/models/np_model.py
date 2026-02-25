@@ -91,7 +91,6 @@ class NPModel:
         print(f'Number of pixels in ROI: {np.sum(~self.mask_roi)}')
 
         #===== templates =====
-        self.load_template_generators()
         self.load_templates()
         self.get_sphharms()
             
@@ -112,7 +111,7 @@ class NPModel:
             pc_inst.psf_r_func = lambda r: kp.psf_fermi_r(r)
             pc_inst.sample_psf_max = 10.0 * kp.spe * (kp.score + kp.stail) / 2.0
             pc_inst.psf_samples = 10000
-            pc_inst.psf_tag = "Fermi_PSF_2GeV2_nside{}".format(self.nside)
+            pc_inst.psf_tag = f"Fermi_PSF_2GeV2_nside{self.nside}"
             pc_inst.make_or_load_psf_corr()
             self.f_ary = pc_inst.f_ary
             self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
@@ -165,22 +164,22 @@ class NPModel:
             
         self.expreg_indices = jnp.array(self.expreg_indices)
 
-    def load_template_generators(self):
+    def load_templates(self):
+
         self.nfw_temp_gen = NFWTemplate(nside=self.nside)
         self.dsk_temp_gen = LorimerDiskTemplate(nside=self.nside)
 
-    def load_templates(self):
-        self.temp_psc = np.load("{}/template_psc_{}.npy".format(self.data_dir, self.ps_cat))
-        self.temp_iso = np.load("{}/template_iso.npy".format(self.data_dir))
-        self.temp_bub = np.load("{}/template_bub.npy".format(self.data_dir))
-        self.temp_dsk = np.load("{}/template_dsk_z0p3.npy".format(self.data_dir))
-        self.temp_p6v11 = np.load("{}/template_dif.npy".format(self.data_dir))
-        self.temp_mO_pib = np.load("{}/template_Opi.npy".format(self.data_dir))
-        self.temp_mO_ics = np.load("{}/template_Oic.npy".format(self.data_dir))
-        self.temp_mA_pib = np.load("{}/template_Api.npy".format(self.data_dir))
-        self.temp_mA_ics = np.load("{}/template_Aic.npy".format(self.data_dir))
-        self.temp_mF_pib = np.load("{}/template_Fpi.npy".format(self.data_dir))
-        self.temp_mF_ics = np.load("{}/template_Fic.npy".format(self.data_dir))
+        self.temp_psc = np.load(f"{self.data_dir}/template_psc_{self.ps_cat}.npy")
+        self.temp_iso = np.load(f"{self.data_dir}/template_iso.npy")
+        self.temp_bub = np.load(f"{self.data_dir}/template_bub.npy")
+        self.temp_dsk = np.load(f"{self.data_dir}/template_dsk_z0p3.npy")
+        self.temp_p6v11 = np.load(f"{self.data_dir}/template_dif.npy")
+        self.temp_mO_pib = np.load(f"{self.data_dir}/template_Opi.npy")
+        self.temp_mO_ics = np.load(f"{self.data_dir}/template_Oic.npy")
+        self.temp_mA_pib = np.load(f"{self.data_dir}/template_Api.npy")
+        self.temp_mA_ics = np.load(f"{self.data_dir}/template_Aic.npy")
+        self.temp_mF_pib = np.load(f"{self.data_dir}/template_Fpi.npy")
+        self.temp_mF_ics = np.load(f"{self.data_dir}/template_Fic.npy")
 
         self.temp_psc /= np.mean(self.temp_psc[~self.nm])
         self.temp_iso /= np.mean(self.temp_iso[~self.nm])
