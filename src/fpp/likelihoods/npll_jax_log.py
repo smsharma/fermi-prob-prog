@@ -5,9 +5,23 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 from jax import jit, vmap
 import jax.numpy as jnp
+from jax.scipy.special import logsumexp
+from jax.numpy import logaddexp
+
 from functools import partial
 
 from fpp.models.scd import dnds as dnds_func
+
+
+def log_trapz(logf, x, axis=-1):
+    """ Compute log of trapezoidal integration of f over x
+    """
+
+    dx = x[1:] - x[:-1]
+    logf_moved = jnp.moveaxis(logf, axis, -1)
+    logf_avg = logaddexp(logf_moved[..., 1:], logf_moved[..., :-1]) - jnp.log(2.0)
+
+    return logsumexp(a=logf_avg, b=dx, axis=-1)
 
 
 # NPT = number of non-poissonian templates
@@ -31,18 +45,19 @@ def return_x_m(f, rho_df, npt, data, s, dnds, k_max):
     """
 
     m = jnp.arange(k_max + 1 , dtype=jnp.float64) # (M,)
-    gamma = jnp.exp(jax.lax.lgamma(m + 1)) # (M,)
+    lgamma = jax.lax.lgamma(m + 1) # (M,)
 
     # (F, S, M)
-    s_integrand = (dnds[None, :] * jnp.exp(-jnp.outer(f, s)))[:, :, None] * jax.lax.pow(jnp.outer(f, s)[:, :, None], m[None, None, :]) / gamma[None, None, :]
-    f_integrand = jnp.trapz(s_integrand, s, axis=1) # (F, M)
-    x_m_unnorm = jnp.sum(rho_df[:, None] * f_integrand, axis=0) # (M,)
+    log_s_integrand = (jnp.log(dnds) - jnp.outer(f, s))[:, :, None] + jnp.log(jnp.outer(f, s))[:, :, None] * m[None, None, :] - lgamma
+    f_integrand = log_trapz(log_s_integrand, s, axis=1) # (F, M)
+    x_m_unnorm = jnp.exp(logsumexp(a=f_integrand, b=rho_df[:, None], axis=0)) # (M,)
     x_m = jnp.outer(npt, x_m_unnorm) # (P, M)
 
     x_m_sum_unnorm = jnp.sum(rho_df) * jnp.trapz(dnds, s) # ()
     x_m_sum = npt * x_m_sum_unnorm - x_m[:, 0] # (P,)
 
     return x_m, x_m_sum # (P, M), (P,)
+
 
 # vmap over NPT
 dnds_func_vmap = vmap(dnds_func, in_axes=(None, 0))
