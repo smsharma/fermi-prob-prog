@@ -100,7 +100,7 @@ if __name__ == '__main__':
             use_neutra = False
             
         mcmc = m.run_nuts(
-            use_neutra=use_neutra, num_chains=4, num_warmup=1, num_samples=args.n//4, step_size=0.05,
+            use_neutra=use_neutra, num_chains=4, num_warmup=1000, num_samples=args.n//4, step_size=0.05,
             data=data_in,
             rng_key=jax.random.PRNGKey(args.seed)
         )
