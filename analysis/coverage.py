@@ -37,12 +37,12 @@ def regularize_sample(s):
 if __name__ == '__main__':
 
     n_sim = 30
-    truth_name = 'base230927'
-    # truth_name = 'base230927new'
-    run_name = 'hmc_Dbase23fix_p6v11_Mbase23fix'
+    # truth_name = 'base230927'
+    truth_name = 'base230927new'
+    run_name = 'hmc_Dnmnew_Mbase'
     print(f"Run name: {run_name}")
 
-    samples_dir = f"../outputs/fits/{run_name}"
+    samples_dir = f"../outputs/production/fits/{run_name}"
     theta_true = json.load(open(f"../outputs/truths/truth_dict_{truth_name}.json"))
 
     if 'pois' in run_name:

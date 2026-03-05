@@ -117,8 +117,8 @@ class NPModel:
             self.df_rho_div_f_ary = pc_inst.df_rho_div_f_ary
             self.df_rho_ary = self.f_ary * self.df_rho_div_f_ary
         elif psf_tag == 'delta':
-            self.f_ary = np.array([0., 1.])
-            self.df_rho_ary = np.array([0., 1.])
+            self.f_ary = np.array([1e-30, 1.])
+            self.df_rho_ary = np.array([1e-30, 1.])
         else:
             raise NotImplementedError(psf_tag)
 

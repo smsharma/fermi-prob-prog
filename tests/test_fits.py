@@ -57,7 +57,6 @@ HMC_PREFIX = "hmc__"
 
 
 def _run_all():
-    data = _load_data()
     model = NPModel(**MODEL_KWARGS)
 
     rng_key = jax.random.PRNGKey(RNG_SEED)
@@ -111,11 +110,10 @@ def test_svi_regression():
 
     expected_svi, _ = _load_fixture()
 
-    data = _load_data()
-    model = NPModel(data=data, **MODEL_KWARGS)
+    model = NPModel(**MODEL_KWARGS)
 
     rng_key = jax.random.PRNGKey(RNG_SEED)
-    model.fit_svi(rng_key=rng_key, data=data, **SVI_KWARGS)
+    model.fit_svi(rng_key=rng_key, data=model.data, **SVI_KWARGS)
     svi_samples = model.get_svi_samples(
         rng_key=jax.random.PRNGKey(RNG_SEED), num_samples=SVI_NUM_SAMPLES,
     )
@@ -136,11 +134,10 @@ def test_hmc_regression():
 
     _, expected_hmc = _load_fixture()
 
-    data = _load_data()
-    model = NPModel(data=data, **MODEL_KWARGS)
+    model = NPModel(**MODEL_KWARGS)
 
     rng_key = jax.random.PRNGKey(RNG_SEED)
-    mcmc = model.run_nuts(rng_key=rng_key, data=data, **HMC_KWARGS)
+    mcmc = model.run_nuts(rng_key=rng_key, data=model.data, **HMC_KWARGS)
     hmc_samples = mcmc.get_samples()
 
     assert set(hmc_samples.keys()) == set(expected_hmc.keys()), "HMC parameter keys mismatch"
