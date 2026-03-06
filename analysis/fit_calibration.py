@@ -17,26 +17,33 @@ from fpp.models.np_model import NPModel
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', type=int) # 0-1
+    parser.add_argument('-i', type=int) # 0-29
+    parser.add_argument('--fit', type=str) # svi hmc
+    parser.add_argument('--truth', type=str) # old new
+    parser.add_argument('--psf', type=str) # delta king
     args = parser.parse_args()
 
-    fit = ['svi', 'hmc'][args.i]
-    subname = fit
-    print(f"Running {subname} ...")
 
-    save_dir = f"{wdir}/../outputs/production/fits/fermi"
+    subname = f"{args.fit}-{args.truth}-{args.psf}"
+    print(f"Running {subname} # {args.i} ...")
+
+    save_dir = f"{wdir}/../outputs/production/fits/calibration/{subname}"
     os.makedirs(save_dir, exist_ok=True)
 
-    data = jnp.array(np.load(f"../outputs/simulations/fermi.npy")[0], dtype=jnp.int32)
+    data_name = ('nmold' if args.truth == 'old' else 'nmnew')
+    if args.psf == 'delta':
+        data_name += '_deltapsf'
+    print(f"Data name: {data_name}")
+
+    data = jnp.array(np.load(f"../outputs/production/simulations/{data_name}.npy")[0], dtype=jnp.int32)
     
     m = NPModel(
         data=data,
-        psf_tag='king',
+        psf_tag=args.psf,
         n_exp=7,
-        diffuse_names=["ModelO", "ModelA", "ModelF"],
     )
 
-    if fit == 'svi':
+    if args.fit == 'svi':
         m.fit_svi(
             data=data, rng_key=jax.random.PRNGKey(42),
             n_steps=10000, lr=3e-4,
@@ -45,11 +52,11 @@ if __name__ == '__main__':
         )
         samples = m.get_svi_samples(num_samples=50000)
 
-    elif fit == 'hmc':
+    elif args.fit == 'hmc':
         m.run_nuts(
             data=data, rng_key=jax.random.PRNGKey(42),
-            num_chains=4, num_warmup=1000, num_samples=30000//4, step_size=0.05,
+            num_chains=4, num_warmup=1000, num_samples=10000//4, step_size=0.05,
         )
         samples = m.nuts_mcmc.get_samples()
     
-    pickle.dump(samples, open(f"{save_dir}/{subname}.p", 'wb'))
+    pickle.dump(samples, open(f"{save_dir}/{args.i}.p", 'wb'))
