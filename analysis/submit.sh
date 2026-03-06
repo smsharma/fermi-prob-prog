@@ -1,13 +1,13 @@
 #!/bin/bash
 
-#SBATCH --job-name=oaf
-#SBATCH --array=4-7
+#SBATCH --job-name=fermii
+#SBATCH --array=1
 #SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64GB
-#SBATCH --time=0-05:00:00
+#SBATCH --time=0-04:00:00
 #SBATCH --output=/n/home07/yitians/fermi/fermi-prob-prog/outputs/slurm/%x_%a.out
 #SBATCH --error=/n/home07/yitians/fermi/fermi-prob-prog/outputs/slurm/%x_%a.err
 #SBATCH --account=iaifi_lab
@@ -18,7 +18,7 @@ source /n/home07/yitians/setup/torch.sh
 
 cd /n/home07/yitians/fermi/fermi-prob-prog/analysis
 
-python fit_oaf.py -i $SLURM_ARRAY_TASK_ID
+python fit_fermi.py -i $SLURM_ARRAY_TASK_ID
 
 #===== np =====
 # python fit.py -i $SLURM_ARRAY_TASK_ID --fit_type svi --n_step 10000 -n 50000 \

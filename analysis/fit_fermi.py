@@ -17,27 +17,23 @@ from fpp.models.np_model import NPModel
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', type=int) # 0-7
+    parser.add_argument('-i', type=int) # 0-1
     args = parser.parse_args()
 
-    fit_list = ['svi', 'hmc']
-    dif_list = [["ModelO"], ["ModelA"], ["ModelF"], ["ModelO", "ModelA", "ModelF"]]
-    i_fit, i_dif = np.unravel_index(args.i, (len(fit_list), len(dif_list)))
-    fit = fit_list[i_fit]
-    dif = dif_list[i_dif]
-    subname = fit + '-' + ['O', 'A', 'F', 'OAF'][i_dif]
+    fit = ['svi', 'hmc'][args.i]
+    subname = fit
     print(f"Running {subname} ...")
 
-    save_dir = f"{wdir}/../outputs/production/fits/p6v11oaf"
+    save_dir = f"{wdir}/../outputs/production/fits/fermi"
     os.makedirs(save_dir, exist_ok=True)
 
-    data = jnp.array(np.load(f"../outputs/production/simulations/23new_p6v11.npy")[0], dtype=jnp.int32)
+    data = jnp.array(np.load(f"../outputs/simulations/fermi.npy")[0], dtype=jnp.int32)
     
     m = NPModel(
         data=data,
         psf_tag='king',
         n_exp=7,
-        diffuse_names=dif,
+        diffuse_names=["ModelO", "ModelA", "ModelF"],
     )
 
     if fit == 'svi':
@@ -52,7 +48,7 @@ if __name__ == '__main__':
     elif fit == 'hmc':
         m.run_nuts(
             data=data, rng_key=jax.random.PRNGKey(42),
-            num_chains=4, num_warmup=1000, num_samples=10000//4, step_size=0.05,
+            num_chains=4, num_warmup=1000, num_samples=20000//4, step_size=0.05,
         )
         samples = m.nuts_mcmc.get_samples()
     
