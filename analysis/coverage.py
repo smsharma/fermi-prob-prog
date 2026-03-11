@@ -8,41 +8,40 @@ import numpy as np
 
 from fpp.utils.validation import find_hdi_prob
 
-def regularize_sample(s):
-    if 'f_bulge_poiss' in s:
-        return s
-    s['S_pib'] = s['S_pib_0'] + s['S_pib_1'] + s['S_pib_2']
-    s['theta_pib_ModelO'] = s['S_pib_0'] / s['S_pib']
-    s['theta_pib_ModelA'] = s['S_pib_1'] / s['S_pib']
-    s['theta_pib_ModelF'] = s['S_pib_2'] / s['S_pib']
-    s['S_ics'] = s['S_ics_0'] + s['S_ics_1'] + s['S_ics_2']
-    s['theta_ics_ModelO'] = s['S_ics_0'] / s['S_ics']
-    s['theta_ics_ModelA'] = s['S_ics_1'] / s['S_ics']
-    s['theta_ics_ModelF'] = s['S_ics_2'] / s['S_ics']
-    s['S_gce_blg'] = s['S_gce_blg_0'] + s['S_gce_blg_1'] + s['S_gce_blg_2'] + s['S_gce_blg_3'] + s['S_gce_blg_4']
-    s['S_gce'] = s['S_gce_blg'] + s['S_gce_nfw']
-    s['f_bulge_poiss'] = s['S_gce_blg'] / s['S_gce']
+# def regularize_sample(s):
+#     if 'f_bulge_poiss' in s:
+#         return s
+#     s['S_pib'] = s['S_pib_0'] + s['S_pib_1'] + s['S_pib_2']
+#     s['theta_pib_ModelO'] = s['S_pib_0'] / s['S_pib']
+#     s['theta_pib_ModelA'] = s['S_pib_1'] / s['S_pib']
+#     s['theta_pib_ModelF'] = s['S_pib_2'] / s['S_pib']
+#     s['S_ics'] = s['S_ics_0'] + s['S_ics_1'] + s['S_ics_2']
+#     s['theta_ics_ModelO'] = s['S_ics_0'] / s['S_ics']
+#     s['theta_ics_ModelA'] = s['S_ics_1'] / s['S_ics']
+#     s['theta_ics_ModelF'] = s['S_ics_2'] / s['S_ics']
+#     s['S_gce_blg'] = s['S_gce_blg_0'] + s['S_gce_blg_1'] + s['S_gce_blg_2'] + s['S_gce_blg_3'] + s['S_gce_blg_4']
+#     s['S_gce'] = s['S_gce_blg'] + s['S_gce_nfw']
+#     s['f_bulge_poiss'] = s['S_gce_blg'] / s['S_gce']
 
-    bulge_models = ["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"]
-    for i, k in enumerate(bulge_models):
-        s[f'theta_poiss_{k}'] = s[f'S_gce_blg_{i}'] / s['S_gce_blg']
-    s['Sps_gce_blg'] = s['Sps_gce_blg_0'] + s['Sps_gce_blg_1'] + s['Sps_gce_blg_2'] + s['Sps_gce_blg_3'] + s['Sps_gce_blg_4']
-    s['Sps_gce'] = s['Sps_gce_blg'] + s['Sps_gce_nfw']
-    s['f_bulge_ps'] = s['Sps_gce_blg'] / s['Sps_gce']
-    for i, k in enumerate(bulge_models):
-        s[f'theta_ps_{k}'] = s[f'Sps_gce_blg_{i}'] / s['Sps_gce_blg']
-    return s
+#     bulge_models = ["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"]
+#     for i, k in enumerate(bulge_models):
+#         s[f'theta_poiss_{k}'] = s[f'S_gce_blg_{i}'] / s['S_gce_blg']
+#     s['Sps_gce_blg'] = s['Sps_gce_blg_0'] + s['Sps_gce_blg_1'] + s['Sps_gce_blg_2'] + s['Sps_gce_blg_3'] + s['Sps_gce_blg_4']
+#     s['Sps_gce'] = s['Sps_gce_blg'] + s['Sps_gce_nfw']
+#     s['f_bulge_ps'] = s['Sps_gce_blg'] / s['Sps_gce']
+#     for i, k in enumerate(bulge_models):
+#         s[f'theta_ps_{k}'] = s[f'Sps_gce_blg_{i}'] / s['Sps_gce_blg']
+#     return s
 
 
 if __name__ == '__main__':
 
     n_sim = 30
-    # truth_name = 'base230927'
-    truth_name = 'base230927new'
-    run_name = 'hmc_Dnmnew_Mbase'
+    truth_name = 'base230927'
+    run_name = 'hmc-old-king'
     print(f"Run name: {run_name}")
 
-    samples_dir = f"../outputs/production/fits/{run_name}"
+    samples_dir = f"../outputs/production/fits/calibration/{run_name}"
     theta_true = json.load(open(f"../outputs/truths/truth_dict_{truth_name}.json"))
 
     if 'pois' in run_name:
@@ -63,9 +62,9 @@ if __name__ == '__main__':
     missing_list = []
     for i in tqdm(range(n_sim)):
         if 'hmc' in run_name:
-            fn = f"{samples_dir}/i{i}_n10000_ns0.p"
+            fn = f"{samples_dir}/{i}.p"
         else:
-            fn = f"{samples_dir}/i{i}_n50000_ns10000.p"
+            fn = f"{samples_dir}/{i}.p"
         if not os.path.exists(fn):
             missing_list.append(i)
         else:

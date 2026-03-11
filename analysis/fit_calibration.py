@@ -35,7 +35,7 @@ if __name__ == '__main__':
         data_name += '_deltapsf'
     print(f"Data name: {data_name}")
 
-    data = jnp.array(np.load(f"../outputs/production/simulations/{data_name}.npy")[0], dtype=jnp.int32)
+    data = jnp.array(np.load(f"../outputs/production/simulations/{data_name}.npy")[args.i], dtype=jnp.int32)
     
     m = NPModel(
         data=data,

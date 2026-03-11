@@ -18,6 +18,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', type=int) # 0-7
+    parser.add_argument('--i_data', type=int)
     args = parser.parse_args()
 
     fit_list = ['svi', 'hmc']
@@ -31,7 +32,7 @@ if __name__ == '__main__':
     save_dir = f"{wdir}/../outputs/production/fits/oaf"
     os.makedirs(save_dir, exist_ok=True)
 
-    data = jnp.array(np.load(f"../outputs/production/simulations/23new_p6v11.npy")[0], dtype=jnp.int32)
+    data = jnp.array(np.load(f"../outputs/production/simulations/23new_p6v11.npy")[args.i_data], dtype=jnp.int32)
     
     m = NPModel(
         data=data,
@@ -56,4 +57,4 @@ if __name__ == '__main__':
         )
         samples = m.nuts_mcmc.get_samples()
     
-    pickle.dump(samples, open(f"{save_dir}/{subname}.p", 'wb'))
+    pickle.dump(samples, open(f"{save_dir}/{subname}-{args.i_data}.p", 'wb'))
