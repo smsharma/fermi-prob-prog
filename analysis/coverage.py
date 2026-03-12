@@ -33,12 +33,15 @@ from fpp.utils.validation import find_hdi_prob
 #         s[f'theta_ps_{k}'] = s[f'Sps_gce_blg_{i}'] / s['Sps_gce_blg']
 #     return s
 
+def regularize_sample(s):
+    return s
+
 
 if __name__ == '__main__':
 
     n_sim = 30
     truth_name = 'base230927'
-    run_name = 'hmc-old-king'
+    run_name = 'hmc-old-delta'
     print(f"Run name: {run_name}")
 
     samples_dir = f"../outputs/production/fits/calibration/{run_name}"
