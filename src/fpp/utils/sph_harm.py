@@ -17,8 +17,8 @@ spherical coordinates
         :phi:   azimuthal coordinate; must be in [0, 2*pi];
 """
 
-
-import sys, os
+import os
+import sys
 
 import numpy as np
 from scipy.special import sph_harm

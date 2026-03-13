@@ -16,12 +16,12 @@
 #
 ###############################################################################
 
-from __future__ import print_function
-from __future__ import absolute_import
-
 import os
 import numpy as np
-from . import psf_compute
+from fpp.utils import psf_compute
+
+wdir = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(wdir, '../../../data')
 
 
 class PSFCorrection:
@@ -82,7 +82,7 @@ class PSFCorrection:
         self.gridsize = gridsize
 
         if self.psf_dir is None:
-            self.psf_dir = os.getcwd() + "/psf_dir/"
+            self.psf_dir = os.path.join(data_dir, 'psf_dir')
         self.make_dirs([self.psf_dir])
 
         # Convert psf from degrees to radians
