@@ -4,11 +4,27 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fpp"
-version = "0.0.0.20251010"
+version = "0.0.0.20260312"
 readme = "README.md"
 description = "Fermi Probalistic Programming"
 requires-python = ">=3.10"
 dependencies = [
+    "numpy",
+    "jax",
+    "jaxlib",
+    "numpyro",
+    "optax",
+    "healpy",
+    "scipy",
+    "matplotlib",
+    "dill",
+    "tqdm",
+    "einops",
+    "arviz",
+    "corner",
+    "astropy",
+    "reproject",
+    "ipykernel",
 ]
 
 [project.urls]

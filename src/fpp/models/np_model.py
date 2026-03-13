@@ -14,9 +14,9 @@ from numpyro.infer.initialization import init_to_median, init_to_uniform
 from numpyro.infer.reparam import NeuTraReparam
 from numpyro.infer import MCMC, NUTS
 from numpyro import optim
-from numpyro.contrib.tfp.mcmc import ReplicaExchangeMC
 from numpyro import handlers
-from tensorflow_probability.substrates import jax as tfp
+# from numpyro.contrib.tfp.mcmc import ReplicaExchangeMC
+# from tensorflow_probability.substrates import jax as tfp
 
 import optax
 from einops import repeat
@@ -508,33 +508,33 @@ class NPModel:
         return self.nuts_mcmc
     
     
-    def run_parallel_tempering_hmc(self, num_samples=5000, step_size_base=5e-2, num_leapfrog_steps=3, num_adaptation_steps=600, rng_key=jax.random.PRNGKey(0)):
+    # def run_parallel_tempering_hmc(self, num_samples=5000, step_size_base=5e-2, num_leapfrog_steps=3, num_adaptation_steps=600, rng_key=jax.random.PRNGKey(0)):
         
-        # Geometric temperatures decay
-        inverse_temperatures = 0.5 ** jnp.arange(4.)
+    #     # Geometric temperatures decay
+    #     inverse_temperatures = 0.5 ** jnp.arange(4.)
 
-        # If everything was Normal, step_size should be ~ sqrt(temperature).
-        step_size = step_size_base / jnp.sqrt(inverse_temperatures)[..., None]
+    #     # If everything was Normal, step_size should be ~ sqrt(temperature).
+    #     step_size = step_size_base / jnp.sqrt(inverse_temperatures)[..., None]
 
-        def make_kernel_fn(target_log_prob_fn):
+    #     def make_kernel_fn(target_log_prob_fn):
 
-            hmc = tfp.mcmc.HamiltonianMonteCarlo(
-            target_log_prob_fn=target_log_prob_fn,
-            step_size=step_size, num_leapfrog_steps=num_leapfrog_steps)
+    #         hmc = tfp.mcmc.HamiltonianMonteCarlo(
+    #         target_log_prob_fn=target_log_prob_fn,
+    #         step_size=step_size, num_leapfrog_steps=num_leapfrog_steps)
 
-            adapted_kernel = tfp.mcmc.SimpleStepSizeAdaptation(
-            inner_kernel=hmc,
-            num_adaptation_steps=num_adaptation_steps)
+    #         adapted_kernel = tfp.mcmc.SimpleStepSizeAdaptation(
+    #         inner_kernel=hmc,
+    #         num_adaptation_steps=num_adaptation_steps)
 
-            return adapted_kernel
+    #         return adapted_kernel
         
-        self.get_neutra_model()
+    #     self.get_neutra_model()
         
-        kernel = ReplicaExchangeMC(self.model_neutra, inverse_temperatures=inverse_temperatures, make_kernel_fn=make_kernel_fn)
-        self.mcmc = MCMC(kernel, num_warmup=num_adaptation_steps, num_samples=num_samples, num_chains=1, chain_method='vectorized')
-        self.mcmc.run(rng_key, self.data)
+    #     kernel = ReplicaExchangeMC(self.model_neutra, inverse_temperatures=inverse_temperatures, make_kernel_fn=make_kernel_fn)
+    #     self.mcmc = MCMC(kernel, num_warmup=num_adaptation_steps, num_samples=num_samples, num_chains=1, chain_method='vectorized')
+    #     self.mcmc.run(rng_key, self.data)
         
-        return self.mcmc
+    #     return self.mcmc
     
 
     def get_MAP_estimates(self, rng_key=jax.random.PRNGKey(42), lr=0.1, n_steps=30000, **model_static_kwargs):
