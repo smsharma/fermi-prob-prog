@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     n_sim = 30
     truth_name = 'base230927'
-    run_name = 'hmc-old-delta'
+    run_name = 'svi-old-delta'
     print(f"Run name: {run_name}")
 
     samples_dir = f"../outputs/production/fits/calibration/{run_name}"

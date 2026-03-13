@@ -233,7 +233,7 @@ class NPModel:
 
         mu = jnp.zeros_like(data)
 
-        #=== pib with spherical harmonics, ics ===
+        #=== diffuse: pib with spherical harmonics, ics ===
         theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif,)) / self.n_dif))
         temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)
         theta_ics = numpyro.sample("theta_ics", dist.Dirichlet(jnp.ones((self.n_dif,)) / self.n_dif))
@@ -249,12 +249,12 @@ class NPModel:
         mu += numpyro.sample("S_pib", dist.Uniform(1e-3, 14)) * temp_pib
         mu += numpyro.sample("S_ics", dist.Uniform(1e-3, 14)) * temp_ics
 
-        #=== other fixed diffuse templates ===
+        #=== diffuse: isotropic, fermi bubble, (resolved) point sources ===
         mu += numpyro.sample("S_iso", dist.Uniform(1e-3, 5.)) * self.temp_iso
         mu += numpyro.sample("S_bub", dist.Uniform(1e-3, 5.)) * self.temp_bub
         mu += numpyro.sample("S_psc", dist.Uniform(1e-3, 5.)) * self.temp_psc
 
-        #=== diffuse gce (blg + nfw) ===
+        #=== diffuse: gce (defined as bulge + nfw) ===
         S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 4.))
         f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
 
@@ -266,7 +266,7 @@ class NPModel:
 
         mu += S_gce * (f_bulge_poiss * temp_blg_poiss + (1 - f_bulge_poiss) * temp_nfw_poiss)
                                             
-        #=== PS gce (blg + nfw) ===
+        #=== point source: gce (defined as bulge + nfw) ===
         Sps_gce = numpyro.sample("Sps_gce", dist.Uniform(1e-5, 8.))
         f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.))
 
@@ -278,14 +278,14 @@ class NPModel:
 
         temp_gce_ps = f_bulge_ps * temp_blg_ps + (1 - f_bulge_ps) * temp_nfw_ps
 
-        #=== PS disk ===
+        #=== point source: disk ===
         Sps_dsk = numpyro.sample("Sps_dsk", dist.Uniform(1e-5, 8.))
         zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
         C = numpyro.sample("C", dist.Uniform(0.05, 8.))
         temp_dsk_ps = self.dsk_temp_gen.get_template(zs=zs, C=C)
         temp_dsk_ps /= jnp.mean(temp_dsk_ps[~self.nm])
         
-        #=== PS processing ===
+        #=== point source: source count function and normalization ===
         Sps_list = [Sps_gce, Sps_dsk]
         npt_compressed = jnp.array([temp_gce_ps, temp_dsk_ps])
         theta = []
@@ -303,7 +303,7 @@ class NPModel:
             theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
         theta = jnp.array(theta)
         
-        #=== exposure regions ===
+        #=== point source: adjust with exposure regions ===
         # pad the last exposure region so that all are the same size
         exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
         n_pad = exp_lens[0] - exp_lens[-1]
@@ -325,7 +325,7 @@ class NPModel:
         theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
         theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
 
-        #=== likelihood ===
+        #=== compute likelihood ===
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
             
             log_like_exp = log_like_np_exp_vmapped(
@@ -341,7 +341,7 @@ class NPModel:
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
 
             with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
-                with handlers.scale(scale=beta):
+                with handlers.scale(scale=beta): # optional tempering the likelihood for SVI with beta schedule
                     return numpyro.factor('log-likelihood', loglike)
 
             
@@ -349,11 +349,29 @@ class NPModel:
         self,
         rng_key=jax.random.PRNGKey(42),
         guide='iaf', num_flows=5, hidden_dims=[128, 128],
-        n_steps=7500, lr=5e-3, num_particles=8, renyi_alpha=1,
+        n_steps=7500, lr=3e-4, num_particles=8, renyi_alpha=1,
         lr_exp_decay=False,
         tempering_schedule='none',
-        **model_static_kwargs
+        **model_static_kwargs # model requires explicit passing of data
     ):
+        """SVI fitting of the model.
+        
+        Args:
+            rng_key (jax.random.PRNGKey): Random key for SVI.
+            guide (str): Guide to use.
+            num_flows (int): Number of flows for IAF guide.
+            hidden_dims (list of int): Hidden dimensions for IAF guide.
+            n_steps (int): Number of SVI steps.
+            lr (float): Learning rate for SVI.
+            num_particles (int): Number of particles for ELBO estimation.
+            renyi_alpha (float): Alpha parameter for Renyi ELBO. If 1, uses standard ELBO.
+            lr_exp_decay (bool): Whether to use exponential decay for learning rate.
+            tempering_schedule (str): Schedule for tempering the likelihood during SVI.
+            model_static_kwargs: Additional static keyword arguments to pass to the model. 'data' must be explicitly passed here.
+
+        Returns:
+            svi_results
+        """
 
         #=== guide ===
         iaf_kwargs = dict(num_flows=num_flows, hidden_dims=hidden_dims, nonlinearity=stax.Tanh)
@@ -460,8 +478,22 @@ class NPModel:
         neutra = NeuTraReparam(self.guide, self.svi_results.params)
         self.model_neutra = neutra.reparam(self.model)
     
-    def run_nuts(self, use_neutra=False, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1,
-                 rng_key=jax.random.PRNGKey(0), **model_static_kwargs):
+    def run_nuts(
+        self, rng_key=jax.random.PRNGKey(0),
+        use_neutra=False, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1,
+        **model_static_kwargs
+    ):
+        """NUTS sampling of the model, optionally using the NeuTra reparameterization based on the SVI guide fit.
+
+        Args:
+            rng_key (jax.random.PRNGKey): Random key.
+            use_neutra (bool): Whether to use the NeuTra reparameterization.
+            num_chains (int): Number of MC chains.
+            num_warmup (int): Number of warmup steps for NUTS.
+            num_samples (int): Number of samples to draw with NUTS.
+            step_size (float): Step size for NUTS.
+            model_static_kwargs: Additional static keyword arguments to pass to the model. 'data' must be explicitly passed here.
+        """
         
         if use_neutra:
             self.get_neutra_model()
