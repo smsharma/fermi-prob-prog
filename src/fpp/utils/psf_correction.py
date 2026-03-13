@@ -82,8 +82,8 @@ class PSFCorrection:
         self.gridsize = gridsize
 
         if self.psf_dir is None:
-            self.psf_dir = os.path.join(data_dir, 'psf_dir')
-        self.make_dirs([self.psf_dir])
+            self.psf_dir = os.path.join(data_dir, 'psf_dir/')
+        os.makedirs(self.psf_dir, exist_ok=True)
 
         # Convert psf from degrees to radians
         # Only used if the psf is a gaussian
@@ -107,7 +107,7 @@ class PSFCorrection:
             append them to self
         """
 
-        self.psf_corr_file = self.psf_dir + self.psf_tag + ".npy"
+        self.psf_corr_file = os.path.join(self.psf_dir, self.psf_tag + ".npy")
         if not os.path.exists(self.psf_corr_file):
             if self.healpix_map:
                 self.f_ary, self.df_rho_div_f_ary = psf_compute.psf_corr(self.nside, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
@@ -123,16 +123,3 @@ class PSFCorrection:
             loadpsf = np.load(self.psf_corr_file)
             self.f_ary = loadpsf[0]
             self.df_rho_div_f_ary = loadpsf[1]
-
-    @staticmethod
-    def make_dirs(dirs):
-        """ Creates directories if they do not already exist
-        """
-
-        for d in dirs:
-            if not os.path.exists(d):
-                try:
-                    os.mkdir(d)
-                except OSError as e:
-                    if e.errno != 17:
-                        raise
