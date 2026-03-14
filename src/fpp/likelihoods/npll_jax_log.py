@@ -1,8 +1,7 @@
 import numpy as np
 
 import jax
-from jax.config import config
-config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 from jax import jit, vmap
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
