@@ -7,6 +7,7 @@ import healpy as hp
 from fpp.simulations.simulate_ps import SimulateMap
 from fpp.models.scd import dnds, dnds_1b
 from fpp.models.psf import KingPSF
+from fpp.utils.utils import np_trapezoid
 
 
 def simulator(
@@ -30,7 +31,7 @@ def simulator(
         idx_theta_ps = len(temps_poiss)
         for temp_ps in temps_ps:
             dnds_arr_temp = np.array(dnds_func(s_arr, theta[idx_theta_ps : idx_theta_ps + PS_THETA_LEN]))
-            s_exp = np.trapz(s_arr * dnds_arr_temp, s_arr)
+            s_exp = np_trapezoid(s_arr * dnds_arr_temp, s_arr)
             temp_ratio = np.sum(temp_ps[~mask_norm]) / np.sum(temp_ps)
             exp_ratio = np.mean(exp_map[~mask_norm]) / np.mean(exp_map)
             dnds_arr_temp *= theta[idx_theta_ps] * np.sum(~mask_norm) / s_exp / temp_ratio / exp_ratio

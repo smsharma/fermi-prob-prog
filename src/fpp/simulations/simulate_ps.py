@@ -6,6 +6,7 @@ import healpy as hp
 from tqdm.autonotebook import tqdm
 
 from fpp.utils.pdf_sampler import PDFSampler
+from fpp.utils.utils import np_trapezoid
 
 
 class DrawSources:
@@ -29,7 +30,7 @@ class DrawSources:
 
         # If not provided, obtain expected number of sources by integrating SCD
         if self.n_exp is None:
-            self.n_exp = np.trapz(self.dNdS_ary, self.S_ary)
+            self.n_exp = np_trapezoid(self.dNdS_ary, self.S_ary)
 
         self.n_draw = np.random.poisson(self.n_exp)
 

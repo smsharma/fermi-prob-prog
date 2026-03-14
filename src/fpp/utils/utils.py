@@ -1,6 +1,18 @@
 import os
 import numpy as np
+import jax.numpy as jnp
 import healpy as hp
+
+# Backwards-compatible trapezoid integration
+try:
+    np_trapezoid = np.trapezoid
+except AttributeError:
+    np_trapezoid = np.trapz
+
+try:
+    from jax.scipy.integrate import trapezoid as jnp_trapezoid
+except ImportError:
+    jnp_trapezoid = jnp.trapz
 
 
 def load_and_check(filename, use_memmap=False):
