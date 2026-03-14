@@ -8,6 +8,7 @@ import numpy as np
 import healpy as hp
 
 from fpp.utils import create_mask as cm
+from fpp.utils.utils import jnp_trapezoid
 
 
 class NFWTemplate:
@@ -31,8 +32,8 @@ class NFWTemplate:
 
         self.npix = hp.nside2npix(nside)
         self.mask_idx = jnp.arange(self.npix)[~mask]
-        self.b_ary = np.pi / 2.0 - theta_ary
-        self.l_ary = NFWTemplate.mod(phi_ary + np.pi, 2.0 * np.pi) - np.pi
+        self.b_ary = jnp.pi / 2.0 - theta_ary
+        self.l_ary = NFWTemplate.mod(phi_ary + jnp.pi, 2.0 * jnp.pi) - jnp.pi
         self.s_ary = jnp.linspace(0, 40, n_integ)
 
         self.rsun = rsun
@@ -43,7 +44,7 @@ class NFWTemplate:
         """Return LOS integral of density^2"""
 
         # LOS integral of density^2
-        int_rho2_temp = jnp.trapz(self.rho_NFW(self.rGC(self.s_ary, self.b_ary, self.l_ary, self.rsun), gamma=gamma, r_s=self.r_s) ** 2, self.s_ary, axis=1)
+        int_rho2_temp = jnp_trapezoid(self.rho_NFW(self.rGC(self.s_ary, self.b_ary, self.l_ary, self.rsun), gamma=gamma, r_s=self.r_s) ** 2, self.s_ary, axis=1)
 
         int_rho2 = jnp.zeros(self.npix)
         int_rho2 = int_rho2.at[self.mask_idx].set(int_rho2_temp)
@@ -100,8 +101,8 @@ class LorimerDiskTemplate:
 
         self.npix = hp.nside2npix(nside)
         self.mask_idx = jnp.arange(self.npix)[~mask]
-        self.b_ary = np.pi / 2.0 - theta_ary
-        self.l_ary = NFWTemplate.mod(phi_ary + np.pi, 2.0 * np.pi) - np.pi
+        self.b_ary = jnp.pi / 2.0 - theta_ary
+        self.l_ary = NFWTemplate.mod(phi_ary + jnp.pi, 2.0 * jnp.pi) - jnp.pi
         self.s_ary = jnp.linspace(0, 100, n_integ)
 
         self.rsun = rsun
@@ -131,7 +132,7 @@ class LorimerDiskTemplate:
         """Spatial number density according to Lorimer disk profile (unnormalized)
         Eq. (6) of Bartels et al (1805.11097), after removing constant terms
         """
-        pref = C ** (B + 2) / (4 * np.pi * rsun**2 * zs * jnp.exp(C) * jnp.exp(gammaln(B + 2)))
+        pref = C ** (B + 2) / (4 * jnp.pi * rsun**2 * zs * jnp.exp(C) * jnp.exp(gammaln(B + 2)))
         return pref * (R / rsun) ** B * jnp.exp(-C * ((R - rsun) / rsun)) * jnp.exp(-jnp.abs(z) / zs)
 
     def rho_V_Lorimer_lonlat(self, s, b, l, zs, B, C, rsun):
@@ -142,4 +143,4 @@ class LorimerDiskTemplate:
 
     def L_integ_Lorimer(self, b, l, zs=0.63, B=0.0, C=5.94, rsun=8.224):
         """Line-of-sight integral (discrete sum) for Lorimer disk profile"""
-        return jnp.trapz(self.rho_V_Lorimer_lonlat(self.s_ary, b, l, zs, B, C, rsun), self.s_ary)
+        return jnp_trapezoid(self.rho_V_Lorimer_lonlat(self.s_ary, b, l, zs, B, C, rsun), self.s_ary)

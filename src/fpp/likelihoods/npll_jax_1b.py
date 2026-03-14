@@ -10,6 +10,7 @@ from jax.numpy import logaddexp
 from functools import partial
 
 from fpp.models.scd import dnds_1b as dnds_func
+from fpp.utils.utils import jnp_trapezoid
 
 
 def log_trapz(logf, x, axis=-1):
@@ -52,7 +53,7 @@ def return_x_m(f, rho_df, npt, data, s, dnds, k_max):
     x_m_unnorm = jnp.exp(logsumexp(a=f_integrand, b=rho_df[:, None], axis=0)) # (M,)
     x_m = jnp.outer(npt, x_m_unnorm) # (P, M)
 
-    x_m_sum_unnorm = jnp.sum(rho_df) * jnp.trapz(dnds, s) # ()
+    x_m_sum_unnorm = jnp.sum(rho_df) * jnp_trapezoid(dnds, s) # ()
     x_m_sum = npt * x_m_sum_unnorm - x_m[:, 0] # (P,)
 
     return x_m, x_m_sum # (P, M), (P,)

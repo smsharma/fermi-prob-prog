@@ -2,6 +2,7 @@ import numpy as np
 import healpy as hp
 
 from fpp.utils import create_mask as cm
+from fpp.utils.utils import np_trapezoid
 
 def mod(dividends, divisor):
     """ Return dividends (array) mod divisor (double)
@@ -50,7 +51,7 @@ def get_NFW2_template(gamma=1.2, nside=128, exp_map=None, roi_normalize=None):
     s_ary = np.linspace(0, 30, 500)
 
     # LOS integral of density^2
-    int_rho2_temp = np.trapz(rho_NFW(rGC(s_ary, b_ary, l_ary), gamma=gamma) ** 2, s_ary, axis=1)
+    int_rho2_temp = np_trapezoid(rho_NFW(rGC(s_ary, b_ary, l_ary), gamma=gamma) ** 2, s_ary, axis=1)
 
     int_rho2 = np.zeros(hp.nside2npix(128))
     int_rho2[~mask] = int_rho2_temp

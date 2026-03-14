@@ -7,6 +7,7 @@ import jax.numpy as jnp
 from functools import partial
 
 from fpp.models.scd import dnds as dnds_func
+from fpp.utils.utils import jnp_trapezoid
 
 
 # NPT = number of non-poissonian templates
@@ -34,11 +35,11 @@ def return_x_m(f, rho_df, npt, data, s, dnds, k_max):
 
     # (F, S, M)
     s_integrand = (dnds[None, :] * jnp.exp(-jnp.outer(f, s)))[:, :, None] * jax.lax.pow(jnp.outer(f, s)[:, :, None], m[None, None, :]) / gamma[None, None, :]
-    f_integrand = jnp.trapz(s_integrand, s, axis=1) # (F, M)
+    f_integrand = jnp_trapezoid(s_integrand, s, axis=1) # (F, M)
     x_m_unnorm = jnp.sum(rho_df[:, None] * f_integrand, axis=0) # (M,)
     x_m = jnp.outer(npt, x_m_unnorm) # (P, M)
 
-    x_m_sum_unnorm = jnp.sum(rho_df) * jnp.trapz(dnds, s) # ()
+    x_m_sum_unnorm = jnp.sum(rho_df) * jnp_trapezoid(dnds, s) # ()
     x_m_sum = npt * x_m_sum_unnorm - x_m[:, 0] # (P,)
 
     return x_m, x_m_sum # (P, M), (P,)

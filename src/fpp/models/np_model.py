@@ -29,6 +29,7 @@ from fpp.models.bulge_models import BulgeTemplates
 from fpp.likelihoods.npll_jax import log_like_np
 from fpp.utils.sph_harm import Ylm
 from fpp.utils import create_mask as cm
+from fpp.utils.utils import jnp_trapezoid
 from fpp.models.psf import KingPSF
 from fpp.utils.psf_correction import PSFCorrection
 from fpp.simulations.simulator import simulator
@@ -300,7 +301,7 @@ class NPModel:
 
             theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
             dnds_arr = dnds(s_arr, theta_tmp)
-            A = Sps_list[i] / jnp.trapz(s_arr * dnds_arr, s_arr)
+            A = Sps_list[i] / jnp_trapezoid(s_arr * dnds_arr, s_arr)
             theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
         theta = jnp.array(theta)
         
