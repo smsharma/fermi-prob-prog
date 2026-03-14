@@ -20,6 +20,9 @@ import os
 import numpy as np
 from fpp.utils import psf_compute
 
+import logging
+logger = logging.getLogger(__name__)
+
 wdir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(wdir, '../../../data')
 
@@ -109,6 +112,7 @@ class PSFCorrection:
 
         self.psf_corr_file = os.path.join(self.psf_dir, self.psf_tag + ".npy")
         if not os.path.exists(self.psf_corr_file):
+            logger.info(f"PSF correction file not found at: {self.psf_corr_file}, calculating now...")
             if self.healpix_map:
                 self.f_ary, self.df_rho_div_f_ary = psf_compute.psf_corr(self.nside, self.num_f_bins, self.n_psf, self.n_pts_per_psf, self.f_trunc, self.psf_r_func, self.sample_psf_max, self.psf_samples)
             else:
@@ -117,9 +121,9 @@ class PSFCorrection:
             # Check again if exists, for multicore runs
             if not os.path.exists(self.psf_corr_file):
                 np.save(self.psf_corr_file, tosave)
-                print("File saved as:", self.psf_corr_file)
+                logger.info(f"File saved as: {self.psf_corr_file}")
         else:
-            print("Loading the psf correction from:", self.psf_corr_file)
+            logger.info(f"Loading existing psf correction from: {self.psf_corr_file}")
             loadpsf = np.load(self.psf_corr_file)
             self.f_ary = loadpsf[0]
             self.df_rho_div_f_ary = loadpsf[1]

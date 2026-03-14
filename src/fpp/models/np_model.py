@@ -35,6 +35,7 @@ from fpp.utils.psf_correction import PSFCorrection
 from fpp.simulations.simulator import simulator
 
 import logging
+logger = logging.getLogger(__name__)
 
 wdir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(wdir, '../../../data')
@@ -75,7 +76,7 @@ class NPModel:
         #===== data and masks =====
         self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
         if data is None:
-            logging.warning('No data provided. Using Fermi data.')
+            logger.warning('No data provided. Using Fermi data.')
             data = np.load(f"{self.data_dir}/fermidata_counts.npy")
         self.data = jnp.array(data).astype(jnp.int32)
         self.exposure = np.load(f"{self.data_dir}/fermidata_exposure.npy")
@@ -90,16 +91,17 @@ class NPModel:
         self.mask_roi   = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25, custom_mask=mask_ps)
         self.mask_plane = cm.make_mask_total(nside=self.nside, band_mask=True, band_mask_range=2., mask_ring=True, inner=0, outer=25,)
         self.nm = self.mask_plane # normalization mask
-        print(f'Number of pixels in ROI: {np.sum(~self.mask_roi)}')
+        logger.info(f'Number of pixels in ROI: {np.sum(~self.mask_roi)}')
+        self.k_max = np.max(np.array(self.data)[~self.mask_roi])
+        logger.info(f'Max photon count in ROI is {self.k_max}')
 
         #===== templates =====
         self.load_templates()
         self.get_sphharms()
             
         #==== point sources =====
+        logger.info(f'Using PSF correction: {self.psf_tag}')
         self.get_psf_correction(psf_tag=self.psf_tag)
-        self.k_max = np.max(np.array(self.data)[~self.mask_roi])
-        print(f'Max photon count is {self.k_max}')
         self.get_exp_regions(n_exp)
 
         #===== misc =====
@@ -125,6 +127,9 @@ class NPModel:
             raise NotImplementedError(psf_tag)
 
     def get_sphharms(self):
+        if self.l_max == 0:
+            self.Ylm_temps = []
+            return
         theta_s, phi_s = hp.pix2ang(self.nside, np.arange(hp.nside2npix(self.nside)))
         self.Ylm_temps = np.concatenate([[np.real(Ylm(l, m, theta_s, phi_s)) for m in range(0, l + 1)] for l in range(1, self.l_max + 1)])
 
@@ -269,7 +274,7 @@ class NPModel:
         mu += S_gce * (f_bulge_poiss * temp_blg_poiss + (1 - f_bulge_poiss) * temp_nfw_poiss)
                                             
         #=== point source: gce (defined as bulge + nfw) ===
-        Sps_gce = numpyro.sample("Sps_gce", dist.Uniform(1e-5, 8.))
+        Sps_gce = numpyro.sample("Sps_gce", dist.Uniform(1e-5, 4.))
         f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.))
 
         theta_blg_ps = numpyro.sample("theta_bulge_ps", dist.Dirichlet(jnp.ones((self.n_blg,)) / self.n_blg))
@@ -281,7 +286,7 @@ class NPModel:
         temp_gce_ps = f_bulge_ps * temp_blg_ps + (1 - f_bulge_ps) * temp_nfw_ps
 
         #=== point source: disk ===
-        Sps_dsk = numpyro.sample("Sps_dsk", dist.Uniform(1e-5, 8.))
+        Sps_dsk = numpyro.sample("Sps_dsk", dist.Uniform(1e-5, 4.))
         zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
         C = numpyro.sample("C", dist.Uniform(0.05, 8.))
         temp_dsk_ps = self.dsk_temp_gen.get_template(zs=zs, C=C)
