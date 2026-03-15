@@ -21,8 +21,8 @@ if __name__ == '__main__':
     parser.add_argument('--i_data', type=int)
     args = parser.parse_args()
 
-    fit_list = ['svi', 'hmc']
-    dif_list = [["ModelO"], ["ModelA"], ["ModelF"], ["ModelO", "ModelA", "ModelF"]]
+    fit_list = ['hmc']
+    dif_list = [["ModelO"], ["ModelO", "ModelA", "ModelF"]]
     i_fit, i_dif = np.unravel_index(args.i, (len(fit_list), len(dif_list)))
     fit = fit_list[i_fit]
     dif = dif_list[i_dif]
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     elif fit == 'hmc':
         m.run_nuts(
             data=data, rng_key=jax.random.PRNGKey(42),
-            num_chains=4, num_warmup=1000, num_samples=10000//4, step_size=0.05,
+            num_chains=4, num_warmup=1000, num_samples=30000//4, step_size=0.05,
         )
         samples = m.nuts_mcmc.get_samples()
     

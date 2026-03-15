@@ -9,19 +9,19 @@ import jax.numpy as jnp
 from fpp.models.scd import dnds, dnds_1b
 from fpp.utils.utils import jnp_trapezoid
 
-current_file_path = os.path.abspath(os.path.dirname(__file__))
-mpl.rc_file(os.path.join(current_file_path, '../../../analysis/matplotlibrc'))
+wdir = os.path.abspath(os.path.dirname(__file__))
+mpl.rc_file(os.path.join(wdir, '../../../analysis/matplotlibrc'))
 
 
 def dnds_posterior(
-    samples, theta_keys, ax=None, **kwargs
+    samples, theta_keys, plot=True, ax=None, **kwargs
 ):
     """Posterior plot for dNdS.
 
     Args:
-        samples: dict of parameter name to array of samples.
-        theta_keys: keys in samples to plot, e.g. ['Sps', 'n1', 'n2', 'n3', 'sb1', 'lambdas'] or ['Sps', 'n1', 'n2', 'sb'].
-        ax: matplotlib axis to plot on. If None, a new figure and axis will be created.
+        samples (dict):       Dict of parameter name to array of samples.
+        theta_keys (list):    Keys in samples to plot, e.g. ['Sps', 'n1', 'n2', 'n3', 'sb1', 'lambdas'] or ['Sps', 'n1', 'n2', 'sb'].
+        ax (matplotlib.axis): Matplotlib axis to plot on. If None, a new figure and axis will be created.
         **kwargs: additional keyword arguments to pass to the plotting function.
     """
 
@@ -49,13 +49,16 @@ def dnds_posterior(
     dnds_68 = np.percentile(dnds_arr, [16, 84], axis=0)
     dnds_95 = np.percentile(dnds_arr, [2.5, 97.5], axis=0)
 
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(6, 4))
+    if plot:
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(6, 4))
 
-    ax.plot(s, dnds_med, color='k')
-    ax.fill_between(s, dnds_68[0], dnds_68[1], alpha=0.5, fc='royalblue', ec='none')
-    ax.fill_between(s, dnds_95[0], dnds_95[1], alpha=0.3, fc='royalblue', ec='none')
-    ax.set(xscale='log', yscale='log')
+        ax.plot(s, dnds_med, color='k')
+        ax.fill_between(s, dnds_68[0], dnds_68[1], alpha=0.5, fc='royalblue', ec='none')
+        ax.fill_between(s, dnds_95[0], dnds_95[1], alpha=0.3, fc='royalblue', ec='none')
+        ax.set(xscale='log', yscale='log')
+
+    return s, dnds_med, dnds_68, dnds_95
 
 
 def multi_corner(
