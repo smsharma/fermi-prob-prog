@@ -298,9 +298,9 @@ class NPModel:
         theta = []
         s_arr = jnp.logspace(-1., 2., 1000)
         for i, ps in enumerate(["gce", "dsk"]):
-            n1 = numpyro.sample(f'n1_{ps}', dist.Uniform(4.0, 6.0))
-            n2 = numpyro.sample(f'n2_{ps}', dist.Uniform(0.5, 1.99))
-            n3 = numpyro.sample(f'n3_{ps}', dist.Uniform(-6., -5.))
+            n1 = numpyro.sample(f'n1_{ps}', dist.Uniform(2.1, 8))
+            n2 = numpyro.sample(f'n2_{ps}', dist.Uniform(0.5, 2))
+            n3 = numpyro.sample(f'n3_{ps}', dist.Uniform(-8, -1))
             sb1 = numpyro.sample(f'sb1_{ps}', dist.Uniform(5., 40.0))
             lambda_s = numpyro.sample(f'lambdas_{ps}', dist.Uniform(0.1, 0.95))
 

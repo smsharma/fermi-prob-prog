@@ -4,8 +4,58 @@ import corner
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
+import jax
+import jax.numpy as jnp
+from fpp.models.scd import dnds, dnds_1b
+from fpp.utils.utils import jnp_trapezoid
+
 current_file_path = os.path.abspath(os.path.dirname(__file__))
 mpl.rc_file(os.path.join(current_file_path, '../../../analysis/matplotlibrc'))
+
+
+def dnds_posterior(
+    samples, theta_keys, ax=None, **kwargs
+):
+    """Posterior plot for dNdS.
+
+    Args:
+        samples: dict of parameter name to array of samples.
+        theta_keys: keys in samples to plot, e.g. ['Sps', 'n1', 'n2', 'n3', 'sb1', 'lambdas'] or ['Sps', 'n1', 'n2', 'sb'].
+        ax: matplotlib axis to plot on. If None, a new figure and axis will be created.
+        **kwargs: additional keyword arguments to pass to the plotting function.
+    """
+
+    Sps_arr = samples[theta_keys[0]]
+    theta_arr = [np.ones_like(samples[theta_keys[0]])] # temp A = 1
+    for k in theta_keys[1:]:
+        theta_arr.append(samples[k])
+    theta_arr = np.stack(theta_arr, axis=-1) # (n_samples, n_theta)
+
+    s = jnp.logspace(-1, 2, 100)
+    
+    if len(theta_keys) == 6:
+        theta_arr[:, -1] = theta_arr[:, -2] * theta_arr[:, -1] # sb2 = sb1 * lambdas
+        dnds_vmap = jax.vmap(dnds, in_axes=(None, 0)) # vectorize over theta
+    elif len(theta_keys) == 4:
+        dnds_vmap = jax.vmap(dnds_1b, in_axes=(None, 0))
+    else:
+        raise ValueError("theta_keys should have length 4 or 6.")
+
+    dnds_arr = dnds_vmap(s, theta_arr) # (n_samples, n_s)
+    Stot_arr = jnp_trapezoid(s[None, :] * dnds_arr, s, axis=1) # (n_samples,)
+    dnds_arr = dnds_arr / Stot_arr[:, None] * Sps_arr[:, None] # normalize to Sps
+
+    dnds_med = np.median(dnds_arr, axis=0)
+    dnds_68 = np.percentile(dnds_arr, [16, 84], axis=0)
+    dnds_95 = np.percentile(dnds_arr, [2.5, 97.5], axis=0)
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 4))
+
+    ax.plot(s, dnds_med, color='k')
+    ax.fill_between(s, dnds_68[0], dnds_68[1], alpha=0.5, fc='royalblue', ec='none')
+    ax.fill_between(s, dnds_95[0], dnds_95[1], alpha=0.3, fc='royalblue', ec='none')
+    ax.set(xscale='log', yscale='log')
 
 
 def multi_corner(
