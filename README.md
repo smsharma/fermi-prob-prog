@@ -65,14 +65,14 @@ class NPModelIso(NPModel):
 
         # ... append [A, n1, n2, n3, sb1, lam*sb1] into the likelihood
         #     alongside self.temp_iso as the spatial template
-        #     see examples/2_fit_to_fermi_data.ipynb ...
+        #     see examples/2_customizing_model.ipynb ...
 
 m_iso = NPModelIso()
 m_iso.fit_svi(data=m_iso.fermi_data, guide='iaf', num_flows=5,
               hidden_dims=[128, 128], lr=3e-4, n_steps=5000)
 ```
 
-The full working example lives in [`examples/2_fit_to_fermi_data.ipynb`](examples/2_fit_to_fermi_data.ipynb).
+The full working example lives in [`examples/2_customizing_model.ipynb`](examples/2_customizing_model.ipynb).
 
 ---
 

@@ -54,8 +54,8 @@ def dnds_posterior(
             fig, ax = plt.subplots(figsize=(6, 4))
 
         ax.plot(s, dnds_med, color='k')
-        ax.fill_between(s, dnds_68[0], dnds_68[1], alpha=0.5, fc='royalblue', ec='none')
-        ax.fill_between(s, dnds_95[0], dnds_95[1], alpha=0.3, fc='royalblue', ec='none')
+        ax.fill_between(s, dnds_68[0], dnds_68[1], alpha=0.5, fc='C0', ec='none')
+        ax.fill_between(s, dnds_95[0], dnds_95[1], alpha=0.3, fc='C0', ec='none')
         ax.set(xscale='log', yscale='log')
 
     return s, dnds_med, dnds_68, dnds_95

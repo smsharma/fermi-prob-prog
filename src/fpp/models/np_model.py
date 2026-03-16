@@ -304,7 +304,7 @@ class NPModel:
             n1 = numpyro.sample(f'n1_{ps}', dist.Uniform(2.1, 8))
             n2 = numpyro.sample(f'n2_{ps}', dist.Uniform(0.5, 2))
             n3 = numpyro.sample(f'n3_{ps}', dist.Uniform(-8, -1))
-            sb1 = numpyro.sample(f'sb1_{ps}', dist.Uniform(5., 40.0))
+            sb1 = numpyro.sample(f'sb1_{ps}', dist.Uniform(5., 40.))
             lambda_s = numpyro.sample(f'lambdas_{ps}', dist.Uniform(0.1, 0.95))
 
             theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
