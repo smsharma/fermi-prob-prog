@@ -26,7 +26,7 @@ if __name__ == '__main__':
     i_fit, i_dif = np.unravel_index(args.i, (len(fit_list), len(dif_list)))
     fit = fit_list[i_fit]
     dif = dif_list[i_dif]
-    subname = fit + '-' + ['O', 'A', 'F', 'OAF'][i_dif]
+    subname = fit + '-' + ['O', 'OAF'][i_dif]
     print(f"Running {subname} ...")
 
     save_dir = f"{wdir}/../outputs/production/fits/oaf"

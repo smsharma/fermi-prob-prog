@@ -63,8 +63,9 @@ def dnds_posterior(
 
 def multi_corner(
     samples_dict, plot_var_names, point_est=None,
-    colors_dict=None, labels_dict=None,
-    n_bins_1d=30, save_fn=None, **kwargs
+    colors_dict=None, legend_dict=None,
+    n_bins_1d=30, save_fn=None,
+    legend_loc=None, **kwargs
 ):
 
     bins_1d_arr = []
@@ -72,6 +73,9 @@ def multi_corner(
     for vn in plot_var_names:
         vmin = np.min([np.min(s[vn]) for _, s in samples_dict.items()])
         vmax = np.max([np.max(s[vn]) for _, s in samples_dict.items()])
+        if point_est:
+            vmin = min(vmin, point_est[vn])
+            vmax = max(vmax, point_est[vn])
         bins_1d_arr.append(np.linspace(vmin, vmax, n_bins_1d+1))
         range_arr.append([vmin, vmax])
     
@@ -79,9 +83,9 @@ def multi_corner(
     for ie, (samples_name, samples) in enumerate(samples_dict.items()):
         color = mpl.colors.to_hex(colors_dict[samples_name])
         default_kwargs = dict(
-            show_titles=True,
+            show_titles=False,
             title_fmt=None,
-            title_kwargs={"fontsize": 12},
+            title_kwargs={"fontsize": 14},
             levels=[0.68, 0.95],
             color=color,
             plot_contours=True,
@@ -99,11 +103,12 @@ def multi_corner(
             fig=fig,
             **default_kwargs
         )
-    if labels_dict is not None:
+    if legend_dict is not None:
         fig.legend(
-            [mpl.lines.Line2D([0], [0], color=c) for k, c in colors_dict.items()],
-            [labels_dict[k] for k, c in colors_dict.items()],
-            loc='upper right'
+            [mpl.lines.Line2D([0], [0], color=colors_dict[k], lw=3) for k in samples_dict if legend_dict[k] is not None],
+            [legend_dict[k] for k in samples_dict if legend_dict[k] is not None],
+            loc=legend_loc if legend_loc is not None else 'upper right',
+            frameon=False, fontsize=24
         )
 
     if point_est is not None:

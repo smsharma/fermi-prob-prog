@@ -5,21 +5,21 @@ A GPU-accelerated, fully differentiable framework for disentangling gamma-ray ob
 <p align="center">
   <img src="assets/svi_posterior.gif" width="600" alt="SVI posterior optimization">
   <br>
-  <em>Posterior convergence via stochastic variational inference (SVI).</em>
+  <em>Posterior convergence via Stochastic Variational Inference (SVI).</em>
 </p>
 
 ---
 
 ## Quick Start
 
-Fitting the fiducial model to Fermi-LAT data is three lines:
+Fitting the fiducial model to *Fermi* data:
 
 ```python
 from fpp.models.np_model import NPModel
 
 m = NPModel()  # loads Fermi data, templates, PSF, and mask
 
-# variational inference with inverse autoregressive flows
+# SVI with an inverse autoregressive flow (IAF)
 m.fit_svi(data=m.data, guide='iaf', num_flows=5, hidden_dims=[128, 128],
            lr=3e-4, n_steps=10000)
 
