@@ -1,6 +1,9 @@
-# Differentiable Probabilistic Programming for the Galactic Center Excess
+# Differentiable Probabilistic Programming for *Fermi* and the Galactic Center Excess
+<!-- <h1>Differentiable Probabilistic Programming<br>for <em>Fermi</em> and the Galactic Center Excess</h1> -->
 
-A GPU-accelerated, fully differentiable framework for disentangling gamma-ray observations of the Galactic Center using [JAX](https://github.com/jax-ml/jax) and [NumPyro](https://num.pyro.ai). Built to flexibly explore the vast model space of the [Galactic Center Excess](https://en.wikipedia.org/wiki/Galactic_Center_GeV_excess) --- simultaneously accounting for a continuum of spatial morphologies, multiple point source populations, and diffuse emission components in a single probabilistic model.
+A differentiable inference framework for *Fermi* gamma-ray data of the Galactic Center based on the NPTF likelihood.
+Built with [JAX](https://github.com/jax-ml/jax) and [NumPyro](https://num.pyro.ai)
+for high dimensional inference for the Galactic Center Excess (GCE). Capable of dealing with flexible templates for both diffuse and point source components.
 
 <p align="center">
   <img src="assets/svi_posterior.gif" width="600" alt="SVI posterior optimization">
@@ -17,19 +20,19 @@ Fitting the fiducial model to *Fermi* data:
 ```python
 from fpp.models.np_model import NPModel
 
-m = NPModel()  # loads Fermi data, templates, PSF, and mask
+m = NPModel()  # loads Fermi data, templates, PSF, masks, etc.
 
 # SVI with an inverse autoregressive flow (IAF)
-m.fit_svi(data=m.data, guide='iaf', num_flows=5, hidden_dims=[128, 128],
+m.fit_svi(data=m.fermi_data, guide='iaf', num_flows=5, hidden_dims=[128, 128],
            lr=3e-4, n_steps=10000)
 
 # or, HMC via NUTS
-m.run_nuts(data=m.data, num_chains=4, num_warmup=500, num_samples=2500)
+m.run_nuts(data=m.fermi_data, num_chains=4, num_warmup=500, num_samples=2500)
 ```
 
 ### Extending the Model
 
-`NPModel` is designed to be subclassed. Say you want to add an **isotropic point source population** on top of the fiducial model. Just inherit and override `model()` --- everything else (templates, PSF corrections, exposure regions) is reused automatically:
+`NPModel` can be customized. E.g. for adding an isotropic point source population on top of the fiducial model. Just inherit and override `model()` --- everything else (templates, PSF corrections, exposure regions) can be reused:
 
 ```python
 import jax.numpy as jnp
@@ -43,43 +46,39 @@ class NPModelIso(NPModel):
     """Fiducial model + isotropic point sources."""
 
     def model(self, data=None, beta=1.):
-        # --- call the parent to set up all fiducial components ---
-        #     (diffuse, GCE, disk PS, etc. are handled by NPModel)
-        #
-        # Here we show only the *new* piece: an isotropic PS population
-        # whose spatial template is the already-loaded self.temp_iso.
 
-        # ... [fiducial model components go here, see examples/fit_to_fermi.ipynb] ...
+        # ... [fiducial model components go here] ...
+        # Here we show the *new* piece: an isotropic PS population
 
-        # New isotropic PS population — just need an overall flux and SCD params
-        Sps_iso = numpyro.sample("Sps_iso", dist.Uniform(1e-5, 8.))
+        Sps_iso = numpyro.sample("Sps_iso", dist.Uniform(1e-5, 8.)) # Normalization in counts
+        temp_ps_iso = self.temp_iso # Resuing pre-loaded isotropic spatial template (same as exposure)
 
-        n1  = numpyro.sample("n1_iso",  dist.Uniform(4.0, 6.0))
+        n1  = numpyro.sample("n1_iso",  dist.Uniform(4.0, 6.0)) # Two break power law SCD
         n2  = numpyro.sample("n2_iso",  dist.Uniform(0.5, 1.99))
         n3  = numpyro.sample("n3_iso",  dist.Uniform(-6., -5.))
         sb1 = numpyro.sample("sb1_iso", dist.Uniform(5., 40.))
         lam = numpyro.sample("lam_iso", dist.Uniform(0.1, 0.95))
 
-        # normalize the source-count distribution
         s_arr = jnp.logspace(-1., 2., 1000)
         theta = jnp.array([1., n1, n2, n3, sb1, lam * sb1])
         A = Sps_iso / jnp_trapezoid(s_arr * dnds(s_arr, theta), s_arr)
 
-        # ... plug [A, n1, n2, n3, sb1, lam*sb1] into the likelihood
-        #     alongside self.temp_iso as the spatial template ...
+        # ... append [A, n1, n2, n3, sb1, lam*sb1] into the likelihood
+        #     alongside self.temp_iso as the spatial template
+        #     see examples/2_fit_to_fermi_data.ipynb ...
 
 m_iso = NPModelIso()
-m_iso.fit_svi(data=m_iso.data, guide='iaf', num_flows=4,
-              hidden_dims=[64, 64], lr=1e-4, n_steps=5000)
+m_iso.fit_svi(data=m_iso.fermi_data, guide='iaf', num_flows=5,
+              hidden_dims=[128, 128], lr=3e-4, n_steps=5000)
 ```
 
-The full working example lives in [`examples/fit_to_fermi.ipynb`](examples/fit_to_fermi.ipynb).
+The full working example lives in [`examples/2_fit_to_fermi_data.ipynb`](examples/2_fit_to_fermi_data.ipynb).
 
 ---
 
 ## Installation
 
-Create a fresh environment and install:
+Create a fresh environment via `mamba` or `conda`:
 
 ```bash
 mamba create -n fpp python=3.12
@@ -89,14 +88,11 @@ mamba activate fpp
 Install JAX for your hardware --- see the [JAX installation guide](https://jax.readthedocs.io/en/latest/installation.html) for GPU/TPU instructions:
 
 ```bash
-# CPU-only (just to get started)
-pip install jax
-
 # CUDA 12 (example)
 pip install jax[cuda12]
 ```
 
-Then install `fpp` in editable mode:
+Then install `fpp` and dependencies in the repo directory:
 
 ```bash
 pip install -e .
@@ -105,14 +101,19 @@ pip install -e .
 ---
 
 ## Results
+Fiducial inference on Fermi data (573 weeks, 2~20 GeV, `ultracleanveto`, top PSF quartile).
 
 <p align="center">
-  <img src="assets/fermi_result.png" width="700" alt="Full Fermi analysis results">
+  <img src="assets/fermi-post.png" width="700" alt="Fermi parameter posterior">
   <br>
-  <em>Posterior constraints from the fiducial analysis of Fermi-LAT data (2--20 GeV).</em>
+  <em>Posterior for select parameters.</em>
 </p>
 
-<!-- TODO: replace with final figure -->
+<p align="center">
+  <img src="assets/fermi-dnds-post.png" width="700" alt="Fermi dnds posterior">
+  <br>
+  <em>Posterior for source count functions.</em>
+</p>
 
 ---
 
@@ -134,4 +135,4 @@ If you use this code, please cite:
 
 ## Authors
 
-[Siddharth Mishra-Sharma](mailto:smsharma@mit.edu), [Tracy R. Slatyer](mailto:tslatyer@mit.edu), [Yitian Sun](mailto:yitians@mit.edu), and Yuqing Wu
+Siddharth Mishra-Sharma, Tracy R. Slatyer, [Yitian Sun](mailto:yitian.sun@mcgill.ca), and Yuqing Wu

@@ -75,10 +75,13 @@ class NPModel:
 
         #===== data and masks =====
         self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
+        
         if data is None:
             logger.warning('No data provided. Using Fermi data.')
-            data = np.load(f"{self.data_dir}/fermidata_counts.npy")
-        self.data = jnp.array(data).astype(jnp.int32)
+            self.fermi_data = jnp.array(np.load(f"{self.data_dir}/fermidata_counts.npy")).astype(jnp.int32)
+            self.data = self.fermi_data
+        else:
+            self.data = jnp.array(data).astype(jnp.int32)
         self.exposure = np.load(f"{self.data_dir}/fermidata_exposure.npy")
     
         if ps_cat == "3fgl":
