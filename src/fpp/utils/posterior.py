@@ -86,10 +86,10 @@ def multi_corner(
             show_titles=False,
             title_fmt=None,
             title_kwargs={"fontsize": 14},
-            levels=[0.68, 0.95],
+            # levels=[0.68, 0.95],
             color=color,
             plot_contours=True,
-            fill_contours=False,
+            fill_contours=True,
             plot_density=False,
             plot_datapoints=False,
             hist_kwargs={'density': True},
@@ -129,4 +129,4 @@ def multi_corner(
         if save_fn.endswith('.pdf'):
             plt.savefig(save_fn)
         else:
-            plt.savefig(save_fn, dpi=300)
+            plt.savefig(save_fn, dpi=200)

@@ -93,16 +93,7 @@ def run_svi_saving_states(
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--n_steps', type=int, default=10000)
-    parser.add_argument(
-        '--save_steps', type=str, default='0,10,50,100,250,500,1000,2000,3000,5000,7500,10000',
-        help='Comma-separated list of step numbers at which to save SVI params.'
-    )
-    args = parser.parse_args()
-
-    save_step_arr = [int(s) for s in args.save_steps.split(',')]
+    save_step_arr = np.arange(0, 300, 10).tolist() + np.arange(300, 1000, 50).tolist() + np.arange(1000, 5000, 200).tolist()
     print(f"Will save SVI state at steps: {save_step_arr}")
 
     wdir = os.path.dirname(os.path.abspath(__file__))
@@ -143,8 +134,8 @@ if __name__ == '__main__':
     # --- Run SVI, saving states ---
     saved_params, losses, final_state = run_svi_saving_states(
         svi,
-        rng_key=jax.random.PRNGKey(args.seed),
-        num_steps=args.n_steps,
+        rng_key=jax.random.PRNGKey(42),
+        num_steps=5000,
         save_step_arr=save_step_arr,
         data=data,
     )

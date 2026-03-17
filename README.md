@@ -6,7 +6,7 @@ Built with [JAX](https://github.com/jax-ml/jax) and [NumPyro](https://num.pyro.a
 for high dimensional inference for the Galactic Center Excess (GCE). Capable of dealing with flexible templates for both diffuse and point source components.
 
 <p align="center">
-  <img src="assets/svi_posterior.gif" width="600" alt="SVI posterior optimization">
+  <img src="assets/svi.gif" width="600" alt="SVI posterior optimization">
   <br>
   <em>Posterior convergence via Stochastic Variational Inference (SVI).</em>
 </p>
