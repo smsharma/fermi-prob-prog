@@ -8,7 +8,7 @@ for high dimensional inference for the Galactic Center Excess (GCE). Capable of 
 <p align="center">
   <img src="assets/svi.gif" width="800" alt="SVI posterior optimization">
   <br>
-  <em>Posterior convergence via Stochastic Variational Inference (SVI).</em>
+  <em>Posterior estimation via Stochastic Variational Inference (SVI).</em>
 </p>
 
 ---

@@ -86,13 +86,14 @@ def multi_corner(
             show_titles=False,
             title_fmt=None,
             title_kwargs={"fontsize": 14},
-            # levels=[0.68, 0.95],
+            levels=[0.68, 0.95],
             color=color,
             plot_contours=True,
-            fill_contours=True,
+            fill_contours=False,
             plot_density=False,
             plot_datapoints=False,
             hist_kwargs={'density': True},
+            contour_kwargs={'linewidths': [1.5, 2.5]}
         )
         default_kwargs.update(kwargs)
         fig = corner.corner(
