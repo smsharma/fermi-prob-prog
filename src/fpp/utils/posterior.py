@@ -83,7 +83,7 @@ def multi_corner(
     for ie, (samples_name, samples) in enumerate(samples_dict.items()):
         color = mpl.colors.to_hex(colors_dict[samples_name])
         default_kwargs = dict(
-            show_titles=False,
+            show_titles=True,
             title_fmt=None,
             title_kwargs={"fontsize": 14},
             levels=[0.68, 0.95],
