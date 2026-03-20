@@ -104,15 +104,9 @@ pip install -e .
 Fiducial inference on Fermi data (573 weeks, 2~20 GeV, `ultracleanveto`, top PSF quartile).
 
 <p align="center">
-  <img src="assets/fermi-post.png" width="700" alt="Fermi parameter posterior">
+  <img src="assets/fermi-post-combined.png" width="800" alt="Posterior on Fermi data">
   <br>
-  <em>Posterior for select parameters.</em>
-</p>
-
-<p align="center">
-  <img src="assets/fermi-dnds-post.png" width="700" alt="Fermi dnds posterior">
-  <br>
-  <em>Posterior for source count functions.</em>
+  <em>Posterior on Fermi data for select parameters and source count functions.</em>
 </p>
 
 ---
