@@ -109,7 +109,7 @@ def multi_corner(
             [mpl.lines.Line2D([0], [0], color=colors_dict[k], lw=3) for k in samples_dict if legend_dict[k] is not None],
             [legend_dict[k] for k in samples_dict if legend_dict[k] is not None],
             loc=legend_loc if legend_loc is not None else 'upper right',
-            frameon=False, fontsize=24
+            frameon=False, fontsize=30
         )
 
     if point_est is not None:
