@@ -20,7 +20,7 @@ dependencies = [
     "dill",
     "tqdm",
     "einops",
-    "arviz",
+    "arviz>=0.23,<1.0",
     "corner",
     "astropy",
     "reproject",
