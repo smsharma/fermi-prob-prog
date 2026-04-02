@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=fermi-hmc
+#SBATCH --job-name=svi-cmp-10
 #SBATCH --array=0
 #SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
@@ -20,8 +20,8 @@ cd /n/home07/yitians/fermi/fermi-prob-prog/analysis
 
 
 # python fit_fermi_svi_process.py
-python fit_fermi.py --fit hmc --seed 42
+# python fit_fermi.py --fit hmc --seed 42
 # python fit_calibration.py -i $SLURM_ARRAY_TASK_ID --truth old --fit hmc --psf delta
 # python fit_oaf.py -i $SLURM_ARRAY_TASK_ID --i_data 1
-# python fit_cmp.py --run_name svi_cmp --model model --data cmp --fit_type svi --n_step 10000 -n 50000
-# python fit_cmp.py --run_name hmc_cmp --fit_type hmc --model model --data cmp -n 10000
+
+python fit_cmp.py --run_name svi_cmp_10 --fit_type svi --dim 10

@@ -27,8 +27,9 @@ from fpp.utils.psf_correction import PSFCorrection
 class NPModelCMP:
 
 
-    def __init__(self, data=None):
+    def __init__(self, data=None, dim=None):
 
+        self.dim = dim
         self.n_exp = 7
         self.nside = 128
         self.data_dir = "/n/home07/yitians/fermi/fermi-prob-prog/data/fermi_data_573w/fermi_data_128/"
@@ -136,14 +137,30 @@ class NPModelCMP:
         mu += numpyro.sample(f'S_nfw', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.nfw_1p0
 
         # np templates
-        npt_compressed = jnp.array([self.nfw_1p2, self.dsk])
+        if self.dim == 10:
+            npt_tags = ["nfw"]
+        elif self.dim == 14:
+            npt_tags = ["nfw", "dsk"]
+        elif self.dim == 18:
+            npt_tags = ["nfw", "dsk", "iso"]
+        else:
+            raise ValueError(self.dim)
+
+        npt_d = {
+            'nfw': self.nfw_1p2,
+            'dsk': self.dsk,
+            'iso': self.iso,
+        }
+        npt_compressed = []
         theta = []
-        for ips, ps in enumerate(["nfw", "dsk"]):
+        for ips, ps in enumerate(npt_tags):
+            npt_compressed.append(npt_d[ps])
             A   = numpyro.sample(f"A_{ps}",   dist.Uniform(1e-4, 1.))
             n1  = numpyro.sample(f"n1_{ps}",  dist.Uniform(3., 7.))
             n2  = numpyro.sample(f"n2_{ps}",  dist.Uniform(-7., -3.))
             sb  = numpyro.sample(f"sb_{ps}",  dist.Uniform(5., 20.))
             theta.append([A, n1, n2, sb])
+        npt_compressed = jnp.array(npt_compressed)
         theta = jnp.array(theta)
 
         
