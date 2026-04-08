@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', type=int) # 0-29
-    parser.add_argument('--fit', type=str) # svi hmc
+    parser.add_argument('--fit', type=str) # svi hmc pthmc
     parser.add_argument('--truth', type=str) # old new
     parser.add_argument('--psf', type=str) # delta king
     args = parser.parse_args()
@@ -59,5 +59,9 @@ if __name__ == '__main__':
             num_chains=4, num_warmup=1000, num_samples=10000//4, step_size=0.05,
         )
         samples = m.nuts_mcmc.get_samples()
+
+    elif args.fit == 'pthmc':
+        m.run_parallel_tempering_hmc(num_samples=10000)
+        samples = m.mcmc.get_samples()
     
     pickle.dump(samples, open(f"{save_dir}/{args.i}.p", 'wb'))

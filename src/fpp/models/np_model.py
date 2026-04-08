@@ -626,11 +626,11 @@ class NPModel:
         return self.nuts_mcmc
     
     
-    def run_parallel_tempering_hmc(self, num_samples=5000, step_size_base=0.1, num_leapfrog_steps=5, num_adaptation_steps=600, rng_key=jax.random.PRNGKey(0)):
+    def run_parallel_tempering_hmc(self, num_samples=10000, step_size_base=0.1, num_leapfrog_steps=8, num_adaptation_steps=1000, rng_key=jax.random.PRNGKey(0)):
         
         # Geometric temperatures decay
         num_replicas = 8
-        max_temp = 100.0
+        max_temp = 120.0
         temperatures = jnp.geomspace(1.0, max_temp, num_replicas)
         inverse_temperatures = 1.0 / temperatures
         # inverse_temperatures = 0.5 ** jnp.arange(4.)

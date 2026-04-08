@@ -1,6 +1,7 @@
 """Functions for model validation."""
 
 import numpy as np
+from scipy import stats
 import arviz as az
 from scipy import special
 
@@ -17,7 +18,7 @@ def find_hdi_prob(samples, value, low=0, high=1, level=15):
         return find_hdi_prob(samples, value, mid, high, level-1)
     
 
-def roc_finite_sample_band(n_samples, mc_samples=10000):
+def pp_finite_sample_band(n_samples, mc_samples=10000):
     """Using MC, find the 95% containment band for ROC curve for a gaussian distribution."""
     invcdf_arr = []
     for _ in range(mc_samples):

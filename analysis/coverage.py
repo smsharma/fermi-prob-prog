@@ -39,9 +39,9 @@ def regularize_sample(s):
 
 if __name__ == '__main__':
 
-    n_sim = 100
+    n_sim = 30
     truth_name = 'base230927'
-    run_name = 'pois/svi'
+    run_name = 'calibration/pthmc-old-delta-2'
     print(f"Run name: {run_name}")
 
     samples_dir = f"../outputs/production/fits/{run_name}"
@@ -64,10 +64,7 @@ if __name__ == '__main__':
     samples_list = []
     missing_list = []
     for i in tqdm(range(n_sim)):
-        if 'hmc' in run_name:
-            fn = f"{samples_dir}/{i}.p"
-        else:
-            fn = f"{samples_dir}/{i}.p"
+        fn = f"{samples_dir}/{i}.p"
         if not os.path.exists(fn):
             missing_list.append(i)
         else:
