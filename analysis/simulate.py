@@ -8,10 +8,10 @@ from fpp.models.np_model import NPModel
 
 if __name__ == '__main__':
 
-    data_name = 'nmold_deltapsf_tmp'
-    truth_name = 'base230927'
-    n_sim = 1
-    modifiers = ['deltapsf'] # ['deltapsf', 'flatexp', 'p6v11']
+    data_name = 'pois-2'
+    truth_name = 'pois230927'
+    n_sim = 100
+    modifiers = [] # ['deltapsf', 'flatexp', 'p6v11']
     
 
     np.random.seed(42)

@@ -21,6 +21,7 @@ from fpp.models.scd import dnds_1b as dnds
 from fpp.utils import create_mask as cm
 from fpp.models.psf import KingPSF
 from fpp.utils.psf_correction import PSFCorrection
+from fpp.models.bulge_models import BulgeTemplates
 
 
 
@@ -30,7 +31,7 @@ class NPModelCMP:
     def __init__(self, data=None, dim=None):
 
         self.dim = dim
-        self.n_exp = 7
+        self.n_exp = 1
         self.nside = 128
         self.data_dir = "/n/home07/yitians/fermi/fermi-prob-prog/data/fermi_data_573w/fermi_data_128/"
 
@@ -62,6 +63,27 @@ class NPModelCMP:
         self.iso = self.iso / jnp.mean(self.iso[~self.normalization_mask])
         self.nfw_1p0 = self.nfw_1p0 / jnp.mean(self.nfw_1p0[~self.normalization_mask])
         self.nfw_1p2 = self.nfw_1p2 / jnp.mean(self.nfw_1p2[~self.normalization_mask])
+
+        # extra poissonian
+        self.blg_0 = jnp.array(BulgeTemplates(template_name="mcdermott2022", nside_out=self.nside)())
+        self.blg_1 = jnp.array(BulgeTemplates(template_name="mcdermott2022_bbp", nside_out=self.nside)())
+        self.blg_2 = jnp.array(BulgeTemplates(template_name="mcdermott2022_x", nside_out=self.nside)())
+        self.blg_3 = jnp.array(BulgeTemplates(template_name="macias2019", nside_out=self.nside)())
+        self.blg_4 = jnp.array(BulgeTemplates(template_name="coleman2019", nside_out=self.nside)())
+        self.pib_1 = jnp.array(np.load(f"{self.data_dir}/template_Api.npy"))
+        self.pib_2 = jnp.array(np.load(f"{self.data_dir}/template_Fpi.npy"))
+        self.ics_1 = jnp.array(np.load(f"{self.data_dir}/template_Aic.npy"))
+        self.ics_2 = jnp.array(np.load(f"{self.data_dir}/template_Fic.npy"))
+        self.blg_0 = self.blg_0 / jnp.mean(self.blg_0[~self.normalization_mask])
+        self.blg_1 = self.blg_1 / jnp.mean(self.blg_1[~self.normalization_mask])
+        self.blg_2 = self.blg_2 / jnp.mean(self.blg_2[~self.normalization_mask])
+        self.blg_3 = self.blg_3 / jnp.mean(self.blg_3[~self.normalization_mask])
+        self.blg_4 = self.blg_4 / jnp.mean(self.blg_4[~self.normalization_mask])
+        self.pib_1 = self.pib_1 / jnp.mean(self.pib_1[~self.normalization_mask])
+        self.pib_2 = self.pib_2 / jnp.mean(self.pib_2[~self.normalization_mask])
+        self.ics_1 = self.ics_1 / jnp.mean(self.ics_1[~self.normalization_mask])
+        self.ics_2 = self.ics_2 / jnp.mean(self.ics_2[~self.normalization_mask])
+
 
         self.get_psf_correction()
         self.get_exp_regions(self.n_exp)
@@ -122,9 +144,9 @@ class NPModelCMP:
     def model(self):
 
         PRIOR_LOW = 1e-3
-        PRIOR_HIGH_PIB = 14.
-        PRIOR_HIGH_ICS = 14.
-        PRIOR_HIGH = 5.
+        PRIOR_HIGH_PIB = 6.
+        PRIOR_HIGH_ICS = 6.
+        PRIOR_HIGH = 3.
         
         mu = jnp.zeros_like(self.data)
 
@@ -136,13 +158,28 @@ class NPModelCMP:
         mu += numpyro.sample(f'S_psc', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.psc
         mu += numpyro.sample(f'S_nfw', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.nfw_1p0
 
+        # if self.dim >= 27:
+        #     mu += numpyro.sample(f'S_blg_0', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.blg_0
+        #     mu += numpyro.sample(f'S_blg_1', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.blg_1
+        #     mu += numpyro.sample(f'S_blg_2', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.blg_2
+        #     mu += numpyro.sample(f'S_blg_3', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.blg_3
+        #     mu += numpyro.sample(f'S_blg_4', dist.Uniform(PRIOR_LOW, PRIOR_HIGH)) * self.blg_4
+        #     mu += numpyro.sample(f'S_pib_1', dist.Uniform(PRIOR_LOW, PRIOR_HIGH_PIB)) * self.pib_1
+        #     mu += numpyro.sample(f'S_pib_2', dist.Uniform(PRIOR_LOW, PRIOR_HIGH_PIB)) * self.pib_2
+        #     mu += numpyro.sample(f'S_ics_1', dist.Uniform(PRIOR_LOW, PRIOR_HIGH_ICS)) * self.ics_1
+        #     mu += numpyro.sample(f'S_ics_2', dist.Uniform(PRIOR_LOW, PRIOR_HIGH_ICS)) * self.ics_2
+
         # np templates
-        if self.dim == 10:
+        if self.dim == 6:
+            npt_tags = []
+        elif self.dim == 10:
             npt_tags = ["nfw"]
         elif self.dim == 14:
             npt_tags = ["nfw", "dsk"]
         elif self.dim == 18:
             npt_tags = ["nfw", "dsk", "iso"]
+        elif self.dim == 22:
+            npt_tags = ["nfw", "dsk", "iso", "blg"]
         else:
             raise ValueError(self.dim)
 
@@ -150,15 +187,16 @@ class NPModelCMP:
             'nfw': self.nfw_1p2,
             'dsk': self.dsk,
             'iso': self.iso,
+            'blg': self.blg_0,
         }
         npt_compressed = []
         theta = []
         for ips, ps in enumerate(npt_tags):
             npt_compressed.append(npt_d[ps])
-            A   = numpyro.sample(f"A_{ps}",   dist.Uniform(1e-4, 1.))
+            A   = numpyro.sample(f"A_{ps}",   dist.Uniform(1e-4, .2))
             n1  = numpyro.sample(f"n1_{ps}",  dist.Uniform(3., 7.))
             n2  = numpyro.sample(f"n2_{ps}",  dist.Uniform(-7., -3.))
-            sb  = numpyro.sample(f"sb_{ps}",  dist.Uniform(5., 20.))
+            sb  = numpyro.sample(f"sb_{ps}",  dist.Uniform(5., 15.))
             theta.append([A, n1, n2, sb])
         npt_compressed = jnp.array(npt_compressed)
         theta = jnp.array(theta)
@@ -193,6 +231,83 @@ class NPModelCMP:
 
             with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
                 return numpyro.factor('log-likelihood', loglike)
+
+    def model_forward(self):
+
+        PRIOR_LOW = 1e-3
+        PRIOR_HIGH_PIB = 6.
+        PRIOR_HIGH_ICS = 6.
+        PRIOR_HIGH = 3.
+        
+        mu = jnp.zeros_like(self.data)
+
+        # poissonian templates
+        mu += 10. * self.pib
+        mu += 11. * self.ics
+        mu += 3 * self.iso
+        mu += 4 * self.bub
+        mu += 5. * self.psc
+        mu += 6. * self.nfw_1p0
+
+        # np templates
+        if self.dim == 6:
+            npt_tags = []
+        elif self.dim == 10:
+            npt_tags = ["nfw"]
+        elif self.dim == 14:
+            npt_tags = ["nfw", "dsk"]
+        elif self.dim >= 18:
+            npt_tags = ["nfw", "dsk", "iso"]
+        else:
+            raise ValueError(self.dim)
+
+        npt_d = {
+            'nfw': self.nfw_1p2,
+            'dsk': self.dsk,
+            'iso': self.iso,
+        }
+        npt_compressed = []
+        theta = []
+        for ips, ps in enumerate(npt_tags):
+            npt_compressed.append(npt_d[ps])
+            A   = 0.8
+            n1  = 5
+            n2  = -5
+            sb  = 10
+            theta.append([A, n1, n2, sb])
+        npt_compressed = jnp.array(npt_compressed)
+        theta = jnp.array(theta)
+
+        
+        # likelihoods and exposure
+        # Pad the last exposure region so that all are the same size
+        exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
+        n_pad = exp_lens[0] - exp_lens[-1]
+        
+        expreg_indices = jnp.zeros_like(self.expreg_indices)
+        expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
+        expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
+
+        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
+                
+        # Get relevant arrays for different exposure regions
+        mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
+        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
+        data_batch = self.data[~self.mask_roi][jnp.array(expreg_indices)]
+        exposure_multiplier = self.exposure_means_list / self.exposure_mean
+        
+        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
+        theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
+        theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
+        # theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
+        
+        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
+            
+            log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_ary, self.k_max, len(expreg_indices[0]))
+            loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
+
+            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
+                return loglike
 
     def model_ps(self):
         
@@ -241,7 +356,7 @@ class NPModelCMP:
                 return numpyro.factor('log-likelihood', loglike)
 
 
-    def fit_svi(self, model_name='model', n_steps=10000, lr=5e-3):
+    def fit_svi(self, model_name='model', n_steps=5000, lr=1e-4):
 
         if model_name == 'model':
             model = self.model
@@ -253,8 +368,8 @@ class NPModelCMP:
         self.guide = autoguide.AutoIAFNormal(
             model, num_flows=5, hidden_dims=[128, 128], nonlinearity=stax.Tanh
         )
-        optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(1.), optax.adam(lr)))
-        loss = Trace_ELBO(num_particles=8, vectorize_particles=True)
+        optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(0.1), optax.adam(lr)))
+        loss = Trace_ELBO(num_particles=16, vectorize_particles=True)
 
         self.svi = SVI(model, self.guide, optimizer, loss)
         self.svi_results = self.svi.run(jax.random.PRNGKey(42), n_steps)

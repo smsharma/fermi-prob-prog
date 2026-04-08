@@ -16,8 +16,8 @@ from numpyro.infer.reparam import NeuTraReparam
 from numpyro.infer import MCMC, NUTS
 from numpyro import optim
 from numpyro import handlers
-from numpyro.contrib.tfp.mcmc import ReplicaExchangeMC
-from tensorflow_probability.substrates import jax as tfp
+# from numpyro.contrib.tfp.mcmc import ReplicaExchangeMC
+# from tensorflow_probability.substrates import jax as tfp
 
 import optax
 from einops import repeat
@@ -27,6 +27,7 @@ from fpp.models.scd import dnds
 from fpp.models.templates import NFWTemplate, LorimerDiskTemplate
 from fpp.models.bulge_models import BulgeTemplates
 from fpp.likelihoods.npll_jax import log_like_np
+from fpp.likelihoods.pll_jax import log_like_poisson
 from fpp.utils.sph_harm import Ylm
 from fpp.utils import create_mask as cm
 from fpp.utils.utils import jnp_trapezoid
@@ -41,8 +42,8 @@ wdir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(wdir, '../../../data')
 
 
-class NPModel:
-    """Non-Poissonian model.
+class PModel:
+    """Poissonian model.
 
     Args:
         nside (int):                 healpix nside.
@@ -275,193 +276,16 @@ class NPModel:
         temp_nfw_poiss /= jnp.mean(temp_nfw_poiss[~self.nm])
 
         mu += S_gce * (f_bulge_poiss * temp_blg_poiss + (1 - f_bulge_poiss) * temp_nfw_poiss)
-                                            
-        #=== point source: gce (defined as bulge + nfw) ===
-        Sps_gce = numpyro.sample("Sps_gce", dist.Uniform(1e-5, 4.))
-        f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.))
-
-        theta_blg_ps = numpyro.sample("theta_bulge_ps", dist.Dirichlet(jnp.ones((self.n_blg,)) / self.n_blg))
-        temp_blg_ps = jnp.sum(theta_blg_ps[:, None] * self.blg_s, 0)
-
-        temp_nfw_ps = self.nfw_temp_gen.get_NFW2_template(gamma=numpyro.sample("gamma_ps", dist.Uniform(0.2, 2.)))
-        temp_nfw_ps /= jnp.mean(temp_nfw_ps[~self.nm])
-
-        temp_gce_ps = f_bulge_ps * temp_blg_ps + (1 - f_bulge_ps) * temp_nfw_ps
-
-        #=== point source: disk ===
-        Sps_dsk = numpyro.sample("Sps_dsk", dist.Uniform(1e-5, 4.))
-        zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
-        C = numpyro.sample("C", dist.Uniform(0.05, 8.))
-        temp_dsk_ps = self.dsk_temp_gen.get_template(zs=zs, C=C)
-        temp_dsk_ps /= jnp.mean(temp_dsk_ps[~self.nm])
         
-        #=== point source: source count function and normalization ===
-        Sps_list = [Sps_gce, Sps_dsk]
-        npt_compressed = jnp.array([temp_gce_ps, temp_dsk_ps])
-        theta = []
-        s_arr = jnp.logspace(-1., 2., 1000)
-        for i, ps in enumerate(["gce", "dsk"]):
-            n1 = numpyro.sample(f'n1_{ps}', dist.Uniform(2.1, 8))
-            n2 = numpyro.sample(f'n2_{ps}', dist.Uniform(0.5, 2))
-            n3 = numpyro.sample(f'n3_{ps}', dist.Uniform(-8, -1))
-            sb1 = numpyro.sample(f'sb1_{ps}', dist.Uniform(5., 40.))
-            lambda_s = numpyro.sample(f'lambdas_{ps}', dist.Uniform(0.1, 0.95))
-
-            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
-            dnds_arr = dnds(s_arr, theta_tmp)
-            A = Sps_list[i] / jnp_trapezoid(s_arr * dnds_arr, s_arr)
-            theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
-        theta = jnp.array(theta)
-        
-        #=== point source: adjust with exposure regions ===
-        # pad the last exposure region so that all are the same size
-        exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
-        n_pad = exp_lens[0] - exp_lens[-1]
-        
-        expreg_indices = jnp.zeros_like(self.expreg_indices)
-        expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
-        expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
-
-        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
-                
-        mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
-        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
-        data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
-        exposure_multiplier = self.exposure_means_list / self.exposure_mean
-        
-        # scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
-        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
-        theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
-        theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
-        theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
-
         #=== compute likelihood ===
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
-            
-            log_like_exp = log_like_np_exp_vmapped(
-                theta,
-                mu_batch,
-                npt_compressed_batch,
-                data_batch,
-                self.f_ary,
-                self.df_rho_ary,
-                self.k_max,
-                len(expreg_indices[0])
+            ll = log_like_poisson(
+                mu[~self.mask_roi],
+                data[~self.mask_roi]
             )
-            loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
+            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(ll), jnp.isnan(ll))):
+                return numpyro.factor('log-likelihood', ll)
 
-            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
-                with handlers.scale(scale=beta): # optional tempering the likelihood for SVI with beta schedule
-                    return numpyro.factor('log-likelihood', loglike)
-
-    def forward(self, params, data):
-        """Forward mode: compute log-likelihood given a dictionary of parameter values."""
-
-        mu = jnp.zeros_like(data)
-
-        #=== diffuse: pib with spherical harmonics, ics ===
-        theta_pib = params["theta_pib"]
-        temp_pib = jnp.sum(theta_pib[:, None] * self.pib, 0)
-        theta_ics = params["theta_ics"]
-        temp_ics = jnp.sum(theta_ics[:, None] * self.ics, 0)
-
-        pib_modifier = jnp.zeros_like(data)
-        for i in range(len(self.Ylm_temps)):
-            pib_modifier += params[f'Alm_{i}'] * self.Ylm_temps[i]
-        temp_pib = (1 + pib_modifier) * temp_pib
-        temp_pib /= jnp.mean(temp_pib[~self.nm])
-
-        mu += params["S_pib"] * temp_pib
-        mu += params["S_ics"] * temp_ics
-
-        #=== diffuse: isotropic, fermi bubble, (resolved) point sources ===
-        mu += params["S_iso"] * self.temp_iso
-        mu += params["S_bub"] * self.temp_bub
-        mu += params["S_psc"] * self.temp_psc
-
-        #=== diffuse: gce (defined as bulge + nfw) ===
-        S_gce = params["S_gce"]
-        f_bulge_poiss = params["f_bulge_poiss"]
-
-        theta_blg_poiss = params["theta_bulge_poiss"]
-        temp_blg_poiss = jnp.sum(theta_blg_poiss[:, None] * self.blg_s, 0)
-
-        temp_nfw_poiss = self.nfw_temp_gen.get_NFW2_template(gamma=params["gamma_poiss"])
-        temp_nfw_poiss /= jnp.mean(temp_nfw_poiss[~self.nm])
-
-        mu += S_gce * (f_bulge_poiss * temp_blg_poiss + (1 - f_bulge_poiss) * temp_nfw_poiss)
-
-        #=== point source: gce (defined as bulge + nfw) ===
-        Sps_gce = params["Sps_gce"]
-        f_bulge_ps = params["f_bulge_ps"]
-
-        theta_blg_ps = params["theta_bulge_ps"]
-        temp_blg_ps = jnp.sum(theta_blg_ps[:, None] * self.blg_s, 0)
-
-        temp_nfw_ps = self.nfw_temp_gen.get_NFW2_template(gamma=params["gamma_ps"])
-        temp_nfw_ps /= jnp.mean(temp_nfw_ps[~self.nm])
-
-        temp_gce_ps = f_bulge_ps * temp_blg_ps + (1 - f_bulge_ps) * temp_nfw_ps
-
-        #=== point source: disk ===
-        Sps_dsk = params["Sps_dsk"]
-        temp_dsk_ps = self.dsk_temp_gen.get_template(zs=params["zs"], C=params["C"])
-        temp_dsk_ps /= jnp.mean(temp_dsk_ps[~self.nm])
-
-        #=== point source: source count function and normalization ===
-        Sps_list = [Sps_gce, Sps_dsk]
-        npt_compressed = jnp.array([temp_gce_ps, temp_dsk_ps])
-        theta = []
-        s_arr = jnp.logspace(-1., 2., 1000)
-        for i, ps in enumerate(["gce", "dsk"]):
-            n1 = params[f'n1_{ps}']
-            n2 = params[f'n2_{ps}']
-            n3 = params[f'n3_{ps}']
-            sb1 = params[f'sb1_{ps}']
-            lambda_s = params[f'lambdas_{ps}']
-
-            theta_tmp = jnp.array([1., n1, n2, n3, sb1, lambda_s * sb1])
-            dnds_arr = dnds(s_arr, theta_tmp)
-            A = Sps_list[i] / jnp_trapezoid(s_arr * dnds_arr, s_arr)
-            theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
-        theta = jnp.array(theta)
-
-        #=== point source: adjust with exposure regions ===
-        exp_lens = [len(self.expreg_indices[i]) for i in range(len(self.expreg_indices))]
-        n_pad = exp_lens[0] - exp_lens[-1]
-
-        expreg_indices = jnp.zeros_like(self.expreg_indices)
-        expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
-        expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
-
-        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
-
-        mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
-        npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
-        data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
-        exposure_multiplier = self.exposure_means_list / self.exposure_mean
-
-        theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
-        theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
-        theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
-        theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
-
-        #=== compute likelihood ===
-        log_like_exp = log_like_np_exp_vmapped(
-            theta,
-            mu_batch,
-            npt_compressed_batch,
-            data_batch,
-            self.f_ary,
-            self.df_rho_ary,
-            self.k_max,
-            len(expreg_indices[0])
-        )
-        loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
-
-        # mask out inf/nan pixels
-        valid = ~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))
-        return jnp.sum(jnp.where(valid, loglike, 0.))
             
     def fit_svi(
         self,
@@ -626,37 +450,33 @@ class NPModel:
         return self.nuts_mcmc
     
     
-    def run_parallel_tempering_hmc(self, num_samples=5000, step_size_base=0.1, num_leapfrog_steps=5, num_adaptation_steps=600, rng_key=jax.random.PRNGKey(0)):
+    # def run_parallel_tempering_hmc(self, num_samples=5000, step_size_base=5e-2, num_leapfrog_steps=3, num_adaptation_steps=600, rng_key=jax.random.PRNGKey(0)):
         
-        # Geometric temperatures decay
-        num_replicas = 8
-        max_temp = 100.0
-        temperatures = jnp.geomspace(1.0, max_temp, num_replicas)
-        inverse_temperatures = 1.0 / temperatures
-        # inverse_temperatures = 0.5 ** jnp.arange(4.)
+    #     # Geometric temperatures decay
+    #     inverse_temperatures = 0.5 ** jnp.arange(4.)
 
-        # If everything was Normal, step_size should be ~ sqrt(temperature).
-        step_size = step_size_base / jnp.sqrt(inverse_temperatures)[..., None]
+    #     # If everything was Normal, step_size should be ~ sqrt(temperature).
+    #     step_size = step_size_base / jnp.sqrt(inverse_temperatures)[..., None]
 
-        def make_kernel_fn(target_log_prob_fn):
+    #     def make_kernel_fn(target_log_prob_fn):
 
-            hmc = tfp.mcmc.HamiltonianMonteCarlo(
-            target_log_prob_fn=target_log_prob_fn,
-            step_size=step_size, num_leapfrog_steps=num_leapfrog_steps)
+    #         hmc = tfp.mcmc.HamiltonianMonteCarlo(
+    #         target_log_prob_fn=target_log_prob_fn,
+    #         step_size=step_size, num_leapfrog_steps=num_leapfrog_steps)
 
-            adapted_kernel = tfp.mcmc.SimpleStepSizeAdaptation(
-            inner_kernel=hmc,
-            num_adaptation_steps=num_adaptation_steps)
+    #         adapted_kernel = tfp.mcmc.SimpleStepSizeAdaptation(
+    #         inner_kernel=hmc,
+    #         num_adaptation_steps=num_adaptation_steps)
 
-            return adapted_kernel
+    #         return adapted_kernel
         
-        # self.get_neutra_model()
+    #     self.get_neutra_model()
         
-        kernel = ReplicaExchangeMC(self.model, inverse_temperatures=inverse_temperatures, make_kernel_fn=make_kernel_fn)
-        self.mcmc = MCMC(kernel, num_warmup=num_adaptation_steps, num_samples=num_samples, num_chains=1, chain_method='vectorized')
-        self.mcmc.run(rng_key, self.data)
+    #     kernel = ReplicaExchangeMC(self.model_neutra, inverse_temperatures=inverse_temperatures, make_kernel_fn=make_kernel_fn)
+    #     self.mcmc = MCMC(kernel, num_warmup=num_adaptation_steps, num_samples=num_samples, num_chains=1, chain_method='vectorized')
+    #     self.mcmc.run(rng_key, self.data)
         
-        return self.mcmc
+    #     return self.mcmc
     
 
     def get_MAP_estimates(self, rng_key=jax.random.PRNGKey(42), lr=0.1, n_steps=30000, **model_static_kwargs):

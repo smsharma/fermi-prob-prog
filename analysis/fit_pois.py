@@ -11,37 +11,30 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
 wdir = "/n/home07/yitians/fermi/fermi-prob-prog/analysis"
-from fpp.models.np_model import NPModel
+from fpp.models.pois_model import PModel
 
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', type=int) # 0-29
+    parser.add_argument('-i', type=int) # 0-99
     parser.add_argument('--fit', type=str) # svi hmc
-    parser.add_argument('--truth', type=str) # old new
-    parser.add_argument('--psf', type=str) # delta king
     args = parser.parse_args()
 
 
-    subname = f"{args.fit}-{args.truth}-{args.psf}-2"
+    subname = f"{args.fit}"
     print(f"Running {subname} # {args.i} ...")
 
-    save_dir = f"{wdir}/../outputs/production/fits/calibration/{subname}"
+    save_dir = f"{wdir}/../outputs/production/fits/pois/{subname}"
     os.makedirs(save_dir, exist_ok=True)
 
-    data_name = ('nmold' if args.truth == 'old' else 'nmnew')
-    if args.psf == 'delta':
-        data_name += '-deltapsf'
-    data_name += "-2"
+    data_name = 'pois-2'
     print(f"Data name: {data_name}")
 
     data = jnp.array(np.load(f"../outputs/production/simulations/{data_name}.npy")[args.i], dtype=jnp.int32)
     
-    m = NPModel(
+    m = PModel(
         data=data,
-        psf_tag=args.psf,
-        n_exp=7,
     )
 
     if args.fit == 'svi':
