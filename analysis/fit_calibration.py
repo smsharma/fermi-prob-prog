@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', type=int) # 0-29
-    parser.add_argument('--fit', type=str) # svi hmc pthmc
+    parser.add_argument('--fit', type=str) # svi hmc hmctd10 pthmc
     parser.add_argument('--truth', type=str) # old new
     parser.add_argument('--psf', type=str) # delta king
     args = parser.parse_args()
@@ -53,10 +53,11 @@ if __name__ == '__main__':
         )
         samples = m.get_svi_samples(num_samples=50000)
 
-    elif args.fit == 'hmc':
+    elif args.fit == 'hmctd10':
         m.run_nuts(
             data=data, rng_key=jax.random.PRNGKey(42),
-            num_chains=4, num_warmup=1000, num_samples=10000//4, step_size=0.05,
+            num_chains=4, num_warmup=500, num_samples=10000//4,
+            max_tree_depth=10, step_size=0.05,
         )
         samples = m.nuts_mcmc.get_samples()
 

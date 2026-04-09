@@ -598,7 +598,8 @@ class NPModel:
     
     def run_nuts(
         self, rng_key=jax.random.PRNGKey(0),
-        use_neutra=False, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1,
+        use_neutra=False, num_chains=4, num_warmup=500, num_samples=5000,
+        max_tree_depth=10, step_size=0.1,
         **model_static_kwargs
     ):
         """NUTS sampling of the model, optionally using the NeuTra reparameterization based on the SVI guide fit.
@@ -619,7 +620,7 @@ class NPModel:
         else:
             model = self.model
         
-        kernel = NUTS(model, max_tree_depth=4, dense_mass=False, step_size=step_size)
+        kernel = NUTS(model, max_tree_depth=max_tree_depth, dense_mass=False, step_size=step_size)
         self.nuts_mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
         self.nuts_mcmc.run(rng_key, **model_static_kwargs)
         

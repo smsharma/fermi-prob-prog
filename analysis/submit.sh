@@ -1,13 +1,13 @@
 #!/bin/bash
 
-#SBATCH --job-name=pthmc-old-king
+#SBATCH --job-name=hmctd10-old-delta
 #SBATCH --array=0-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64GB
-#SBATCH --time=0-05:00:00
+#SBATCH --time=0-08:00:00
 #SBATCH --output=/n/home07/yitians/fermi/fermi-prob-prog/outputs/slurm/%x_%a.out
 #SBATCH --error=/n/home07/yitians/fermi/fermi-prob-prog/outputs/slurm/%x_%a.err
 #SBATCH --account=iaifi_lab
@@ -21,7 +21,7 @@ cd /n/home07/yitians/fermi/fermi-prob-prog/analysis
 
 # python fit_fermi_svi_process.py
 # python fit_fermi.py --fit hmc --seed 42
-python fit_calibration.py -i $SLURM_ARRAY_TASK_ID --truth old --fit pthmc --psf king
+python fit_calibration.py -i $SLURM_ARRAY_TASK_ID --truth old --fit hmctd10 --psf delta
 # python fit_oaf.py -i $SLURM_ARRAY_TASK_ID --i_data 1
 # python fit_cmp.py -i $SLURM_ARRAY_TASK_ID --fit_type svi
 # python fit_pois.py -i $SLURM_ARRAY_TASK_ID --fit hmc
