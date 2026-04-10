@@ -116,12 +116,11 @@ Fiducial inference on Fermi data (573 weeks, 2~20 GeV, `ultracleanveto`, top PSF
 If you use this code, please cite:
 
 ```bibtex
-@article{fpp2026,
-  title   = {Disentangling gamma-ray observations of the Galactic Center
-             using differentiable probabilistic programming},
+@article{mishrasharma2026high,
+  title   = {High-dimensional inference for the gamma-ray sky with differentiable programming},
   author  = {Mishra-Sharma, Siddharth and Slatyer, Tracy R. and Sun, Yitian and Wu, Yuqing},
   year    = {2026},
-  journal = {TODO}
+  journal = {arXiv}
 }
 ```
 
