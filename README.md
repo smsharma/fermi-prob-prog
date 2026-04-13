@@ -1,5 +1,6 @@
 # Differentiable Probabilistic Programming for *Fermi* and the Galactic Center Excess
-<!-- <h1>Differentiable Probabilistic Programming<br>for <em>Fermi</em> and the Galactic Center Excess</h1> -->
+
+[![arXiv](https://img.shields.io/badge/arXiv-2604.08648%20-green.svg)](https://arxiv.org/abs/2604.08648)
 
 A differentiable inference framework for *Fermi* gamma-ray data of the Galactic Center based on the NPTF likelihood.
 Built with [JAX](https://github.com/jax-ml/jax) and [NumPyro](https://num.pyro.ai)
@@ -116,11 +117,14 @@ Fiducial inference on Fermi data (573 weeks, 2~20 GeV, `ultracleanveto`, top PSF
 If you use this code, please cite:
 
 ```bibtex
-@article{mishrasharma2026high,
-  title   = {High-dimensional inference for the gamma-ray sky with differentiable programming},
-  author  = {Mishra-Sharma, Siddharth and Slatyer, Tracy R. and Sun, Yitian and Wu, Yuqing},
-  year    = {2026},
-  journal = {arXiv}
+@article{mishra2026high,
+    author  = {Mishra-Sharma, Siddharth and Slatyer, Tracy R. and Sun, Yitian and Wu, Yuqing},
+    title   = {High-dimensional inference for the gamma-ray sky with differentiable programming},
+    eprint  = {2604.08648},
+    archivePrefix = {arXiv},
+    primaryClass = {astro-ph.HE},
+    month   = {4},
+    year    = {2026}
 }
 ```
 
