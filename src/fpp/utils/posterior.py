@@ -10,7 +10,7 @@ from fpp.models.scd import dnds, dnds_1b
 from fpp.utils.utils import jnp_trapezoid
 
 wdir = os.path.abspath(os.path.dirname(__file__))
-mpl.rc_file(os.path.join(wdir, '../../../analysis/matplotlibrc'))
+mpl.rc_file(os.path.join(wdir, 'matplotlibrc'))
 
 
 def dnds_posterior(

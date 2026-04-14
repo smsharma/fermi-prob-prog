@@ -12,9 +12,6 @@ if __name__ == '__main__':
     truth_name = 'pois230927'
     n_sim = 100
     modifiers = [] # ['deltapsf', 'flatexp', 'p6v11']
-    
-
-    np.random.seed(42)
 
     m = NPModel()
 

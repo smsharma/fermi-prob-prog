@@ -8,43 +8,15 @@ import numpy as np
 
 from fpp.utils.validation import find_hdi_prob
 
-# def regularize_sample(s):
-#     if 'f_bulge_poiss' in s:
-#         return s
-#     s['S_pib'] = s['S_pib_0'] + s['S_pib_1'] + s['S_pib_2']
-#     s['theta_pib_ModelO'] = s['S_pib_0'] / s['S_pib']
-#     s['theta_pib_ModelA'] = s['S_pib_1'] / s['S_pib']
-#     s['theta_pib_ModelF'] = s['S_pib_2'] / s['S_pib']
-#     s['S_ics'] = s['S_ics_0'] + s['S_ics_1'] + s['S_ics_2']
-#     s['theta_ics_ModelO'] = s['S_ics_0'] / s['S_ics']
-#     s['theta_ics_ModelA'] = s['S_ics_1'] / s['S_ics']
-#     s['theta_ics_ModelF'] = s['S_ics_2'] / s['S_ics']
-#     s['S_gce_blg'] = s['S_gce_blg_0'] + s['S_gce_blg_1'] + s['S_gce_blg_2'] + s['S_gce_blg_3'] + s['S_gce_blg_4']
-#     s['S_gce'] = s['S_gce_blg'] + s['S_gce_nfw']
-#     s['f_bulge_poiss'] = s['S_gce_blg'] / s['S_gce']
-
-#     bulge_models = ["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"]
-#     for i, k in enumerate(bulge_models):
-#         s[f'theta_poiss_{k}'] = s[f'S_gce_blg_{i}'] / s['S_gce_blg']
-#     s['Sps_gce_blg'] = s['Sps_gce_blg_0'] + s['Sps_gce_blg_1'] + s['Sps_gce_blg_2'] + s['Sps_gce_blg_3'] + s['Sps_gce_blg_4']
-#     s['Sps_gce'] = s['Sps_gce_blg'] + s['Sps_gce_nfw']
-#     s['f_bulge_ps'] = s['Sps_gce_blg'] / s['Sps_gce']
-#     for i, k in enumerate(bulge_models):
-#         s[f'theta_ps_{k}'] = s[f'Sps_gce_blg_{i}'] / s['Sps_gce_blg']
-#     return s
-
-def regularize_sample(s):
-    return s
-
 
 if __name__ == '__main__':
 
     n_sim = 30
     truth_name = 'base230927'
-    run_name = 'calibration/pthmc-old-delta-2'
+    run_name = 'calibration/hmctd10-old-delta-2'
     print(f"Run name: {run_name}")
 
-    samples_dir = f"../outputs/production/fits/{run_name}"
+    samples_dir = os.environ['MYSTORE'] + "/fermi/fermi-prob-prog/outputs/production/fits/" + run_name
     theta_true = json.load(open(f"../outputs/truths/truth_dict_{truth_name}.json"))
 
     if 'pois' in run_name:
@@ -68,7 +40,7 @@ if __name__ == '__main__':
         if not os.path.exists(fn):
             missing_list.append(i)
         else:
-            samples_list.append(regularize_sample(pickle.load(open(fn, 'rb'))))
+            samples_list.append(pickle.load(open(fn, 'rb')))
     print(f"Missing {len(missing_list)} run(s): {missing_list}")
     if len(missing_list) == n_sim:
         raise ValueError("No samples found")
