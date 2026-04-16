@@ -671,7 +671,7 @@ class NPModel:
         return svi_results
 
 
-    def simulate(self, vd, modifiers=[], rng_seed=None):
+    def simulate(self, vd, modifiers=[], rng=None):
         """ Simulate a map based on model templates.
 
         Args:
@@ -680,14 +680,15 @@ class NPModel:
                 'deltapsf': Assumes PSF is trivial.
                 'flatexp': Uses a flat exposure map.
                 'p6v11': Uses the p6v11 diffuse template instead of the pib and ics templates.
-            rng_seed (int): Random seed for deterministic testing. If None, no seeding is done.
+            rng (np.random.Generator): Numpy random generator. Seeds the legacy np.random
+                state used by the simulator internals.
 
         Return:
             np.ndarray: Simulated counts map.
         """
 
-        if rng_seed is not None:
-            np.random.seed(rng_seed)
+        if rng is not None:
+            np.random.seed(int(rng.integers(2**31)))
 
         # poiss: nfw iso bub psc pib*3 ics*3 blg*5
         temp_nfw_poiss = self.nfw_temp_gen.get_NFW2_template(gamma=vd['gamma_poiss'])
@@ -699,13 +700,24 @@ class NPModel:
         theta += list(vd['S_gce'] * vd['f_bulge_poiss'] * np.array(vd['theta_bulge_poiss']))
 
         if 'p6v11' in modifiers:
+            raise NotImplementedError('p6v11 temporary disabled')
             temps_poiss.append(self.temp_p6v11)
             theta.append(vd['S_p6v11'])
         else:
-            temps_poiss += list(self.pib)
-            temps_poiss += list(self.ics)
-            theta += list(vd['S_pib'] * np.array(vd['theta_pib']))
-            theta += list(vd['S_ics'] * np.array(vd['theta_ics']))
+            # combine pib templates and apply spherical harmonic modulation
+            temp_pib = np.einsum('i,ij->j', vd['theta_pib'], self.pib)
+            pib_modifier = np.zeros_like(temp_pib)
+            for i in range(len(self.Ylm_temps)):
+                pib_modifier += vd[f'Alm_{i}'] * self.Ylm_temps[i]
+            temp_pib = (1 + pib_modifier) * temp_pib
+            temp_pib /= np.mean(temp_pib[~self.nm])
+
+            temps_poiss.append(temp_pib)
+            theta.append(vd['S_pib'])
+
+            temp_ics = np.einsum('i,ij->j', vd['theta_ics'], self.ics)
+            temps_poiss.append(temp_ics)
+            theta.append(vd['S_ics'])
 
         # ps: nfw+blg*5 dsk
         # temp_ps

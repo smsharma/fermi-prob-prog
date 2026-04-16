@@ -1,6 +1,6 @@
 import numpy as np
-import healpy as hp
 import json
+import os
 from tqdm import tqdm
 
 from fpp.models.np_model import NPModel
@@ -8,19 +8,24 @@ from fpp.models.np_model import NPModel
 
 if __name__ == '__main__':
 
-    data_name = 'pois-2'
-    truth_name = 'pois230927'
-    n_sim = 100
-    modifiers = [] # ['deltapsf', 'flatexp', 'p6v11']
+    truth_name = 'fullprior42'
+    data_name = 'fullprior42'
+    seed = 42
+    modifiers = []  # ['deltapsf', 'flatexp']
+
+    truths = json.load(open(f"../outputs/truths/truths_{truth_name}.json", 'r'))
+    n_sim = len(truths)
 
     m = NPModel()
 
+    child_rngs = np.random.default_rng(seed).spawn(n_sim)
+
     sims = []
-    for _ in tqdm(range(n_sim)):
-        sim_map = m.simulate(
-            vd = json.load(open(f"../outputs/truths/truth_dict_{truth_name}.json", "r")),
-            modifiers = modifiers,
-        )
+    for i in tqdm(range(n_sim)):
+        sim_map = m.simulate(truths[i], modifiers=modifiers, rng=child_rngs[i])
         sims.append(sim_map)
 
-    np.save(f"../outputs/production/simulations/{data_name}.npy", np.array(sims))
+    out_path = f"../outputs/production/simulations/{data_name}.npy"
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    np.save(out_path, np.array(sims))
+    print(f"Saved {n_sim} simulations to {out_path}")
