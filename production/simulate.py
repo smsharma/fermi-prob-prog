@@ -25,7 +25,7 @@ if __name__ == '__main__':
         sim_map = m.simulate(truths[i], modifiers=modifiers, rng=child_rngs[i])
         sims.append(sim_map)
 
-    out_path = f"../outputs/production/simulations/{data_name}.npy"
+    out_path = os.environ['MYSTORE'] + f"/fermi/fermi-prob-prog/outputs/production/simulations/{data_name}.npy"
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     np.save(out_path, np.array(sims))
     print(f"Saved {n_sim} simulations to {out_path}")

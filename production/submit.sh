@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=hmctd10-old-delta
-#SBATCH --array=0-29
+#SBATCH --job-name=hmc-fullprior-king
+#SBATCH --array=0-99
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -21,7 +21,7 @@ cd /n/home07/yitians/fermi/fermi-prob-prog/analysis
 
 # python fit_fermi_svi_process.py
 # python fit_fermi.py --fit hmc --seed 42
-python fit_calibration.py -i $SLURM_ARRAY_TASK_ID --truth old --fit hmctd10 --psf delta
+python fit_calibration.py -i $SLURM_ARRAY_TASK_ID --truth fullprior --fit hmc --psf king
 # python fit_oaf.py -i $SLURM_ARRAY_TASK_ID --i_data 1
 # python fit_cmp.py -i $SLURM_ARRAY_TASK_ID --fit_type svi
 # python fit_pois.py -i $SLURM_ARRAY_TASK_ID --fit hmc
