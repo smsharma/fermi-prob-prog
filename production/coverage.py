@@ -11,13 +11,14 @@ from fpp.utils.validation import find_hdi_prob
 
 if __name__ == '__main__':
 
-    n_sim = 30
-    truth_name = 'base230927'
-    run_name = 'calibration/hmctd10-old-delta-2'
+    n_sim = 100
+    truth_name = 'truths_fullprior42-zeroAlm'
+    full_prior = True # if truth sampled from full prior
+    run_name = 'calibration/hmc-fullprior-zeroAlm-king'
     print(f"Run name: {run_name}")
 
     samples_dir = os.environ['MYSTORE'] + "/fermi/fermi-prob-prog/outputs/production/fits/" + run_name
-    theta_true = json.load(open(f"../outputs/truths/truth_dict_{truth_name}.json"))
+    theta_true = json.load(open(f"../outputs/truths/{truth_name}.json"))
 
     if 'pois' in run_name:
         ks = [
@@ -50,7 +51,10 @@ if __name__ == '__main__':
         probs = []
         for i in range(len(samples_list)):
             samples_test = np.array(samples_list[i][k])
-            truth_test = theta_true[k]
+            if full_prior:
+                truth_test = theta_true[i][k]
+            else:
+                truth_test = theta_true[k]
             probs.append(find_hdi_prob(samples_test, truth_test))
         prob_samples[k] = np.array(probs)
 

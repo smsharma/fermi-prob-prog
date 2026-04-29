@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import dill as pickle
@@ -21,6 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('--fit', type=str) # svi hmc hmctd10 pthmc
     parser.add_argument('--truth', type=str) # old new fullprior
     parser.add_argument('--psf', type=str) # delta king
+    parser.add_argument('--initwtruth', type=str, default='') # whether to initialize at truth
     args = parser.parse_args()
 
     #=== dir ===
@@ -35,11 +37,11 @@ if __name__ == '__main__':
         'old': 'nmold',
         'new': 'nmnew',
         'fullprior': 'fullprior42',
+        'fullprior-zeroAlm': 'fullprior42-zeroAlm',
     }
     data_name = data_name_dict[args.truth]
     if args.psf == 'delta':
         data_name += '-deltapsf'
-    # data_name += "-2"
     print(f"Data name: {data_name}")
 
     data = jnp.array(np.load(wdir_base + f"/simulations/{data_name}.npy")[args.i], dtype=jnp.int32)
@@ -66,10 +68,21 @@ if __name__ == '__main__':
             max_tree_depth = 10
         else:
             max_tree_depth = 4
+
+        if args.initwtruth != '':
+            truth = json.load(open(f"../outputs/truths/truths_{args.initwtruth}.json", 'r'))[args.i]
+            for k, v in truth.items():
+                if isinstance(v, list):
+                    truth[k] = np.array(v)
+            init_params = truth
+        else:
+            init_params = None
+        
         m.run_nuts(
             data=data, rng_key=jax.random.PRNGKey(42),
-            num_chains=4, num_warmup=500, num_samples=10000//4,
+            num_chains=1, num_warmup=500, num_samples=10000,
             max_tree_depth=max_tree_depth, step_size=0.05,
+            init_params=init_params
         )
         samples = m.nuts_mcmc.get_samples()
 

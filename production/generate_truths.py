@@ -4,19 +4,22 @@ import os
 import re
 
 
-def sample_from_prior(prior, rng):
+def sample_from_prior(prior, rng, zeroAlm=False):
     """Sample a truth dict from the prior specification.
 
     Args:
         prior (dict): Prior dict loaded from np_model_prior.json.
         rng (np.random.Generator): Numpy random generator.
+        zeroAlm (bool): If True, set all 'Alm' parameters to 0.0.
 
     Returns:
         dict: A truth dict compatible with NPModel.simulate().
     """
     vd = {}
     for key, val in prior.items():
-        if isinstance(val, str) and val.startswith("Dirichlet"):
+        if zeroAlm and key.startswith('Alm'):
+            vd[key] = 0.0
+        elif isinstance(val, str) and val.startswith("Dirichlet"):
             dim = int(re.search(r'\d+', val).group())
             vd[key] = rng.dirichlet(np.ones(dim)).tolist()
         elif isinstance(val, list) and len(val) == 2:
@@ -28,16 +31,17 @@ def sample_from_prior(prior, rng):
 
 if __name__ == '__main__':
 
-    truth_name = 'fullprior42'
+    truth_name = 'fullprior42-zeroAlm'
     n_sim = 100
     seed = 42
+    zeroAlm = True
 
     prior_path = os.path.join(os.path.dirname(__file__), '../src/fpp/models/np_model_prior.json')
     prior = json.load(open(prior_path, 'r'))
 
     child_rngs = np.random.default_rng(seed).spawn(n_sim)
 
-    truths = [sample_from_prior(prior, rng=child_rngs[i]) for i in range(n_sim)]
+    truths = [sample_from_prior(prior, rng=child_rngs[i], zeroAlm=zeroAlm) for i in range(n_sim)]
 
     out_path = f"../outputs/truths/truths_{truth_name}.json"
     os.makedirs(os.path.dirname(out_path), exist_ok=True)

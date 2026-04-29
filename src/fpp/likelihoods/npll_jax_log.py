@@ -14,8 +14,7 @@ from fpp.utils.utils import jnp_trapezoid
 
 
 def log_trapz(logf, x, axis=-1):
-    """ Compute log of trapezoidal integration of f over x
-    """
+    """Compute log of trapezoidal integration of f over x"""
 
     dx = x[1:] - x[:-1]
     logf_moved = jnp.moveaxis(logf, axis, -1)

@@ -14,6 +14,7 @@ from numpyro.infer import SVI, Predictive, Trace_ELBO, TraceGraph_ELBO, RenyiELB
 from numpyro.infer.initialization import init_to_median, init_to_uniform
 from numpyro.infer.reparam import NeuTraReparam
 from numpyro.infer import MCMC, NUTS
+from numpyro.infer.util import constrain_fn, unconstrain_fn
 from numpyro import optim
 from numpyro import handlers
 from numpyro.contrib.tfp.mcmc import ReplicaExchangeMC
@@ -26,7 +27,8 @@ from fpp.models.svi import run_svi_with_beta
 from fpp.models.scd import dnds
 from fpp.models.templates import NFWTemplate, LorimerDiskTemplate
 from fpp.models.bulge_models import BulgeTemplates
-from fpp.likelihoods.npll_jax import log_like_np
+# from fpp.likelihoods.npll_jax import log_like_np
+from fpp.likelihoods.npll_jax_log import log_like_np
 from fpp.utils.sph_harm import Ylm
 from fpp.utils import create_mask as cm
 from fpp.utils.utils import jnp_trapezoid
@@ -350,9 +352,13 @@ class NPModel:
             )
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
 
-            with handlers.mask(mask=~jnp.logical_or(jnp.isinf(loglike), jnp.isnan(loglike))):
+            mask_safe = jnp.isfinite(loglike) # double where to avoid NaN gradients
+            safe_loglike_input = jnp.where(mask_safe, loglike, 0.0)
+            loglike_safe = jnp.where(mask_safe, safe_loglike_input, -1e10)
+
+            with handlers.mask(mask=mask_safe):
                 with handlers.scale(scale=beta): # optional tempering the likelihood for SVI with beta schedule
-                    return numpyro.factor('log-likelihood', loglike)
+                    return numpyro.factor('log-likelihood', loglike_safe)
 
     def forward(self, params, data):
         """Forward mode: compute log-likelihood given a dictionary of parameter values."""
@@ -600,6 +606,7 @@ class NPModel:
         self, rng_key=jax.random.PRNGKey(0),
         use_neutra=False, num_chains=4, num_warmup=500, num_samples=5000,
         max_tree_depth=10, step_size=0.1,
+        init_params=None,
         **model_static_kwargs
     ):
         """NUTS sampling of the model, optionally using the NeuTra reparameterization based on the SVI guide fit.
@@ -611,6 +618,7 @@ class NPModel:
             num_warmup (int): Number of warmup steps for NUTS.
             num_samples (int): Number of samples to draw with NUTS.
             step_size (float): Step size for NUTS.
+            init_params (dict): Optional dictionary of initial parameter values for NUTS. If None, uses default initialization.
             model_static_kwargs: Additional static keyword arguments to pass to the model. 'data' must be explicitly passed here.
         """
         
@@ -619,10 +627,25 @@ class NPModel:
             model = self.model_neutra
         else:
             model = self.model
+
+        if init_params:
+            init_unconstrained = unconstrain_fn(
+                self.model, model_args=(), model_kwargs=model_static_kwargs,
+                params=init_params
+            )
+            if num_chains > 1:
+                # init_params = jax.tree.map(lambda x: jnp.broadcast_to(x, (num_chains, *x.shape)), init_unconstrained)
+                init_params = jax.tree_util.tree_map(
+                    lambda x: jnp.broadcast_to(x, (num_chains,) + jnp.shape(x)),
+                    init_unconstrained
+                )
+            else:
+                init_params = init_unconstrained
+
         
         kernel = NUTS(model, max_tree_depth=max_tree_depth, dense_mass=False, step_size=step_size)
         self.nuts_mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
-        self.nuts_mcmc.run(rng_key, **model_static_kwargs)
+        self.nuts_mcmc.run(rng_key, init_params=init_params, **model_static_kwargs)
         
         return self.nuts_mcmc
     

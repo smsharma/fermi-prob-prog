@@ -8,8 +8,8 @@ from fpp.models.np_model import NPModel
 
 if __name__ == '__main__':
 
-    truth_name = 'fullprior42'
-    data_name = 'fullprior42'
+    truth_name = 'fullprior42-zeroAlm'
+    data_name = 'fullprior42-zeroAlm'
     seed = 42
     modifiers = []  # ['deltapsf', 'flatexp']
 
