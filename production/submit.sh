@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=hmc-fullprior0Alm-king
-#SBATCH --array=0-99
+#SBATCH --job-name=hmc-fullprior-0Alm-king-mapinit
+#SBATCH --array=0-29
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -21,7 +21,7 @@ cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
 # python fit_fermi_svi_process.py
 # python fit_fermi.py --fit hmc --seed 42
-python fit_calibration.py -i $SLURM_ARRAY_TASK_ID --truth fullprior-zeroAlm --fit hmc --psf king --initwtruth fullprior42-zeroAlm
+python fit_calibration.py -i $SLURM_ARRAY_TASK_ID --sim fullprior-0Alm --fit hmc --psf king --init map --comment mapinit
 # python fit_oaf.py -i $SLURM_ARRAY_TASK_ID --i_data 1
 # python fit_cmp.py -i $SLURM_ARRAY_TASK_ID --fit_type svi
 # python fit_pois.py -i $SLURM_ARRAY_TASK_ID --fit hmc

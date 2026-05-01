@@ -683,15 +683,15 @@ class NPModel:
         return self.mcmc
     
 
-    def get_MAP_estimates(self, rng_key=jax.random.PRNGKey(42), lr=0.1, n_steps=30000, **model_static_kwargs):
+    def get_map_estimate(self, rng_key=jax.random.PRNGKey(4242), lr=0.1, n_steps=300, **model_static_kwargs):
         
         guide = autoguide.AutoDelta(self.model)
         optimizer = optim.optax_to_numpyro(optax.chain(optax.clip(1.), optax.adamw(lr)))
         svi = SVI(self.model, guide, optimizer, loss=Trace_ELBO())
-        svi_results = svi.run(rng_key, n_steps, **model_static_kwargs)
-        self.MAP_estimates = guide.median(svi_results.params)
+        self.map_svi_results = svi.run(rng_key, n_steps, **model_static_kwargs)
+        self.map_estimate = guide.median(self.map_svi_results.params)
         
-        return svi_results
+        return self.map_estimate
 
 
     def simulate(self, vd, modifiers=[], rng=None):

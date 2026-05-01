@@ -20,26 +20,23 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', type=int) # 0-99
     parser.add_argument('--fit', type=str) # svi hmc hmctd10 pthmc
-    parser.add_argument('--truth', type=str) # old new fullprior
+    parser.add_argument('--sim', type=str) # old new fullprior fullprior-0Alm
     parser.add_argument('--psf', type=str) # delta king
-    parser.add_argument('--initwtruth', type=str, default='') # whether to initialize at truth
+    parser.add_argument('--comment', type=str, default='')
+    parser.add_argument('--init', type=str, default='none') # none map truths_xxx.json
     args = parser.parse_args()
 
     #=== dir ===
-    subname = f"{args.fit}-{args.truth}-{args.psf}"
+    subname = f"{args.fit}-{args.sim}-{args.psf}"
+    if args.comment != '':
+        subname += f"-{args.comment}"
     print(f"Running {subname} # {args.i} ...")
 
     wdir_base = os.environ['MYSTORE'] + f"/fermi/fermi-prob-prog/outputs/production"
     os.makedirs(wdir_base + f"/fits/calibration/{subname}", exist_ok=True)
 
     #=== data ===
-    data_name_dict = {
-        'old': 'nmold',
-        'new': 'nmnew',
-        'fullprior': 'fullprior42',
-        'fullprior-zeroAlm': 'fullprior42-zeroAlm',
-    }
-    data_name = data_name_dict[args.truth]
+    data_name = args.sim
     if args.psf == 'delta':
         data_name += '-deltapsf'
     print(f"Data name: {data_name}")
@@ -47,11 +44,7 @@ if __name__ == '__main__':
     data = jnp.array(np.load(wdir_base + f"/simulations/{data_name}.npy")[args.i], dtype=jnp.int32)
     
     #=== model ===
-    m = NPModel(
-        data=data,
-        psf_tag=args.psf,
-        n_exp=7,
-    )
+    m = NPModel(data=data, psf_tag=args.psf, n_exp=7)
 
     #=== fit ===
     if args.fit == 'svi':
@@ -63,18 +56,19 @@ if __name__ == '__main__':
         )
         samples = m.get_svi_samples(num_samples=50000)
 
-    elif args.fit.startswith('hmc'):
-        if args.fit == 'hmctd10':
-            max_tree_depth = 10
-        else:
-            max_tree_depth = 4
-
-        if args.initwtruth != '':
-            truth = json.load(open(f"../outputs/truths/truths_{args.initwtruth}.json", 'r'))[args.i]
+    elif args.fit in ['hmc', 'hmctd10']:
+        max_tree_depth = 10 if args.fit == 'hmctd10' else 4
+        if args.init.endswith('.json'):
+            truth = json.load(open(f"../outputs/truths/{args.init}", 'r'))[args.i]
             for k, v in truth.items():
                 if isinstance(v, list):
                     truth[k] = np.array(v)
             init_params = truth
+        elif args.init == 'map':
+            print("Initializing from MAP estimate...")
+            m.get_map_estimate(data=data)
+            init_params = m.map_estimate
+            print("MAP estimate:", init_params)
         else:
             init_params = None
         
