@@ -11,10 +11,11 @@ from fpp.utils.validation import find_hdi_prob
 
 if __name__ == '__main__':
 
-    n_sim = 100
-    truth_name = 'truths_fullprior42-zeroAlm'
-    full_prior = True # if truth sampled from full prior
-    run_name = 'calibration/hmc-fullprior-zeroAlm-king'
+    n_sim = 30
+    # truth_name = 'truths_fullprior-0Alm'
+    truth_name = 'truth_dict_base230927'
+    full_prior = False # if truth sampled from full prior
+    run_name = 'calibration/hmc-old-king-mapinit'
     print(f"Run name: {run_name}")
 
     samples_dir = os.environ['MYSTORE'] + "/fermi/fermi-prob-prog/outputs/production/fits/" + run_name
