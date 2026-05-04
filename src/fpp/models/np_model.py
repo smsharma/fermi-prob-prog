@@ -66,6 +66,7 @@ class NPModel:
         diffuse_names=["ModelO", "ModelA", "ModelF"],
         bulge_names=["mcdermott2022", "mcdermott2022_bbp", "mcdermott2022_x", "macias2019", "coleman2019"],
         data=None,
+        vectorize_exp=True,
     ):
         self.nside = nside
         self.ps_cat = ps_cat
@@ -74,6 +75,7 @@ class NPModel:
         self.l_max = l_max
         self.dif_names = diffuse_names
         self.blg_names = bulge_names
+        self.vectorize_exp = vectorize_exp
 
         #===== data and masks =====
         self.data_dir = f"{data_dir}/fermi_data_573w/fermi_data_{self.nside}"
@@ -324,13 +326,11 @@ class NPModel:
         expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
         expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
 
-        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
-                
         mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
         npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
         data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
         exposure_multiplier = self.exposure_means_list / self.exposure_mean
-        
+
         # scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
         theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
         theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
@@ -338,18 +338,19 @@ class NPModel:
         theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
 
         #=== compute likelihood ===
-        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
-            
-            log_like_exp = log_like_np_exp_vmapped(
-                theta,
-                mu_batch,
-                npt_compressed_batch,
-                data_batch,
-                self.f_ary,
-                self.df_rho_ary,
-                self.k_max,
-                len(expreg_indices[0])
+        n_pix = len(expreg_indices[0])
+        if self.vectorize_exp:
+            log_like_exp = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))(
+                theta, mu_batch, npt_compressed_batch, data_batch,
+                self.f_ary, self.df_rho_ary, self.k_max, n_pix
             )
+        else:
+            npt_compressed_batch = jnp.transpose(npt_compressed_batch, (1, 0, 2))
+            def _single_exp(args):
+                return log_like_np(args[0], args[1], args[2], args[3], self.f_ary, self.df_rho_ary, self.k_max, n_pix)
+            log_like_exp = jax.lax.map(_single_exp, (theta, mu_batch, npt_compressed_batch, data_batch))
+
+        with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
             loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
 
             mask_safe = jnp.isfinite(loglike) # double where to avoid NaN gradients
@@ -440,8 +441,6 @@ class NPModel:
         expreg_indices = expreg_indices.at[:-1].set(self.expreg_indices[:-1])
         expreg_indices = expreg_indices.at[-1].set(jnp.pad(self.expreg_indices[-1], (0, n_pad)))
 
-        log_like_np_exp_vmapped = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))
-
         mu_batch = mu[~self.mask_roi][jnp.array(expreg_indices)]
         npt_compressed_batch = npt_compressed[:, ~self.mask_roi][:, jnp.array(expreg_indices)]
         data_batch = data[~self.mask_roi][jnp.array(expreg_indices)]
@@ -453,16 +452,18 @@ class NPModel:
         theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
 
         #=== compute likelihood ===
-        log_like_exp = log_like_np_exp_vmapped(
-            theta,
-            mu_batch,
-            npt_compressed_batch,
-            data_batch,
-            self.f_ary,
-            self.df_rho_ary,
-            self.k_max,
-            len(expreg_indices[0])
-        )
+        n_pix = len(expreg_indices[0])
+        if self.vectorize_exp:
+            log_like_exp = jax.vmap(log_like_np, in_axes=(0, 0, 1, 0, None, None, None, None))(
+                theta, mu_batch, npt_compressed_batch, data_batch,
+                self.f_ary, self.df_rho_ary, self.k_max, n_pix
+            )
+        else:
+            npt_compressed_batch = jnp.transpose(npt_compressed_batch, (1, 0, 2))
+            def _single_exp(args):
+                return log_like_np(args[0], args[1], args[2], args[3], self.f_ary, self.df_rho_ary, self.k_max, n_pix)
+            log_like_exp = jax.lax.map(_single_exp, (theta, mu_batch, npt_compressed_batch, data_batch))
+
         loglike = jnp.concatenate(log_like_exp)[:len(mu[~self.mask_roi])]
 
         # mask out inf/nan pixels
