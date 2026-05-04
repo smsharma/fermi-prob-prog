@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
         m.run_nuts(
             data=data, rng_key=jax.random.PRNGKey(args.seed),
-            num_chains=4, num_warmup=1000, num_samples=30000//4, step_size=0.05,
+            num_chains=4, num_warmup=1000, num_samples=30000//4, step_size=0.05, max_tree_depth=4,
             init_params=init_params
         )
         samples = m.nuts_mcmc.get_samples()

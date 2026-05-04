@@ -606,7 +606,7 @@ class NPModel:
     def run_nuts(
         self, rng_key=jax.random.PRNGKey(0),
         use_neutra=False, num_chains=4, num_warmup=500, num_samples=5000,
-        max_tree_depth=10, step_size=0.1,
+        max_tree_depth=4, step_size=0.1,
         init_params=None,
         **model_static_kwargs
     ):

@@ -44,7 +44,7 @@ if __name__ == '__main__':
     data = jnp.array(np.load(wdir_base + f"/simulations/{data_name}.npy")[args.i], dtype=jnp.int32)
     
     #=== model ===
-    m = NPModel(data=data, psf_tag=args.psf, n_exp=7)
+    m = NPModel(data=data, psf_tag=args.psf, n_exp=7, vectorize_exp=False)
 
     #=== fit ===
     if args.fit == 'svi':
