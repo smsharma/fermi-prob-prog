@@ -78,7 +78,7 @@ def log_like_np(theta, pt_sum, npt, data, f, rho_df, k_max, n_pix):
     """
 
     #===== dnds =====
-    s = jnp.logspace(-1, 2, 1000) # (S,)
+    s = jnp.logspace(-1, 2, 100) # (S,)
     dnds = dnds_func_vmap(s, theta) # (NPT, S)
 
     #===== x_m =====

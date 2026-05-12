@@ -44,7 +44,7 @@ if __name__ == '__main__':
     data = jnp.array(np.load(wdir_base + f"/simulations/{data_name}.npy")[args.i], dtype=jnp.int32)
     
     #=== model ===
-    m = NPModel(data=data, psf_tag=args.psf, n_exp=7, vectorize_exp=False)
+    m = NPModel(data=data, psf_tag=args.psf, n_exp=7, vectorize_exp=True)
 
     #=== fit ===
     if args.fit == 'svi':
@@ -53,6 +53,7 @@ if __name__ == '__main__':
             n_steps=10000, lr=3e-4,
             guide='iaf', num_flows=5, hidden_dims=[128, 128],
             num_particles=16,
+            vectorize_particles=True,
         )
         samples = m.get_svi_samples(num_samples=50000)
 

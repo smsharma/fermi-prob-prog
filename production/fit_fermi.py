@@ -1,3 +1,4 @@
+import json
 import os
 import dill as pickle
 import argparse
@@ -48,6 +49,7 @@ if __name__ == '__main__':
             m.get_map_estimate(data=data)
             init_params = m.map_estimate
             print("MAP estimate:", init_params)
+            json.dump(init_params, open(f"{save_dir}/{subname}-mapinit.json", 'w'), indent=4)
         else:
             init_params = None
 

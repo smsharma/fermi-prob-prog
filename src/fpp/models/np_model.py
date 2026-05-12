@@ -260,16 +260,16 @@ class NPModel:
         temp_pib = (1 + pib_modifier) * temp_pib
         temp_pib /= jnp.mean(temp_pib[~self.nm]) # re-normalize after modulation
 
-        mu += numpyro.sample("S_pib", dist.Uniform(1e-3, 14)) * temp_pib
-        mu += numpyro.sample("S_ics", dist.Uniform(1e-3, 14)) * temp_ics
+        mu += numpyro.sample("S_pib", dist.Uniform(1e-3, 12.)) * temp_pib
+        mu += numpyro.sample("S_ics", dist.Uniform(1e-3, 7.)) * temp_ics
 
         #=== diffuse: isotropic, fermi bubble, (resolved) point sources ===
-        mu += numpyro.sample("S_iso", dist.Uniform(1e-3, 5.)) * self.temp_iso
-        mu += numpyro.sample("S_bub", dist.Uniform(1e-3, 5.)) * self.temp_bub
-        mu += numpyro.sample("S_psc", dist.Uniform(1e-3, 5.)) * self.temp_psc
+        mu += numpyro.sample("S_iso", dist.Uniform(1e-3, 1.)) * self.temp_iso
+        mu += numpyro.sample("S_bub", dist.Uniform(1e-3, 1.)) * self.temp_bub
+        mu += numpyro.sample("S_psc", dist.Uniform(1e-3, 0.5)) * self.temp_psc
 
         #=== diffuse: gce (defined as bulge + nfw) ===
-        S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 4.))
+        S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 2.))
         f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
 
         theta_blg_poiss = numpyro.sample("theta_bulge_poiss", dist.Dirichlet(jnp.ones((self.n_blg,)) / self.n_blg))
@@ -281,7 +281,7 @@ class NPModel:
         mu += S_gce * (f_bulge_poiss * temp_blg_poiss + (1 - f_bulge_poiss) * temp_nfw_poiss)
                                             
         #=== point source: gce (defined as bulge + nfw) ===
-        Sps_gce = numpyro.sample("Sps_gce", dist.Uniform(1e-5, 4.))
+        Sps_gce = numpyro.sample("Sps_gce", dist.Uniform(1e-5, 2.))
         f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.))
 
         theta_blg_ps = numpyro.sample("theta_bulge_ps", dist.Dirichlet(jnp.ones((self.n_blg,)) / self.n_blg))
@@ -293,7 +293,7 @@ class NPModel:
         temp_gce_ps = f_bulge_ps * temp_blg_ps + (1 - f_bulge_ps) * temp_nfw_ps
 
         #=== point source: disk ===
-        Sps_dsk = numpyro.sample("Sps_dsk", dist.Uniform(1e-5, 4.))
+        Sps_dsk = numpyro.sample("Sps_dsk", dist.Uniform(1e-5, 2.))
         zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
         C = numpyro.sample("C", dist.Uniform(0.05, 8.))
         temp_dsk_ps = self.dsk_temp_gen.get_template(zs=zs, C=C)
@@ -303,7 +303,7 @@ class NPModel:
         Sps_list = [Sps_gce, Sps_dsk]
         npt_compressed = jnp.array([temp_gce_ps, temp_dsk_ps])
         theta = []
-        s_arr = jnp.logspace(-1., 2., 1000)
+        s_arr = jnp.logspace(-1., 2., 100)
         for i, ps in enumerate(["gce", "dsk"]):
             n1 = numpyro.sample(f'n1_{ps}', dist.Uniform(2.1, 8))
             n2 = numpyro.sample(f'n2_{ps}', dist.Uniform(0.5, 2))
@@ -333,7 +333,7 @@ class NPModel:
 
         # scale non-Poissonian parameters (norm divided by exposure ratio, breaks multiplied)
         theta = repeat(theta, "n_ps n_param -> n_exp n_ps n_param", n_exp=len(expreg_indices))
-        theta = theta.at[:, :, 0].set(theta[:, :, 0] / exposure_multiplier[:, None])
+        theta = theta.at[:, :,  0].set(theta[:, :,  0] / exposure_multiplier[:, None])
         theta = theta.at[:, :, -1].set(theta[:, :, -1] * exposure_multiplier[:, None])
         theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
 
@@ -345,6 +345,7 @@ class NPModel:
                 self.f_ary, self.df_rho_ary, self.k_max, n_pix
             )
         else:
+            # print("\n\nHELLO\n\n")
             npt_compressed_batch = jnp.transpose(npt_compressed_batch, (1, 0, 2))
             def _single_exp(args):
                 return log_like_np(args[0], args[1], args[2], args[3], self.f_ary, self.df_rho_ary, self.k_max, n_pix)
@@ -477,6 +478,7 @@ class NPModel:
         n_steps=7500, lr=3e-4, num_particles=8, renyi_alpha=1,
         lr_exp_decay=False,
         tempering_schedule='none',
+        vectorize_particles=True,
         **model_static_kwargs # model requires explicit passing of data
     ):
         """SVI fitting of the model.
@@ -553,10 +555,10 @@ class NPModel:
         
         #=== loss ===
         if renyi_alpha != 1:
-            loss = RenyiELBO(num_particles=num_particles, alpha=renyi_alpha)
+            loss = RenyiELBO(num_particles=num_particles, alpha=renyi_alpha, vectorize_particles=vectorize_particles)
             logging.warning(f'Using Renyi ELBO with alpha = {renyi_alpha}')
         else:
-            loss = Trace_ELBO(num_particles=num_particles, vectorize_particles=True)
+            loss = Trace_ELBO(num_particles=num_particles, vectorize_particles=vectorize_particles)
 
         #=== svi ===
         self.svi = SVI(self.model, self.guide, optimizer, loss)

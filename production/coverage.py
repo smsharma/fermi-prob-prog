@@ -11,11 +11,11 @@ from fpp.utils.validation import find_hdi_prob
 
 if __name__ == '__main__':
 
-    n_sim = 30
-    # truth_name = 'truths_fullprior-0Alm'
-    truth_name = 'truth_dict_base230927'
-    full_prior = False # if truth sampled from full prior
-    run_name = 'calibration/hmc-old-king-mapinit'
+    n_sim = 100
+    truth_name = 'truths_smallprior-0Alm'
+    # truth_name = 'truth_dict_base230927'
+    full_prior = True # if truth sampled from full prior
+    run_name = 'calibration/svi-smallprior-0Alm-king'
     print(f"Run name: {run_name}")
 
     samples_dir = os.environ['MYSTORE'] + "/fermi/fermi-prob-prog/outputs/production/fits/" + run_name
@@ -37,12 +37,15 @@ if __name__ == '__main__':
 
     samples_list = []
     missing_list = []
+    truth_i_list = []
     for i in tqdm(range(n_sim)):
         fn = f"{samples_dir}/{i}.p"
         if not os.path.exists(fn):
             missing_list.append(i)
         else:
             samples_list.append(pickle.load(open(fn, 'rb')))
+            if full_prior:
+                truth_i_list.append(i)
     print(f"Missing {len(missing_list)} run(s): {missing_list}")
     if len(missing_list) == n_sim:
         raise ValueError("No samples found")
@@ -53,7 +56,8 @@ if __name__ == '__main__':
         for i in range(len(samples_list)):
             samples_test = np.array(samples_list[i][k])
             if full_prior:
-                truth_test = theta_true[i][k]
+                truth_i = truth_i_list[i]
+                truth_test = theta_true[truth_i][k]
             else:
                 truth_test = theta_true[k]
             probs.append(find_hdi_prob(samples_test, truth_test))

@@ -31,12 +31,12 @@ def sample_from_prior(prior, rng, zeroAlm=False):
 
 if __name__ == '__main__':
 
-    truth_name = 'fullprior42-zeroAlm'
+    truth_name = 'smallprior-0Alm'
     n_sim = 100
     seed = 42
     zeroAlm = True
 
-    prior_path = os.path.join(os.path.dirname(__file__), '../src/fpp/models/np_model_prior.json')
+    prior_path = os.path.join(os.path.dirname(__file__), '../src/fpp/models/np_model_prior_small.json')
     prior = json.load(open(prior_path, 'r'))
 
     child_rngs = np.random.default_rng(seed).spawn(n_sim)
