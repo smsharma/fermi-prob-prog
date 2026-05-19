@@ -20,7 +20,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', type=int) # 0-99
     parser.add_argument('--fit', type=str) # svi hmc hmctd10 pthmc
-    parser.add_argument('--sim', type=str) # old new fullprior fullprior-0Alm
+    parser.add_argument('--sim', type=str) # old new fullprior fullprior-0Alm smallprior-0Alm
     parser.add_argument('--psf', type=str) # delta king
     parser.add_argument('--comment', type=str, default='')
     parser.add_argument('--init', type=str, default='none') # none map truths_xxx.json

@@ -32,7 +32,7 @@ def sample_from_prior(prior, rng, zeroAlm=False):
 if __name__ == '__main__':
 
     truth_name = 'smallprior-0Alm'
-    n_sim = 100
+    n_sim = 300
     seed = 42
     zeroAlm = True
 

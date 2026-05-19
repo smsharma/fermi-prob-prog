@@ -9,9 +9,9 @@ from fpp.models.np_model import NPModel
 if __name__ == '__main__':
 
     truth_name = 'smallprior-0Alm'
-    data_name = 'smallprior-0Alm'
+    data_name = 'smallprior-0Alm-deltapsf'
     seed = 42
-    modifiers = []  # ['deltapsf', 'flatexp']
+    modifiers = ['deltapsf']  # ['deltapsf', 'flatexp']
 
     truths = json.load(open(f"../outputs/truths/truths_{truth_name}.json", 'r'))
     n_sim = len(truths)
