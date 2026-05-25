@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
 import os
 import pickle
 import numpy as np
@@ -15,19 +11,12 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 mpl.rc_file("../src/fpp/utils/matplotlibrc")
 
-# # Coverage
 
-# In[2]:
-
-
-run_name = 'calibration/svi-smallprior-0Alm-delta'
-z = pickle.load(open(os.environ['MYSTORE'] + f'/fermi/fermi-prob-prog/outputs/production/fits/{run_name}/p_nominal_actual_dict.p', 'rb'))
+run_name = 'hmc-smallprior-0Alm-king-mapinit'
+z = pickle.load(open(os.environ['MYSTORE'] + f'/fermi/fermi-prob-prog/outputs/production/fits/calibration/{run_name}/p_nominal_actual_dict.p', 'rb'))
 keys = list(z.keys())
 keys.sort()
 print(' '.join(keys))
-
-
-# In[5]:
 
 
 if 'pois' in run_name:
@@ -54,7 +43,7 @@ for prob, label, ls in zip(probs, labels, ls_s):
     ax.plot(prob[0], prob[1], label=label, ls=ls)
 
 n_run = len(probs[0][0])
-#n_run = 100
+n_run = 100
 lower, upper = pp_finite_sample_band(n_run)
 ax.plot(upper, np.linspace(0, 1, n_run), 'k:', label=f'{n_run} sample 95\% \ncontainment')
 ax.plot(lower, np.linspace(0, 1, n_run), 'k:')
@@ -64,4 +53,4 @@ ax.set(xlabel='Nominal coverage', ylabel='Actual coverage', title=run_name)
 
 fig.legend(bbox_to_anchor=(1, 1), loc='upper left', bbox_transform=ax.transAxes)
 plt.tight_layout()
-plt.savefig('out.pdf')
+plt.savefig(f'{run_name}.pdf')

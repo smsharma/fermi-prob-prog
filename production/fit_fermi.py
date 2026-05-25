@@ -49,7 +49,9 @@ if __name__ == '__main__':
             m.get_map_estimate(data=data)
             init_params = m.map_estimate
             print("MAP estimate:", init_params)
-            json.dump(init_params, open(f"{save_dir}/{subname}-mapinit.json", 'w'), indent=4)
+            pickle.dump(init_params, open(f"{save_dir}/{subname}-mapinit.p", 'wb'))
+            #ini_params_np = {k: np.array(v) for k, v in init_params.items()}
+            #json.dump(init_params_np, open(f"{save_dir}/{subname}-mapinit.json", 'w'), indent=4)
         else:
             init_params = None
 
