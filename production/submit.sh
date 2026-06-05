@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=hmc-fermi-smallprior-mapinit-2
-#SBATCH --array=0
-#SBATCH --partition=iaifi_gpu
+#SBATCH --job-name=svi-smallprior-delta
+#SBATCH --array=100-130
+#SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
@@ -20,10 +20,10 @@ cd /n/home07/yitians/fermi/fermi-prob-prog/production
 
 
 # python fit_fermi_svi_process.py
-python fit_fermi.py --fit svi --seed 4242 --comment smallprior-2
+# python fit_fermi.py --fit svi --seed 4242 --comment smallprior-2
 # python fit_fermi.py --fit hmc --seed 4242 --init map --comment mapinit-smallprior-2
-# python fit_calibration.py -i $SLURM_ARRAY_TASK_ID --sim smallprior-0Alm --fit svi --psf delta
-# python fit_calibration.py -i $SLURM_ARRAY_TASK_ID --sim smallprior-0Alm --fit hmc --psf king --init map --comment mapinit
+python fit_calibration.py -i $SLURM_ARRAY_TASK_ID --sim smallprior-0Alm --fit svi --psf delta
+# python fit_calibration.py -i $SLURM_ARRAY_TASK_ID --sim smallprior-0Alm --fit hmc --psf delta --init map --comment mapinit
 # python fit_oaf.py -i $SLURM_ARRAY_TASK_ID --i_data 1
 # python fit_cmp.py -i $SLURM_ARRAY_TASK_ID --fit_type svi
 # python fit_pois.py -i $SLURM_ARRAY_TASK_ID --fit hmc

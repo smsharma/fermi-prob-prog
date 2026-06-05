@@ -12,7 +12,8 @@ import matplotlib.pyplot as plt
 mpl.rc_file("../src/fpp/utils/matplotlibrc")
 
 
-run_name = 'hmc-smallprior-0Alm-king-mapinit'
+run_name = 'svi-smallprior-0Alm-king'
+
 z = pickle.load(open(os.environ['MYSTORE'] + f'/fermi/fermi-prob-prog/outputs/production/fits/calibration/{run_name}/p_nominal_actual_dict.p', 'rb'))
 keys = list(z.keys())
 keys.sort()

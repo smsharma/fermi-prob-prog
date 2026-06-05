@@ -14,7 +14,8 @@ if __name__ == '__main__':
     modifiers = ['deltapsf']  # ['deltapsf', 'flatexp']
 
     truths = json.load(open(f"../outputs/truths/truths_{truth_name}.json", 'r'))
-    n_sim = len(truths)
+    #n_sim = len(truths)
+    n_sim = 300
 
     m = NPModel()
 
