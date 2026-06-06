@@ -11,7 +11,7 @@ from fpp.utils.validation import find_hdi_prob
 
 if __name__ == '__main__':
 
-    n_sim = 100
+    n_sim = 121
     truth_name = 'truths_smallprior-0Alm'
     # truth_name = 'truth_dict_base230927'
     full_prior = True # if truth sampled from full prior
@@ -47,7 +47,7 @@ if __name__ == '__main__':
             samples_list.append(pickle.load(open(fn, 'rb')))
             if full_prior:
                 truth_i_list.append(i)
-    print(f"Missing {len(missing_list)} run(s): {missing_list}")
+    print(f"Missing {len(missing_list)} run(s): {missing_list}. Exists {len(samples_list)} run(s).")
     if len(missing_list) == n_sim:
         raise ValueError("No samples found")
     
