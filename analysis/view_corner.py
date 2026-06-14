@@ -15,10 +15,9 @@ mpl.rc_file("../src/fpp/utils/matplotlibrc")
 
 
 def  plot_corner():
-    point_est = False
-    full_prior_i = None
-    # truth_fn = "../outputs/truths/truths_fullprior42-zeroAlm.json"
-    truth_fn = os.environ['MYSTORE'] + f'/fermi/fermi-prob-prog/outputs/production/fits/fermi/hmc-mapinit-init.json'
+    point_est = True
+    full_prior_i = 0
+    truth_fn = os.environ['MYSTORE'] + f'/fermi/fermi-prob-prog/outputs/truths/truths_fullprior-0Alm.json'
 
     labels = [
         'S_pib', 'S_ics', 'S_iso', 'S_bub', 'S_gce', 'Sps_dsk', 'Sps_gce',
@@ -26,9 +25,8 @@ def  plot_corner():
     ]
     fits_dir = os.environ['MYSTORE'] + f'/fermi/fermi-prob-prog/outputs/production/fits'
     config_dict = {
-        'default' : (f'{fits_dir}/fermi/hmc.p', 'k'),
-        # 'map init' : (f'{fits_dir}/fermi/hmc-mapinit.p', 'C0'),
-        'smallprior' : (f'{fits_dir}/fermi/hmc-mapinit-smallprior-2.p', 'C0')
+        'default' : (f'{fits_dir}/calibration/hmc-fullprior-0Alm-delta/0.p', 'k'),
+        # 'smallprior' : (f'{fits_dir}/fermi/hmc-mapinit-smallprior-2.p', 'C0')
     }
     
     #==============================================================================
@@ -43,7 +41,7 @@ def  plot_corner():
         
         if point_est:
             truth_dict = json.load(open(truth_fn, 'r'))
-            if full_prior_i:
+            if full_prior_i is not None:
                 truth_dict = truth_dict[full_prior_i]
             t_in = {k: truth_dict[k] for k in labels}
         else:

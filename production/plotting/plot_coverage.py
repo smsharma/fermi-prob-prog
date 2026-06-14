@@ -30,9 +30,9 @@ def marginal():
 
     fig, axs = plt.subplots(2, 2, figsize=(8, 8), sharey=True, sharex=True)
 
-    coverage(axs[0,0], test_name='smallprior-0Alm', psf='delta', fit_type='hmc', show_ylabel=True,  show_xlabel=False)
+    coverage(axs[0,0], test_name='fullprior-0Alm',  psf='delta', fit_type='hmc', show_ylabel=True,  show_xlabel=False)
     coverage(axs[0,1], test_name='smallprior-0Alm', psf='delta', fit_type='svi', show_ylabel=False, show_xlabel=False)
-    coverage(axs[1,0], test_name='smallprior-0Alm', psf='king',  fit_type='hmc', show_ylabel=True,  show_xlabel=True)
+    coverage(axs[1,0], test_name='fullprior-0Alm',  psf='king',  fit_type='hmc', show_ylabel=True,  show_xlabel=True)
     coverage(axs[1,1], test_name='smallprior-0Alm', psf='king',  fit_type='svi', show_ylabel=False, show_xlabel=True)
     axs[0,0].legend(loc=(0.02, 1.02), frameon=False, ncol=4)
 

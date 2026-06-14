@@ -260,16 +260,16 @@ class NPModel:
         temp_pib = (1 + pib_modifier) * temp_pib
         temp_pib /= jnp.mean(temp_pib[~self.nm]) # re-normalize after modulation
 
-        mu += numpyro.sample("S_pib", dist.Uniform(1e-3, 12.)) * temp_pib
-        mu += numpyro.sample("S_ics", dist.Uniform(1e-3, 7.)) * temp_ics
+        mu += numpyro.sample("S_pib", dist.Uniform(1e-3, 14.)) * temp_pib
+        mu += numpyro.sample("S_ics", dist.Uniform(1e-3, 14.)) * temp_ics
 
         #=== diffuse: isotropic, fermi bubble, (resolved) point sources ===
-        mu += numpyro.sample("S_iso", dist.Uniform(1e-3, 1.)) * self.temp_iso
-        mu += numpyro.sample("S_bub", dist.Uniform(1e-3, 2.)) * self.temp_bub
-        mu += numpyro.sample("S_psc", dist.Uniform(1e-3, 4.)) * self.temp_psc
+        mu += numpyro.sample("S_iso", dist.Uniform(1e-3, 5.)) * self.temp_iso
+        mu += numpyro.sample("S_bub", dist.Uniform(1e-3, 5.)) * self.temp_bub
+        mu += numpyro.sample("S_psc", dist.Uniform(1e-3, 5.)) * self.temp_psc
 
         #=== diffuse: gce (defined as bulge + nfw) ===
-        S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 2.))
+        S_gce = numpyro.sample("S_gce", dist.Uniform(1e-5, 4.))
         f_bulge_poiss = numpyro.sample("f_bulge_poiss", dist.Uniform(0., 1.))
 
         theta_blg_poiss = numpyro.sample("theta_bulge_poiss", dist.Dirichlet(jnp.ones((self.n_blg,)) / self.n_blg))
@@ -281,7 +281,7 @@ class NPModel:
         mu += S_gce * (f_bulge_poiss * temp_blg_poiss + (1 - f_bulge_poiss) * temp_nfw_poiss)
                                             
         #=== point source: gce (defined as bulge + nfw) ===
-        Sps_gce = numpyro.sample("Sps_gce", dist.Uniform(1e-5, 2.5))
+        Sps_gce = numpyro.sample("Sps_gce", dist.Uniform(1e-5, 4.))
         f_bulge_ps = numpyro.sample("f_bulge_ps", dist.Uniform(0., 1.))
 
         theta_blg_ps = numpyro.sample("theta_bulge_ps", dist.Dirichlet(jnp.ones((self.n_blg,)) / self.n_blg))
@@ -293,7 +293,7 @@ class NPModel:
         temp_gce_ps = f_bulge_ps * temp_blg_ps + (1 - f_bulge_ps) * temp_nfw_ps
 
         #=== point source: disk ===
-        Sps_dsk = numpyro.sample("Sps_dsk", dist.Uniform(1e-5, 2.5))
+        Sps_dsk = numpyro.sample("Sps_dsk", dist.Uniform(1e-5, 4.))
         zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
         C = numpyro.sample("C", dist.Uniform(0.05, 8.))
         temp_dsk_ps = self.dsk_temp_gen.get_template(zs=zs, C=C)
